@@ -45,14 +45,15 @@ Posle svake izmene pokreni build i testove dela koji si menjao. Zadatak nije got
 - Male izmene i commit-ovi po Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`).
 - Pre dodavanja nove zavisnosti (NuGet ili npm) pitaj i obrazloži.
 
-## Poznato stanje (faza 1, gotova)
+## Poznato stanje (faze 1 i 2, gotove)
 
+- Faza 2 dodala: dnevni i kazneni zadatak, slobodni poeni, boss test regiona, animacije sistema, boot ekran, E2E testovi (`tools/e2e.sh`), `tools/dev.sh`, testovi za poglavlja vodiča (paket 1.1.0, 385 pitanja, 203 kartice).
 - Radi: status, mapa, poglavlje (lekcija/dublje/vežba/kartice/izvori), test sa mešanjem opcija i objašnjenjima, biblioteka (upload .zip, aktivacija), podešavanja (4 teme, sjaj, animacije, dnevni cilj).
 - Baza se pravi EF migracijama (`Data/Migrations`, `MigrateAsync` pri startu). Posle izmene modela: `dotnet ef migrations add <Ime> --project src/Hunter.Api --output-dir Data/Migrations`.
 - Jedan korisnik, bez prijave; upload je zato bez antiforgery (`.DisableAntiforgery()`).
 - Stranice su `React.lazy` (main.tsx), `Suspense` je u Layout-u. Početni JS je ~354 kB; react-markdown je samo u delu ChapterPage (`components/Markdown.tsx`, ne uvoziti ga u common.tsx).
 
-## Faza 2: plan
+## Faza 2 (gotova)
 
 Raditi redom; posle svake stavke build, testovi i commit.
 
@@ -92,3 +93,25 @@ Raditi redom; posle svake stavke build, testovi i commit.
 
 Dizajn za stavke 3–6 postoji kao Claude Design kanvas „Hunter Roadmap — dizajn aplikacije” (ekrani Status i Podešavanja),
 za stavku 8 ekran „7 · Animacije sistema”, a za stavku 9 ekran „8 · Učitavanje aplikacije (boot)” na istom kanvasu (tačne keyframes vrednosti su u njima).
+
+## Faza 3: plan (Intervju arena)
+
+Raditi redom; posle svake stavke build, testovi (i `tools/e2e.sh` za UI) i commit. Dizajn: ekran „Intervju arena” na istom kanvasu.
+Materijal: kartice „Pitanja sa intervjua” iz paketa (203). Oblasti arene su statistike paketa (npr. INT/STR/AGI/VIT/PER), pa arena radi za svaki paket.
+
+Dogovorene odluke: intervali 1/3/7/14 dana; ponavljanje daje mali XP sa dnevnim limitom; simulacija je sa samoocenjivanjem; faza 3 ide pre faze 4 (deploy).
+
+1. **Pravila ponavljanja (`ReviewRules` u Core-u).** Leitner kutije 1/3/7/14 dana: „Nisam znao” → 1 dan, „Delimično” → 3 dana,
+   „Znao sam” → sledeći interval (7, pa 14). Red za danas: zakasnele prve, najviše 10 novih kartica dnevno. Čiste funkcije sa testovima.
+2. **Ocena kartice je događaj.** Tabela `CardRatings` (kartica, ocena, vreme) + migracija; kutija i sledeći datum se računaju iz istorije
+   (isti princip kao XP). Kartica se prepoznaje po id-ju poglavlja + hešu teksta pitanja, ne po indeksu, da izmena paketa ne pomeša istoriju.
+3. **API arene.** `GET /api/arena?area=…` (današnji red, brojevi za danas, spremnost po oblasti = % kartica na intervalu ≥ 7 dana),
+   `POST /api/arena/cards/{id}/rate`. Integracioni testovi. Izmene u `Contracts.cs` uz iste u `api.ts`.
+4. **Stranica „Intervju arena”** po kanvasu: stavka u meniju, filter po oblasti, kartica sa „Otkrij odgovor” i tri ocene,
+   brojevi za danas, trake spremnosti. Prečice: Space = otkrij, 1/2/3 = ocena. E2E test toka.
+5. **Arena u dnevnom zadatku.** Novi tip zadatka „Ponovi N kartica” kad ih ima na redu (`DailyQuestRules`). XP za ponavljanje
+   (npr. 5 po kartici, dnevni limit), pravilo u Core-u sa testovima.
+6. **STAR priča.** Forma S/T/A/R sačuvana u bazi; prikaz u areni (kao na kanvasu) i u simulaciji. Popunjava se uz poglavlje 43.
+7. **Simulacija intervjua.** 45 min sa tajmerom: 10 kartica iz svih oblasti (bira server, prednost slabijim), jedan zadatak na tabli,
+   STAR priča; samoocenjivanje; izveštaj po oblastima se čuva (napredak kroz vreme). Ulazna animacija iz postojećeg sistema animacija.
+8. **Sadržaj: zadaci na tabli.** 10–15 SQL i algoritamskih zadataka sa rešenjem i objašnjenjem, u `vodic-*.md` formatu sa istom proverom.
