@@ -38,7 +38,7 @@ cd api && dotnet ef migrations add ImeIzmene --project src/Hunter.Api --output-d
 ## Razvoj bez Dockera za API i frontend
 
 ```bash
-docker compose up db                                  # samo baza
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up db   # samo baza, na localhost:5432
 cd api/src/Hunter.Api && dotnet run --urls http://localhost:8080
 cd web && npm install && npm run dev                  # http://localhost:5173, /api ide na :8080
 ```

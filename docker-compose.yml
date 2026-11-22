@@ -10,8 +10,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hunter}
     volumes:
       - pgdata:/var/lib/postgresql/data
-   # ports:
-   #   - "127.0.0.1:5433:5433"   # samo lokalno, za DBeaver/psql
+    # Port nije izložen; za razvoj bez Dockera vidi docker-compose.dev.yml.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hunter -d hunter"]
       interval: 5s

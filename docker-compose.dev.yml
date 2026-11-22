@@ -1,0 +1,8 @@
+# Dodatak za razvoj: izlaže bazu na localhost:5432 (dotnet run, DBeaver, psql).
+# docker compose -f docker-compose.yml -f docker-compose.dev.yml up db
+# Vezano za 127.0.0.1, pa baza nije dostupna sa mreže.
+
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
