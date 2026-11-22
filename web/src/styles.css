@@ -171,3 +171,90 @@ h1, h2, h3 { font-family: var(--display); margin: 0; }
 .boss-hp span { display: block; height: 100%; background: #ff6b81; box-shadow: 0 0 12px rgba(255, 107, 129, 0.7); }
 .boss-meta { font-size: 13px; color: #f3d3da; }
 .sys.boss-lost { border-color: #7a2e40; }
+
+/* ---------- Animacije sistema (faza 2, stavka 8) ----------
+   Oblik (keyframes) iz dizajn kanvasa „7 · Animacije sistema”; kašnjenja sabijena da sve stane u 1,5 s
+   (pravilo projekta). Samo CSS. Slojevi preko sadržaja imaju pointer-events: none, pa ne blokiraju klik.
+   Smanjeni pokreti (podešavanje ILI sistem): dekor nestaje, sadržaj se samo pojavi kratkim fade-om (dno fajla). */
+@keyframes fx-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes fx-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fx-pop { 0% { opacity: 0; transform: scale(0.6); } 60% { opacity: 1; transform: scale(1.15); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes fx-fill { from { width: 40%; } to { width: 100%; } }
+@keyframes fx-pulse { 0%, 100% { box-shadow: 0 0 0 rgba(var(--accent-rgb), 0); } 50% { box-shadow: 0 0 36px rgba(var(--accent-rgb), 0.8); } }
+@keyframes fx-float { 0% { opacity: 0; transform: translate(-50%, 10px); } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -70px); } }
+@keyframes fx-gate-l { from { transform: translateX(0); } to { transform: translateX(-101%); } }
+@keyframes fx-gate-r { from { transform: translateX(0); } to { transform: translateX(101%); } }
+@keyframes fx-spin { to { transform: rotate(360deg); } }
+@keyframes fx-rank { 0% { transform: rotate(45deg) scale(1); } 50% { transform: rotate(225deg) scale(0.7); } 100% { transform: rotate(405deg) scale(1); } }
+@keyframes fx-wave { 0% { opacity: 0.9; transform: scale(0.5); } 100% { opacity: 0; transform: scale(2.4); } }
+@keyframes fx-glow { 0% { border-color: var(--line); box-shadow: none; } 50% { border-color: var(--accent); box-shadow: 0 0 28px rgba(var(--accent-rgb), 0.6); } 100% { border-color: var(--accent); box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.3); } }
+@keyframes fx-flicker { 0%, 100% { transform: scale(1) rotate(0); } 25% { transform: scale(1.08, 0.95) rotate(-3deg); } 50% { transform: scale(0.96, 1.06) rotate(2deg); } 75% { transform: scale(1.04, 0.97) rotate(-1deg); } }
+@keyframes fx-ember { 0% { opacity: 0; transform: translateY(0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-24px); } }
+@keyframes fx-alarm { 0%, 100% { opacity: 0; } 15%, 45%, 75% { opacity: 0.45; } 30%, 60%, 90% { opacity: 0.08; } }
+@keyframes fx-quake { 0%, 100% { transform: none; } 10%, 50% { transform: translate(-4px, 2px); } 30%, 70% { transform: translate(4px, -2px); } 90% { transform: translate(-2px, 1px); } }
+@keyframes fx-hp { from { width: 0; } to { width: 100%; } }
+@keyframes fx-sweep { from { transform: translateX(-120%) skewX(-20deg); } to { transform: translateX(420%) skewX(-20deg); } }
+
+/* Level up */
+.levelup { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 22px 28px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); }
+.levelup-bar { width: 100%; max-width: 520px; height: 12px; background: var(--track); border-radius: 2px; overflow: hidden; animation: fx-pulse 0.8s ease-in-out 0.6s both; }
+.levelup-bar span { display: block; width: 100%; height: 100%; background: var(--accent); animation: fx-fill 0.7s ease-out both; }
+.levelup-title { font-family: var(--display); font-size: 34px; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); text-shadow: 0 0 18px rgba(var(--accent-rgb), 0.6); animation: fx-pop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) 0.7s both; }
+.levelup-label { font-family: var(--mono); font-size: 14px; color: var(--muted-2); }
+
+/* +XP iznad dugmeta koraka */
+.fx-anchor { position: relative; display: inline-flex; align-items: center; }
+.fx-float { position: absolute; left: 50%; bottom: 100%; pointer-events: none; white-space: nowrap; font-family: var(--mono); font-weight: 700; font-size: 18px; color: var(--warn); opacity: 0; animation: fx-float 1.4s ease-out both; }
+
+/* Ulazak u dungeon (test poglavlja) */
+.gate { position: fixed; inset: 0; z-index: 20; pointer-events: none; display: grid; place-items: center; overflow: hidden; }
+.gate-half { position: absolute; top: 0; bottom: 0; width: 50%; background: #1a1030; border: 1px solid #4a3a7a; }
+.gate-l { left: 0; border-right: 2px solid #a78bfa; animation: fx-gate-l 1.1s cubic-bezier(0.7, 0, 0.3, 1) 0.2s both; }
+.gate-r { right: 0; border-left: 2px solid #a78bfa; animation: fx-gate-r 1.1s cubic-bezier(0.7, 0, 0.3, 1) 0.2s both; }
+/* Prsten se i sam ugasi (fx-fade unazad): ako onAnimationEnd ne stigne, ne ostaje preko stranice. */
+.gate-ring { position: absolute; width: 240px; height: 240px; border-radius: 50%; border: 2px dashed rgba(167, 139, 250, 0.5); animation: fx-spin 8s linear infinite, fx-fade 0.3s ease-out reverse 1.1s both; }
+.gate-label { position: relative; z-index: 1; font-family: var(--mono); font-size: 14px; letter-spacing: 0.14em; color: #c9b8ff; animation: fx-fade 0.3s ease-out reverse 0.3s both; }
+
+/* Novi rang (status) */
+.rank { position: relative; }
+.rank.fx-rank-up { animation: fx-rank 1s ease-in-out both; }
+.rank-wave { position: absolute; inset: 0; border-radius: 50%; border: 3px solid var(--accent); opacity: 0; pointer-events: none; animation: fx-wave 0.9s ease-out 0.5s both; }
+
+/* Novo očišćeno poglavlje na mapi */
+.chapter-card.fx-glow { animation: fx-glow 1.2s ease-out 0.3s both; }
+
+/* Plamen niza: treperi dok je niz živ; mirniji i bleđi dok danas nema XP-a */
+.flame { position: relative; display: inline-flex; color: #ffb547; }
+.flame.live svg { transform-origin: 50% 90%; animation: fx-flicker 1.6s ease-in-out infinite; }
+.flame.idle svg { transform-origin: 50% 90%; opacity: 0.6; animation: fx-flicker 3.2s ease-in-out infinite; }
+.ember { position: absolute; bottom: 6px; width: 4px; height: 4px; border-radius: 2px; background: #ffb547; opacity: 0; pointer-events: none; animation: fx-ember 1.6s ease-out infinite; }
+.ember.e1 { left: 3px; }
+.ember.e2 { left: 12px; animation-delay: 0.8s; }
+
+/* Boss gate: crveni bljesak 3x, okvir se zatrese, HP traka se napuni */
+.boss-gate { position: relative; overflow: hidden; animation: fx-quake 0.6s linear 0.3s both; }
+.boss-alarm { position: absolute; inset: 0; background: #ff2a4a; opacity: 0; pointer-events: none; animation: fx-alarm 1.2s linear both; }
+.boss-gate .boss-warn { position: relative; animation: fx-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both; }
+.boss-gate .boss-name { position: relative; animation: fx-pop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) 0.4s both; }
+.boss-gate .boss-hp span { animation: fx-hp 0.7s ease-out 0.6s both; }
+.boss-gate .boss-meta { position: relative; animation: fx-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) 1.1s both; }
+
+/* Region očišćen */
+.cleared { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 28px; text-align: center; border: 1px solid #6b5420; border-radius: 6px; background: #17130b; }
+.cleared-sweep { position: absolute; top: -20%; bottom: -20%; left: 0; width: 30%; background: linear-gradient(90deg, transparent, rgba(255, 195, 77, 0.35), transparent); transform: translateX(-120%); pointer-events: none; animation: fx-sweep 1.1s ease-in-out both; }
+.cleared-title { position: relative; font-family: var(--display); font-size: 30px; font-weight: 700; letter-spacing: 0.1em; color: #ffc34d; text-shadow: 0 0 18px rgba(255, 195, 77, 0.6); animation: fx-pop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) 0.3s both; }
+.cleared-sub { position: relative; font-size: 13px; color: #e7d9b5; animation: fx-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) 0.6s both; }
+.cleared-chip { position: relative; display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #6b5420; background: #2a2312; color: #ffdda0; font-size: 13px; font-weight: 600; animation: fx-pop 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) 0.8s both; }
+.cleared-chip:nth-child(2) { animation-delay: 0.95s; }
+.cleared-chip:nth-child(3) { animation-delay: 1.1s; }
+
+/* Smanjeni pokreti: isto pravilo za podešavanje i za sistem. !important i veća specifičnost jer
+   opšte pravilo [data-motion="reduce"] * gasi sve animacije, a ovde kontejneri treba da zadrže fade. */
+@media (prefers-reduced-motion: reduce) {
+  .gate, .fx-float, .rank-wave, .boss-alarm, .cleared-sweep, .ember { display: none !important; }
+  .levelup *, .cleared *, .boss-gate *, .rank, .flame svg, .chapter-card.fx-glow { animation: none !important; }
+  .levelup, .cleared, .boss-gate { animation: fx-fade 150ms ease-out both !important; }
+}
+[data-motion="reduce"] .gate, [data-motion="reduce"] .fx-float, [data-motion="reduce"] .rank-wave,
+[data-motion="reduce"] .boss-alarm, [data-motion="reduce"] .cleared-sweep, [data-motion="reduce"] .ember { display: none !important; }
+[data-motion="reduce"] .levelup, [data-motion="reduce"] .cleared, [data-motion="reduce"] .boss-gate { animation: fx-fade 150ms ease-out both !important; }

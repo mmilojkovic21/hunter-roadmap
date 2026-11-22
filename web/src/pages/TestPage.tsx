@@ -5,6 +5,7 @@ import { api } from "../api";
 import { ErrorBox, Loading } from "../components/common";
 import { Icon } from "../components/Icon";
 import { QuestCompletedNotice } from "../components/SystemNotice";
+import { DungeonGate, LevelUp } from "../components/Fx";
 import { QuestionCard } from "../components/QuestionCard";
 import { shuffledOrder } from "../lib/quiz";
 
@@ -42,6 +43,7 @@ export function TestPage() {
 
   return (
     <>
+      <DungeonGate key={attempt} label={`[ DUNGEON ] POGLAVLJE ${c.id}`} />
       <div className="row between">
         <Link className="btn" to={`/chapters/${encodeURIComponent(id)}`}><Icon name="back" /> Napusti dungeon</Link>
         <span className="kicker">dungeon · poglavlje {c.id}</span>
@@ -57,7 +59,6 @@ export function TestPage() {
           <h2 style={{ fontSize: 30 }}>{result.grade.percent}% · {result.grade.correctCount} / {result.grade.total} tačno</h2>
           <span>
             {result.firstPass ? `+${result.xp.xpAwarded} XP` : result.grade.passed ? "Već položeno ranije, bez novog XP-a." : `Za prolaz treba ${c.passPct}%.`}
-            {result.xp.levelUp && ` LEVEL UP! Nivo ${result.xp.level.level}.`}
           </span>
           <div className="row">
             <button type="button" className="btn" onClick={retry}>Ponovi test</button>
@@ -65,6 +66,7 @@ export function TestPage() {
           </div>
         </section>
       )}
+      {result?.xp.levelUp && <LevelUp level={result.xp.level.level} />}
       {result?.xp.questCompleted && <QuestCompletedNotice />}
 
       {c.test.map((question, qi) => (

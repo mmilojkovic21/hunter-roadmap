@@ -5,6 +5,7 @@ import { api } from "../api";
 import { ErrorBox, Loading } from "../components/common";
 import { Icon } from "../components/Icon";
 import { QuestionCard } from "../components/QuestionCard";
+import { LevelUp, RegionCleared } from "../components/Fx";
 import { shuffledOrder } from "../lib/quiz";
 
 /**
@@ -48,6 +49,7 @@ export function BossPage() {
 
       {!boss && (
         <section className="boss-gate" aria-labelledby="gate-h">
+          <i className="boss-alarm" aria-hidden="true" />
           <span className="boss-warn">[ UPOZORENJE ] BOSS GATE</span>
           <h1 id="gate-h" className="boss-name">{region.title}</h1>
           <div className="boss-hp" aria-hidden="true"><span /></div>
@@ -72,6 +74,11 @@ export function BossPage() {
             <span className="muted">{boss.questions.length} pitanja · prolaz {boss.passPct}% · prvi prolaz +{boss.xpReward} XP</span>
           </header>
 
+          {result?.firstClear && (
+            <RegionCleared title={boss.regionTitle}
+              rewards={[`+${result.xp.xpAwarded} XP`, `Region ${boss.regionCode} ✓`, ...(result.xp.levelUp ? [`Nivo ${result.xp.level.level}`] : [])]} />
+          )}
+          {result?.xp.levelUp && <LevelUp level={result.xp.level.level} />}
           {result && (
             <section className={`sys${result.grade.passed ? "" : " boss-lost"}`} role="status" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <span className="kicker">[ sistem ] {result.grade.passed ? "dungeon cleared · boss poražen" : "boss je preživeo"}</span>
@@ -80,7 +87,6 @@ export function BossPage() {
                 {result.firstClear ? `+${result.xp.xpAwarded} XP. Region je očišćen.`
                   : result.grade.passed ? "Boss je ponovo poražen; XP za ovaj region je već osvojen."
                   : `Za prolaz treba ${boss.passPct}%. Novi pokušaj donosi nova pitanja.`}
-                {result.xp.levelUp && ` LEVEL UP! Nivo ${result.xp.level.level}.`}
               </span>
               <div className="row">
                 <button type="button" className="btn" onClick={again}>Novi pokušaj</button>

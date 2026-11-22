@@ -2,10 +2,13 @@ import { Link, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
 import { Bar, ErrorBox, Loading, STATUS_LABEL } from "../components/common";
+import { useNewlyCleared } from "../components/Fx";
 
 export function MapPage() {
   const q = useQuery({ queryKey: ["map"], queryFn: api.map });
   const [params, setParams] = useSearchParams();
+  const doneIds = q.data?.regions.flatMap((r) => r.levels.flatMap((l) => l.chapters.filter((c) => c.status === "Done").map((c) => c.id)));
+  const fresh = useNewlyCleared(q.data?.packId, doneIds);
   if (q.isPending) return <Loading />;
   if (q.isError) return <ErrorBox error={q.error} />;
 
@@ -46,7 +49,7 @@ export function MapPage() {
           <div className="level-name">{l.name}</div>
           <div className="chapters">
             {l.chapters.map((c) => (
-              <Link key={c.id} className="chapter-card" to={`/chapters/${encodeURIComponent(c.id)}`}>
+              <Link key={c.id} className={`chapter-card${fresh.has(c.id) ? " fx-glow" : ""}`} to={`/chapters/${encodeURIComponent(c.id)}`}>
                 <span className={`badge ${c.status}`}>{c.id}</span>
                 <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{c.title}</span>

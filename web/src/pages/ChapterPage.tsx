@@ -6,6 +6,7 @@ import { ErrorBox, Loading, STATUS_LABEL } from "../components/common";
 import { Markdown } from "../components/Markdown";
 import { Icon } from "../components/Icon";
 import { QuestCompletedNotice } from "../components/SystemNotice";
+import { LevelUp, XpFloat } from "../components/Fx";
 import { STEP_LABEL } from "../lib/quiz";
 
 type Tab = "Lesson" | "Deeper" | "Exercise" | "Cards" | "Sources";
@@ -16,12 +17,13 @@ export function ChapterPage() {
   const q = useQuery({ queryKey: ["chapter", id], queryFn: () => api.chapter(id) });
   const [tab, setTab] = useState<Tab>("Lesson");
   const [checked, setChecked] = useState<Record<number, boolean>>({});
-  const [reward, setReward] = useState<XpResult | null>(null);
+  // `n` raste za svaki osvojen korak, pa „+XP” animacija krene iznova i za isti korak dvaput zaredom.
+  const [reward, setReward] = useState<{ xp: XpResult; step: Step; n: number } | null>(null);
 
   const complete = useMutation({
     mutationFn: (step: Step) => api.completeStep(id, step),
-    onSuccess: (r) => {
-      setReward(r.xpAwarded > 0 ? r : null);
+    onSuccess: (r, step) => {
+      setReward((old) => (r.xpAwarded > 0 ? { xp: r, step, n: (old?.n ?? 0) + 1 } : null));
       qc.invalidateQueries({ queryKey: ["chapter", id] });
       qc.invalidateQueries({ queryKey: ["status"] });
       qc.invalidateQueries({ queryKey: ["map"] });
@@ -43,10 +45,14 @@ export function ChapterPage() {
     { key: "Sources", label: "Izvori", show: c.sources.length > 0 },
   ];
 
-  const doneButton = (step: Step, label: string, disabled = false) =>
-    isDone(step)
-      ? <span className="state-Done" style={{ fontWeight: 600 }}><Icon name="check" /> {STEP_LABEL[step]} završena</span>
-      : <button type="button" className="btn primary" disabled={disabled || complete.isPending} onClick={() => complete.mutate(step)}>{label}</button>;
+  const doneButton = (step: Step, label: string, disabled = false) => (
+    <span className="fx-anchor">
+      {isDone(step)
+        ? <span className="state-Done" style={{ fontWeight: 600 }}><Icon name="check" /> {STEP_LABEL[step]} završena</span>
+        : <button type="button" className="btn primary" disabled={disabled || complete.isPending} onClick={() => complete.mutate(step)}>{label}</button>}
+      {reward?.step === step && <XpFloat key={reward.n} xp={reward.xp.xpAwarded} />}
+    </span>
+  );
 
   return (
     <>
@@ -70,11 +76,11 @@ export function ChapterPage() {
 
       {reward && (
         <div className="sys" role="status">
-          <span className="kicker">[ sistem ] +{reward.xpAwarded} XP</span>
-          {reward.levelUp && <h2 style={{ marginTop: 6 }}>LEVEL UP! Nivo {reward.level.level}</h2>}
+          <span className="kicker">[ sistem ] +{reward.xp.xpAwarded} XP</span>
         </div>
       )}
-      {reward?.questCompleted && <QuestCompletedNotice />}
+      {reward?.xp.levelUp && <LevelUp key={reward.n} level={reward.xp.level.level} />}
+      {reward?.xp.questCompleted && <QuestCompletedNotice />}
       {complete.isError && <ErrorBox error={complete.error} />}
 
       <div className="tabs" role="tablist" aria-label="Delovi poglavlja">

@@ -61,7 +61,7 @@ Raditi redom; posle svake stavke build, testovi i commit.
 5. ✅ **Slobodni poeni.** Dobijaju se za završen dnevni zadatak i za level-up; dodeljuju se statistici (fokus nedelje). Prikaz i dugme „+” na karticama statistika.
 6. ✅ **Boss test regiona.** Kad su sva poglavlja regiona očišćena: 20–25 nasumičnih pitanja iz regiona, prolaz 80%, +500 XP, oznaka na mapi.
 7. ✅ **Lazy rute** u React-u (`React.lazy` po stranici) da bundle padne ispod 500 kB. (pogl. 28)
-8. **Animacije sistema.** Samo CSS (`@keyframes` u `styles.css`), bez novih biblioteka. Trajanje do 1,5 s, nikad ne blokiraju klikove.
+8. ✅ **Animacije sistema.** (Urađeno u `components/Fx.tsx` + „Animacije sistema” u `styles.css`. Odstupanja: kašnjenja iz kanvasa sabijena na ≤1,5 s; nema katanca jer poglavlja nisu zaključana, pa novo očišćeno poglavlje samo zasvetli; „STR +1” izostavljen jer korak ne menja statistiku.) Samo CSS (`@keyframes` u `styles.css`), bez novih biblioteka. Trajanje do 1,5 s, nikad ne blokiraju klikove.
    Kad je `reduceMotion` uključen ILI je u sistemu `prefers-reduced-motion: reduce`, ostaje samo kratak fade (≤150 ms).
    Okidači dolaze iz odgovora API-ja (`XpResult.levelUp`, `TestResultView`, promena ranga na statusu), ne iz pogađanja na klijentu.
    - **Poruka sistema** (`SystemNotice` komponenta): prozor se otvara od tanke linije (scaleX pa scaleY, ~0,7 s), tekst ulazi posle. Za dnevni i kazneni zadatak i obaveštenja.

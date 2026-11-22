@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Bar, ErrorBox, Loading, STATUS_LABEL } from "../components/common";
 import { Icon } from "../components/Icon";
+import { useRankChanged } from "../components/Fx";
 import { heatLevel, STEP_LABEL } from "../lib/quiz";
 
 const HEAT_ALPHA = [0, 0.25, 0.45, 0.7, 1];
@@ -19,6 +20,17 @@ function useTimeToMidnight() {
   midnight.setHours(24, 0, 0, 0);
   const sec = Math.max(0, Math.floor((midnight.getTime() - now.getTime()) / 1000));
   return [sec / 3600, (sec % 3600) / 60, sec % 60].map((n) => String(Math.floor(n)).padStart(2, "0")).join(":");
+}
+
+/** Romb ranga; okrene se i pusti talas svetla samo kad se rang promeni od poslednjeg prikaza statusa. */
+function RankBadge({ packId, rank }: { packId: string; rank: string }) {
+  const changed = useRankChanged(packId, rank);
+  return (
+    <div className={`rank${changed ? " fx-rank-up" : ""}`} aria-label={`Rang ${rank}`}>
+      <span>{rank}</span>
+      {changed && <i className="rank-wave" aria-hidden="true" />}
+    </div>
+  );
 }
 
 const points = (n: number) => (n === 1 ? "1 slobodan poen" : `${n} slobodna poena`);
@@ -54,7 +66,11 @@ export function StatusPage() {
         </div>
         <div className="row">
           <div className="card" style={{ flexDirection: "row", alignItems: "center", padding: "10px 16px", gap: 10, borderColor: "#3a2e14", background: "#1a160d" }}>
-            <span style={{ color: "#ffb547" }}><Icon name="flame" size={20} /></span>
+            {/* Plamen treperi dok je niz živ; dok danas nema XP-a mirniji je i bleđi, bez varnica. */}
+            <span className={`flame${s.streak > 0 ? (s.todayXp > 0 ? " live" : " idle") : ""}`} aria-hidden="true">
+              <Icon name="flame" size={20} />
+              {s.streak > 0 && s.todayXp > 0 && <><i className="ember e1" /><i className="ember e2" /></>}
+            </span>
             <div>
               <div style={{ fontWeight: 700, fontSize: 18, color: "#ffcb7a" }}>{s.streak} {s.streak === 1 ? "dan" : "dana"}</div>
               <div style={{ fontSize: 11, color: "#c9b48a" }}>niz učenja · danas +{s.todayXp} XP</div>
@@ -65,7 +81,7 @@ export function StatusPage() {
       </header>
 
       <section className="sys row" aria-label="Rang i nivo" style={{ gap: 28 }}>
-        <div className="rank" aria-label={`Rang ${s.rank}`}><span>{s.rank}</span></div>
+        <RankBadge packId={s.pack.id} rank={s.rank} />
         <div style={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 10 }}>
           <span className="kicker" style={{ color: "var(--muted)" }}>klasa: {s.pack.title}</span>
           <div className="row between">
