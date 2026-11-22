@@ -1,5 +1,4 @@
-import { expect, test } from "@playwright/test";
-import { answerAllCorrectly, clearChapterViaApi } from "./helpers";
+import { answerAllCorrectly, clearChapterViaApi, expect, test } from "./helpers";
 
 // Ceo tok kroz pravi pregledač, nad svežom bazom (tools/e2e.sh). Koraci se nadovezuju (XP, dnevni zadatak),
 // pa testovi u ovom fajlu idu redom. Današnji dnevni zadatak sa Full Stack paketom i ciljem 60 min:

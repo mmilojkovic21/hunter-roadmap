@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import { Layout } from "./components/Layout";
+import { runBoot } from "./boot";
 // Svaka stranica je poseban deo bundle-a i preuzima se tek kad se prvi put otvori (vodič, pogl. 28).
 // Stranice izvoze imenovane komponente, a React.lazy traži default, pa se mapira ovde.
 const StatusPage = lazy(() => import("./pages/StatusPage").then((m) => ({ default: m.StatusPage })));
@@ -40,3 +41,6 @@ createRoot(document.getElementById("root")!).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+// Boot ekran iz index.html: podaci za „OK” redove idu kroz isti QueryClient, pa ostaju u kešu za prvu stranicu.
+runBoot(queryClient);

@@ -1,8 +1,27 @@
-import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import { test as base, expect, type APIRequestContext, type Page } from "@playwright/test";
 import pack from "../../packs/fullstack-dotnet/chapters.json" with { type: "json" };
 
 // Pomoćne funkcije za E2E testove. Tačne odgovore API namerno ne šalje pre predaje, pa ih test
 // čita iz samog paketa (isti fajl koji API uvozi), kao što bi ih znao korisnik koji je naučio lekciju.
+
+/**
+ * `test` za sve E2E testove osim boot-a: pre svakog učitavanja upiše da je današnji pun boot već prikazan,
+ * pa ide kratka verzija (~0,8 s) umesto 4 s, a Playwright sam sačeka da nestane pre klika. Boot ima svoje testove.
+ */
+export const test = base.extend<{ shortBoot: void }>({
+  shortBoot: [
+    async ({ page }, use) => {
+      await page.addInitScript(() => {
+        const d = new Date();
+        const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        localStorage.setItem("hunter.boot.lastFull", JSON.stringify(today));
+      });
+      await use();
+    },
+    { auto: true },
+  ],
+});
+export { expect };
 
 interface PackQuestion { text: string; code: string | null; options: string[]; correct: number }
 interface PackChapter { id: string; test: PackQuestion[] }

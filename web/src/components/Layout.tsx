@@ -23,6 +23,12 @@ export function Layout() {
     root.dataset.theme = s.theme;
     root.dataset.glow = s.glow ? "on" : "off";
     root.dataset.motion = s.reduceMotion ? "reduce" : "full";
+    // Keš za boot ekran (index.html): pri sledećem učitavanju tema i animacije važe pre nego što API odgovori.
+    try {
+      localStorage.setItem("hunter.settings", JSON.stringify({ theme: s.theme, glow: s.glow, reduceMotion: s.reduceMotion }));
+    } catch {
+      /* bez keša boot koristi podrazumevanu temu */
+    }
   }, [settings.data]);
 
   return (
@@ -44,7 +50,8 @@ export function Layout() {
           ))}
         </div>
       </nav>
-      <main className="main">
+      {/* tabIndex -1: boot ekran posle nestanka prebacuje fokus ovde (programski, ne tabom). */}
+      <main className="main" tabIndex={-1}>
         {/* Stranice su lazy: dok se deo bundle-a preuzima, meni ostaje, a umesto sadržaja ide Loading. */}
         <Suspense fallback={<Loading />}>
           <Outlet />

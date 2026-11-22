@@ -1,5 +1,4 @@
-import { expect, test } from "@playwright/test";
-import { setReduceMotion } from "./helpers";
+import { expect, setReduceMotion, test } from "./helpers";
 
 // Uz smanjene pokrete (sistemsko podešavanje ILI podešavanje u aplikaciji) dekor nestaje:
 // kapija, bljesak, +XP. Sadržaj ostaje dostupan. Pravilo iz CLAUDE.md, stavka 8.

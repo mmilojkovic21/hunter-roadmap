@@ -6,11 +6,127 @@
     <title>Hunter Roadmap</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap"
       rel="stylesheet"
     />
+    <script>
+      // Boot ekran (faza 2, stavka 9): odluka PRE prvog iscrtavanja, bez čekanja na JS bundle.
+      // Podešavanja sa API-ja još nisu stigla, pa se tema i „smanji animacije” čitaju iz keša (Layout ga upisuje).
+      // Puna verzija prvi put u danu, kratka pri ponovnom učitavanju istog dana, statična uz smanjene pokrete.
+      (function () {
+        var root = document.documentElement, s = {}, last = null;
+        try {
+          s = JSON.parse(localStorage.getItem("hunter.settings") || "{}") || {};
+          last = JSON.parse(localStorage.getItem("hunter.boot.lastFull") || "null");
+        } catch (e) { /* bez keša: podrazumevana tema, puna verzija */ }
+        var d = new Date();
+        var today = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+        var reduce = s.reduceMotion === true || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        root.dataset.theme = s.theme || "sistem";
+        root.dataset.glow = s.glow === false ? "off" : "on";
+        root.dataset.motion = s.reduceMotion === true ? "reduce" : "full";
+        root.dataset.boot = reduce ? "static" : last === today ? "short" : "full";
+        if (root.dataset.boot === "full") {
+          try { localStorage.setItem("hunter.boot.lastFull", JSON.stringify(today)); } catch (e) { /* ponoviće se sutra */ }
+        }
+        window.__bootStart = performance.now();
+      })();
+    </script>
+    <style>
+      /* Stil boot ekrana je ovde, ne u styles.css: u razvoju Vite ubacuje CSS tek sa JS-om, a boot mora odmah.
+         Vremenska linija pune verzije (dizajn kanvas „8 · Učitavanje aplikacije”): tačka 0 s, linija 0,25 s,
+         prozor 0,6 s, redovi od 1,0 s na 0,3 s, traka 1,1–2,5 s, PRISTUP ODOBREN 2,65 s, zatvaranje ~4 s.
+         Zatvaranje i natpis pokreće src/boot.ts (klase .granted i .boot-done), kad su i podaci spremni. */
+      :root { --boot-accent: #4da3ff; --boot-rgb: 77, 163, 255; }
+      :root[data-theme="monarh"] { --boot-accent: #a78bfa; --boot-rgb: 167, 139, 250; }
+      :root[data-theme="crveni"] { --boot-accent: #ff6b81; --boot-rgb: 255, 107, 129; }
+      :root[data-theme="zlatni"] { --boot-accent: #ffc34d; --boot-rgb: 255, 195, 77; }
+      .boot { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: #05070d; color: #e6ecf8; font-family: Inter, system-ui, sans-serif; cursor: pointer; }
+      .boot-grid { position: absolute; inset: 0; opacity: 0.35; pointer-events: none; background-image: linear-gradient(rgba(var(--boot-rgb), 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--boot-rgb), 0.07) 1px, transparent 1px); background-size: 48px 48px; animation: boot-drift 3s linear infinite; }
+      .boot-full { position: relative; display: flex; flex-direction: column; align-items: center; }
+      .boot-dot { position: absolute; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 5px; background: var(--boot-accent); box-shadow: 0 0 24px 6px rgba(var(--boot-rgb), 0.7); z-index: 2; animation: boot-dot 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both, boot-out 0.15s ease 0.65s forwards; }
+      .boot-line { position: absolute; top: 50%; height: 2px; margin-top: -1px; background: var(--boot-accent); box-shadow: 0 0 16px rgba(var(--boot-rgb), 0.9); z-index: 1; animation: boot-line 0.35s cubic-bezier(0.7, 0, 0.3, 1) 0.25s both, boot-out 0.15s ease 0.65s forwards; }
+      .boot-win { position: relative; width: min(560px, 86vw); box-sizing: border-box; padding: 22px 26px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #2a4a78; background: rgba(15, 24, 48, 0.92); box-shadow: 0 0 50px rgba(var(--boot-rgb), 0.25), inset 0 0 30px rgba(var(--boot-rgb), 0.08); transform-origin: center; animation: boot-open 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) 0.6s both; }
+      .boot-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+      .boot-title { font: 700 13px "JetBrains Mono", ui-monospace, monospace; letter-spacing: 0.1em; color: var(--boot-accent); animation: boot-ln 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) 0.85s both; }
+      .boot-ver { font: 11px "JetBrains Mono", ui-monospace, monospace; color: #5a6785; }
+      .boot-sep { height: 1px; background: #1e2a44; }
+      .boot-row { display: flex; align-items: center; gap: 10px; font: 13px "JetBrains Mono", ui-monospace, monospace; animation: boot-ln 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) calc(1s + var(--i) * 0.3s) both; }
+      .boot-arrow { color: var(--boot-accent); }
+      .boot-text { flex: 1; color: #c7d1e6; }
+      .boot-ok { font-weight: 700; font-size: 12px; color: #5fe0b7; opacity: 0; }
+      .boot-row.ok .boot-ok { animation: boot-ln 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) var(--ok-delay, 0ms) both; }
+      .boot-cells { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 3px; height: 8px; margin-top: 6px; }
+      .boot-cells i { background: #1c2742; animation: boot-cell 0.08s linear calc(1.1s + var(--i) * 0.06s) both; }
+      .boot-grant-wrap { display: flex; justify-content: center; padding-top: 10px; min-height: 40px; }
+      .boot-grant { font: 700 26px "Space Grotesk", Inter, sans-serif; letter-spacing: 0.22em; color: #e6f2ff; text-shadow: 0 0 18px rgba(var(--boot-rgb), 0.9); opacity: 0; }
+      .boot.granted .boot-grant { animation: boot-grant 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) var(--grant-delay, 0ms) both, boot-glow 0.9s ease-in-out calc(var(--grant-delay, 0ms) + 0.45s) 1; }
+      .boot-short { display: none; position: relative; flex-direction: column; align-items: center; gap: 14px; }
+      .boot-short .boot-line { position: static; margin: 0; animation: boot-line 0.3s cubic-bezier(0.7, 0, 0.3, 1) both; }
+      .boot-ready { font: 12px "JetBrains Mono", ui-monospace, monospace; letter-spacing: 0.2em; color: var(--boot-accent); }
+      .boot-cursor { animation: boot-blink 0.5s steps(1) infinite; }
+      .boot-error { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 22px; border: 1px solid #7a2638; background: #1e0f16; cursor: default; text-align: center; }
+      .boot-error[hidden] { display: none; }
+      .boot-err-title { font: 700 14px "JetBrains Mono", ui-monospace, monospace; letter-spacing: 0.08em; color: #ff8fa3; }
+      .boot-err-text { font-size: 14px; color: #f3d3da; }
+      .boot-retry { min-height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid #ff6b81; background: transparent; color: #ffb3c1; font: 600 14px Inter, system-ui, sans-serif; cursor: pointer; }
+      .boot-retry:focus-visible { outline: 2px solid #ffb3c1; outline-offset: 2px; }
+      .boot.failed .boot-grant-wrap { visibility: hidden; }
+      html[data-boot="short"] .boot-full, html[data-boot="static"] .boot-full { display: none; }
+      html[data-boot="short"] .boot-short, html[data-boot="static"] .boot-short { display: flex; }
+      .boot-short .boot-line, html[data-boot="static"] .boot-line { width: min(560px, 86vw); }
+      /* Kraj: prozor se sklopi u liniju, pa ceo sloj izbledi i ne prima klikove. */
+      .boot.boot-done { pointer-events: none; animation: boot-out 0.4s ease 0.4s forwards; }
+      .boot.boot-done .boot-win { animation: boot-close 0.45s cubic-bezier(0.7, 0, 0.3, 1) forwards; }
+      html[data-boot="short"] .boot.boot-done { animation: boot-out 0.35s ease forwards; }
+      /* Smanjeni pokreti: ništa se ne pomera, samo fade od 150 ms na kraju. */
+      html[data-boot="static"] .boot, html[data-boot="static"] .boot * { animation: none !important; }
+      html[data-boot="static"] .boot.boot-done { animation: boot-out 0.15s ease forwards !important; }
+      @keyframes boot-dot { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.4); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+      @keyframes boot-line { 0% { width: 8px; } 100% { width: min(560px, 86vw); } }
+      @keyframes boot-open { 0% { transform: scaleY(0.006); } 100% { transform: scaleY(1); } }
+      @keyframes boot-ln { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+      @keyframes boot-cell { from { background: #1c2742; box-shadow: none; } to { background: var(--boot-accent); box-shadow: 0 0 8px rgba(var(--boot-rgb), 0.8); } }
+      @keyframes boot-grant { 0% { opacity: 0; transform: scale(0.7); letter-spacing: 0.6em; } 60% { opacity: 1; transform: scale(1.08); } 100% { opacity: 1; transform: scale(1); letter-spacing: 0.22em; } }
+      @keyframes boot-glow { 0%, 100% { text-shadow: 0 0 18px rgba(var(--boot-rgb), 0.9); } 50% { text-shadow: 0 0 34px rgba(var(--boot-rgb), 1), 0 0 60px rgba(var(--boot-rgb), 0.6); color: #fff; } }
+      @keyframes boot-close { 0% { transform: scaleY(1); opacity: 1; } 60% { transform: scaleY(0.006); opacity: 1; } 100% { transform: scaleY(0.006) scaleX(0); opacity: 0; } }
+      @keyframes boot-out { to { opacity: 0; visibility: hidden; } }
+      @keyframes boot-blink { 50% { opacity: 0; } }
+      @keyframes boot-drift { from { background-position: 0 0; } to { background-position: 0 48px; } }
+    </style>
   </head>
   <body>
+    <div id="boot" class="boot" role="status" aria-label="Učitavanje sistema" title="Klik, Enter ili Esc za preskakanje">
+      <div class="boot-grid" aria-hidden="true"></div>
+      <div class="boot-full">
+        <span class="boot-dot" aria-hidden="true"></span>
+        <div class="boot-line" aria-hidden="true"></div>
+        <div class="boot-win">
+          <div class="boot-head"><span class="boot-title">[ SISTEM ] POVEZIVANJE SA HUNTEROM</span><span class="boot-ver">v1.0</span></div>
+          <div class="boot-sep"></div>
+          <div class="boot-row" data-step="status" style="--i: 0"><span class="boot-arrow">›</span><span class="boot-text">Učitavanje statusa</span><span class="boot-ok">OK</span></div>
+          <div class="boot-row" data-step="map" style="--i: 1"><span class="boot-arrow">›</span><span class="boot-text">Sinhronizacija dungeona</span><span class="boot-ok">OK</span></div>
+          <div class="boot-row" data-step="quest" style="--i: 2"><span class="boot-arrow">›</span><span class="boot-text">Provera dnevnog zadatka</span><span class="boot-ok">OK</span></div>
+          <div class="boot-row" data-step="rank" style="--i: 3"><span class="boot-arrow">›</span><span class="boot-text">Kalibracija ranga</span><span class="boot-ok">OK</span></div>
+          <div class="boot-cells" aria-hidden="true">
+            <i style="--i: 0"></i><i style="--i: 1"></i><i style="--i: 2"></i><i style="--i: 3"></i><i style="--i: 4"></i><i style="--i: 5"></i>
+            <i style="--i: 6"></i><i style="--i: 7"></i><i style="--i: 8"></i><i style="--i: 9"></i><i style="--i: 10"></i><i style="--i: 11"></i>
+            <i style="--i: 12"></i><i style="--i: 13"></i><i style="--i: 14"></i><i style="--i: 15"></i><i style="--i: 16"></i><i style="--i: 17"></i>
+            <i style="--i: 18"></i><i style="--i: 19"></i><i style="--i: 20"></i><i style="--i: 21"></i><i style="--i: 22"></i><i style="--i: 23"></i>
+          </div>
+          <div class="boot-grant-wrap"><span class="boot-grant">PRISTUP ODOBREN</span></div>
+        </div>
+      </div>
+      <div class="boot-short">
+        <div class="boot-line" aria-hidden="true"></div>
+        <span class="boot-ready">SISTEM SPREMAN<span class="boot-cursor" aria-hidden="true">_</span></span>
+      </div>
+      <div class="boot-error" hidden>
+        <span class="boot-err-title">[ GREŠKA ] Sistem nedostupan</span>
+        <span class="boot-err-text">API ne odgovara. Proveri da li je pokrenut, pa pokušaj ponovo.</span>
+        <button type="button" class="boot-retry">Pokušaj ponovo</button>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
