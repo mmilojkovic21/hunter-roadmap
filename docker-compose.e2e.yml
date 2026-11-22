@@ -1,0 +1,6 @@
+# E2E testovi (tools/e2e.sh): ista aplikacija, ali web na 127.0.0.1:8099, da ne smeta glavnoj na 8088.
+# Pokreće se kao poseban projekat (-p hunter-e2e), pa ima svoju, uvek svežu bazu.
+services:
+  web:
+    ports: !override
+      - "127.0.0.1:8099:80"

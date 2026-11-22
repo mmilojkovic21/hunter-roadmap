@@ -11,6 +11,7 @@ Projekat je ujedno portfolio, pa kod mora biti čist i lako objašnjiv na interv
 - `api/src/Hunter.Api`: ASP.NET Core 10 minimal API. `Endpoints.cs` (rute), `Contracts.cs` (DTO ugovor), `Services/` (PackCatalog, PackImporter, ProgressService), `Data/HunterDb.cs` (EF Core + Npgsql).
 - `api/tests/Hunter.Core.Tests`: xUnit testovi za Core.
 - `api/tests/Hunter.Api.Tests`: integracioni testovi (`WebApplicationFactory<Program>` + Testcontainers PostgreSQL, primer paket kao seed). Traže pokrenut Docker.
+- `web/e2e/*.e2e.ts`: Playwright E2E testovi; tačne odgovore čitaju iz `packs/fullstack-dotnet/chapters.json`. Za UI izmene (animacije, tokovi sa klikom) proveri i `tools/e2e.sh`.
 - `web/`: React 19, Vite 8, TypeScript strict, TanStack Query 5, React Router 7, react-markdown. Stil je u `src/styles.css` (CSS promenljive po temi, `[data-theme]`, `[data-glow]`).
 - `packs/<id>/pack.json + chapters.json`: uvoze se pri pokretanju API-ja. `examples/`: primer paket van IT-a.
 - `content/fullstack-dotnet/src/region-*.md` (puna poglavlja) i `vodic-*.md` (test i pitanja sa intervjua za poglavlja PDF vodiča) → `tools/build_pack.sh fullstack-dotnet` → `packs/fullstack-dotnet`. Posle izmene sadržaja povećaj `version` u `tools/make_pack.py`, inače API ne uvozi paket ponovo.
@@ -24,6 +25,7 @@ tools/dev.sh                              # razvoj: baza :5433 + dotnet watch :8
 cd api && dotnet build && dotnet test     # backend + testovi
 cd web && npm run build && npm test       # tsc + vite build, vitest
 tools/build_pack.sh fullstack-dotnet      # sadržaj → paket (Python 3)
+tools/e2e.sh                              # E2E (Playwright, Chrome) nad svežom instancom na :8099
 ```
 
 Posle svake izmene pokreni build i testove dela koji si menjao. Zadatak nije gotov dok oni ne prođu.
