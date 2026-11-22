@@ -114,7 +114,7 @@ tools/build_pack.sh fullstack-dotnet    # content/fullstack-dotnet/src → packs
 |---|---|---|
 | 2 | EF migracije umesto `EnsureCreated`, dnevni zadaci, kazneni zadatak, slobodni poeni, Boss test regiona, integracioni testovi (`WebApplicationFactory` + Testcontainers) | 12, 17, C3 |
 | 3 | Intervju arena: kartice sa ponavljanjem (1/3/7/14 dana), simulacija (testovi za poglavlja vodiča su urađeni u paketu 1.1.0, osim 18, 30 i 40) | 44–48, P9 |
-| 4 | GitHub Actions, deploy na VPS iza HTTPS-a, lazy učitavanje stranica (bundle je sada ~540 kB) | 37–38, 28, C2 |
+| 4 | GitHub Actions, deploy na VPS iza HTTPS-a | 37–38, C2 |
 | + | AI generisanje paketa iz PDF-a, editor paketa, nalozi i deljenje | AI2–AI5, P3 |
 
 ## Poznata ograničenja faze 1
