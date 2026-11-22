@@ -53,12 +53,25 @@ Posle svake izmene pokreni build i testove dela koji si menjao. Zadatak nije got
 
 Raditi redom; posle svake stavke build, testovi i commit.
 
-1. **EF migracije umesto EnsureCreated.** Dodaj `Microsoft.EntityFrameworkCore.Design`, inicijalna migracija, `Database.MigrateAsync()` pri startu. Uputstvo u README za postojeću bazu: `docker compose down -v`. (vodič, pogl. 12)
-2. **Integracioni testovi API-ja.** Projekat `Hunter.Api.Tests`: `WebApplicationFactory<Program>` + Testcontainers.PostgreSql. Pokriti: uvoz paketa, završetak koraka (XP samo jednom), predaju testa (prolaz/pad, prvi prolaz daje XP), aktivaciju paketa, odbijen neispravan zip. (pogl. 17)
+1. ✅ **EF migracije umesto EnsureCreated.** Dodaj `Microsoft.EntityFrameworkCore.Design`, inicijalna migracija, `Database.MigrateAsync()` pri startu. Uputstvo u README za postojeću bazu: `docker compose down -v`. (vodič, pogl. 12)
+2. ✅ **Integracioni testovi API-ja.** Projekat `Hunter.Api.Tests`: `WebApplicationFactory<Program>` + Testcontainers.PostgreSql. Pokriti: uvoz paketa, završetak koraka (XP samo jednom), predaju testa (prolaz/pad, prvi prolaz daje XP), aktivaciju paketa, odbijen neispravan zip. (pogl. 17)
 3. **Dnevni zadatak.** Svaki dan 3–4 zadatka iz sledećih koraka, skrojeni prema `DailyGoalMinutes`. Pravila u Core-u (`DailyQuestRules`) sa testovima. Na statusu: „[ ! ] DNEVNI ZADATAK”, napredak X/4, nagrada +1 slobodan poen.
 4. **Kazneni zadatak.** Ako jučerašnji dnevni zadatak nije završen, danas prvo ide ponavljanje slabih tačaka (20 min) pre nove lekcije. Uključuje se ili isključuje u podešavanjima (`PenaltyEnabled`).
 5. **Slobodni poeni.** Dobijaju se za završen dnevni zadatak i za level-up; dodeljuju se statistici (fokus nedelje). Prikaz i dugme „+” na karticama statistika.
 6. **Boss test regiona.** Kad su sva poglavlja regiona očišćena: 20–25 nasumičnih pitanja iz regiona, prolaz 80%, +500 XP, oznaka na mapi.
 7. **Lazy rute** u React-u (`React.lazy` po stranici) da bundle padne ispod 500 kB. (pogl. 28)
+8. **Animacije sistema.** Samo CSS (`@keyframes` u `styles.css`), bez novih biblioteka. Trajanje do 1,5 s, nikad ne blokiraju klikove.
+   Kad je `reduceMotion` uključen ILI je u sistemu `prefers-reduced-motion: reduce`, ostaje samo kratak fade (≤150 ms).
+   Okidači dolaze iz odgovora API-ja (`XpResult.levelUp`, `TestResultView`, promena ranga na statusu), ne iz pogađanja na klijentu.
+   - **Poruka sistema** (`SystemNotice` komponenta): prozor se otvara od tanke linije (scaleX pa scaleY, ~0,7 s), tekst ulazi posle. Za dnevni i kazneni zadatak i obaveštenja.
+   - **Level up:** XP traka se dopuni do 100%, zasvetli (pulse), „LEVEL UP” iskoči (scale 0,6 → 1,15 → 1), pa traka kreće od nule.
+   - **+XP brojevi:** posle završenog koraka „+50 XP”, „STR +1” isplivaju iznad dugmeta (translateY −70px, fade), bez modala.
+   - **Ulazak u dungeon:** pre testa dve polovine kapije se razmaknu (translateX ±101%, 1,1 s), u pozadini spor rotirajući prsten.
+   - **Novi rang:** romb se okrene 360°, slovo se promeni, talas svetla (scale 0,5 → 2,4, fade). Samo kad se rang zaista promeni.
+   - **Otključano poglavlje:** na mapi katanac se zatrese i nestane, kartica zasvetli (border + glow). Prvo otvaranje mape posle prolaza.
+   - **Plamen niza:** stalno blago treperenje (scale/rotate) i varnice dok je niz aktivan; mirniji i bleđi ako danas još nema XP-a.
+   - **Boss test:** crveni bljesak preko ekrana (3×), okvir se zatrese, „HP traka” bossa se napuni, pa podaci o testu. Ide uz stavku 6.
+   - **Region očišćen:** zlatni zrak preko ekrana, „DUNGEON CLEARED”, nagrade se pojavljuju jedna za drugom (+500 XP, statistika, titula). Jednom po regionu.
 
-Dizajn za stavke 3–6 postoji kao Claude Design kanvas „Hunter Roadmap — dizajn aplikacije” (ekrani Status i Podešavanja).
+Dizajn za stavke 3–6 postoji kao Claude Design kanvas „Hunter Roadmap — dizajn aplikacije” (ekrani Status i Podešavanja),
+a za stavku 8 ekran „7 · Animacije sistema” na istom kanvasu (tačne keyframes vrednosti su u njemu).
