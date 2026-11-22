@@ -70,7 +70,7 @@ dnevni zadatak, boss i „DUNGEON CLEARED”, smanjeni pokreti. `tools/e2e.sh` p
 Koriste instalirani Chrome (`channel: "chrome"`). Praćenje uživo:
 
 ```bash
-SLOWMO=500 tools/e2e.sh --headed   # vidljiv Chrome, svaka radnja usporena 0,5 s
+SLOWMO=1000 tools/e2e.sh --headed  # vidljiv Chrome, svaka radnja usporena 1 s
 tools/e2e.sh --ui                  # Playwright UI: lista testova, koraci, snimak ekrana po koraku, ponovno pokretanje
 tools/e2e.sh --debug               # Inspector: korak po korak, uz dugme „Resume”
 ```
