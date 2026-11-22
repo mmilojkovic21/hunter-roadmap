@@ -73,5 +73,19 @@ Raditi redom; posle svake stavke build, testovi i commit.
    - **Boss test:** crveni bljesak preko ekrana (3×), okvir se zatrese, „HP traka” bossa se napuni, pa podaci o testu. Ide uz stavku 6.
    - **Region očišćen:** zlatni zrak preko ekrana, „DUNGEON CLEARED”, nagrade se pojavljuju jedna za drugom (+500 XP, statistika, titula). Jednom po regionu.
 
+9. **Učitavanje aplikacije (boot).** Kanvas, ekran „8 · Učitavanje aplikacije (boot)”.
+   - Overlay je **čist HTML/CSS u `web/index.html`** (stil u `<head>`), da se pojavi odmah, pre nego što se učita JS bundle. React ga uklanja.
+   - **Puna verzija (~4 s)** pri prvom otvaranju u danu: tačka → svetla linija → otvaranje prozora sistema → redovi
+     „Učitavanje statusa / Sinhronizacija dungeona / Provera dnevnog zadatka / Kalibracija ranga” sa „OK” → segmentna traka → „PRISTUP ODOBREN” (ostaje ~1 s i jednom zasvetli) → prozor se sklopi u liniju → aplikacija se otkrije.
+     Vremenska linija: redovi od 1,0 s na svakih 0,3 s, traka 1,1–2,5 s, natpis 2,65 s, zatvaranje 3,6 s, otkrivanje 4,0 s.
+     Datum poslednje pune verzije u `localStorage` (`hunter.boot.lastFull`).
+   - **Kratka verzija (~0,6 s)** pri refresh-u istog dana: linija + „SISTEM SPREMAN_” i fade.
+   - **„OK” prate stvarno učitavanje:** red se potvrđuje kad stigne odgovarajući upit (settings, status...). Overlay nestaje tek kad su
+     podaci spremni I istekne minimalno trajanje. Ako API ne odgovori: „[ GREŠKA ] Sistem nedostupan” + dugme „Pokušaj ponovo”.
+   - **Preskakanje:** klik, Enter ili Esc odmah završava animaciju.
+   - **Tema i smanjene animacije** se čitaju iz `localStorage` keša (podešavanja još nisu stigla sa API-ja), pa boot ima boju aktivne teme.
+     Uz `reduceMotion` ili `prefers-reduced-motion`: bez animacije, samo fade ≤150 ms.
+   - Pristupačnost: `role="status"`; posle uklanjanja fokus ide na `<main>`.
+
 Dizajn za stavke 3–6 postoji kao Claude Design kanvas „Hunter Roadmap — dizajn aplikacije” (ekrani Status i Podešavanja),
-a za stavku 8 ekran „7 · Animacije sistema” na istom kanvasu (tačne keyframes vrednosti su u njemu).
+za stavku 8 ekran „7 · Animacije sistema”, a za stavku 9 ekran „8 · Učitavanje aplikacije (boot)” na istom kanvasu (tačne keyframes vrednosti su u njima).
