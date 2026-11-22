@@ -1,18 +1,16 @@
 import type { ReactNode } from "react";
 
 /**
- * Poruka sistema: prozor se otvara od tanke linije, pa ulazi tekst (animacija u styles.css, `.notice`).
+ * Poruka sistema: prozor se otvara od tanke linije, pa ulazi tekst (animacija u styles.css, `.notice`;
+ * vrednosti iz dizajn kanvasa, „7 · Animacije sistema”).
  * Nije modal i ne blokira klikove; čitači ekrana je čuju preko role="status".
  * Prikazuje se samo kad to kaže odgovor API-ja (npr. XpResult.questCompleted), nikad po pogađanju na klijentu.
  */
-export function SystemNotice({ kicker = "[ ! ] sistem", title, children }: { kicker?: string; title: string; children?: ReactNode }) {
+export function SystemNotice({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <section className="sys notice" role="status">
-      <div className="notice-body">
-        <span className="kicker">{kicker}</span>
-        <h2 className="notice-title">{title}</h2>
-        {children}
-      </div>
+    <section className="notice" role="status">
+      <span className="notice-title">{title}</span>
+      {children && <span className="notice-text">{children}</span>}
     </section>
   );
 }
@@ -20,8 +18,8 @@ export function SystemNotice({ kicker = "[ ! ] sistem", title, children }: { kic
 /** Poruka za završen dnevni zadatak; ista na stranici poglavlja i testa. */
 export function QuestCompletedNotice() {
   return (
-    <SystemNotice kicker="[ ! ] dnevni zadatak" title="ZADATAK ZAVRŠEN">
-      <span>Nagrada je osvojena (slobodan poen, vidi Status). Vrati se sutra po novi zadatak.</span>
+    <SystemNotice title="[ ! ] DNEVNI ZADATAK ZAVRŠEN">
+      Nagrada je osvojena: slobodan poen. Sutra stiže novi zadatak.
     </SystemNotice>
   );
 }

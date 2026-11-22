@@ -7,6 +7,8 @@ import { heatLevel, STEP_LABEL } from "../lib/quiz";
 
 const HEAT_ALPHA = [0, 0.25, 0.45, 0.7, 1];
 
+const points = (n: number) => (n === 1 ? "1 slobodan poen" : `${n} slobodna poena`);
+
 export function StatusPage() {
   const q = useQuery({ queryKey: ["status"], queryFn: api.status });
   if (q.isPending) return <Loading />;
@@ -75,47 +77,49 @@ export function StatusPage() {
       </section>
 
       <div className="grid" style={{ ["--min" as string]: "380px" }}>
-        <section className="sys" aria-labelledby="quest-h" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div className="row between">
-            <h2 id="quest-h" style={{ fontFamily: "var(--mono)", fontSize: 15, color: "var(--accent)", letterSpacing: "0.08em" }}>
-              [ ! ] DNEVNI ZADATAK
+        <section className="quest" aria-labelledby="quest-h">
+          <div className="row between" style={{ gap: 10 }}>
+            <h2 id="quest-h" style={{ fontFamily: "var(--mono)", fontSize: 15, fontWeight: 600, color: "var(--accent)", letterSpacing: "0.08em" }}>
+              [ ! ] DNEVNI ZADATAK STIGAO
             </h2>
             {quest && (
-              <span style={{ fontFamily: "var(--mono)", fontWeight: 700, color: quest.completed ? "var(--ok)" : "var(--text)" }}>
-                {quest.doneCount}/{quest.tasks.length}
+              <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--warn)" }}>
+                {quest.doneCount}/{quest.tasks.length} · +{quest.tasks.filter((t) => t.done).reduce((sum, t) => sum + t.xp, 0)} XP
               </span>
             )}
           </div>
           {!quest && <span className="muted">Sve je očišćeno. Učitaj novi paket u Biblioteci.</span>}
           {quest && (
             <>
-              <span className="muted" style={{ fontSize: 13 }}>
-                Procena {quest.minutes} min · dnevni cilj {s.dailyGoalMinutes} min. Zadaci se biraju jednom dnevno.
+              <span style={{ fontSize: 13, color: quest.completed ? "var(--ok)" : "var(--muted-2)" }}>
+                {quest.completed
+                  ? `Zadatak završen! Osvojen ${points(quest.rewardPoints)}.`
+                  : `Završi sve pre ponoći. Nagrada: +${points(quest.rewardPoints)}.`}
               </span>
-              <Bar pct={Math.round((quest.doneCount * 100) / quest.tasks.length)} color={quest.completed ? "var(--ok)" : undefined} />
-              <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
                 {quest.tasks.map((t) => (
                   <li key={t.chapterId + t.step}>
-                    <Link className={`list-row quest-task${t.done ? " done" : ""}`}
+                    <Link className={`quest-task${t.done ? " done" : ""}`}
                       to={t.step === "Test" ? `/chapters/${encodeURIComponent(t.chapterId)}/test` : `/chapters/${encodeURIComponent(t.chapterId)}`}>
-                      <span className="quest-check" aria-hidden="true">{t.done && <Icon name="check" size={14} />}</span>
-                      <span style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
-                        <span className="quest-task-title" style={{ fontWeight: 600 }}>
+                      <span className="quest-check" aria-hidden="true">
+                        {t.done && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </span>
+                      <span style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>
                           <span className="sr-only">{t.done ? "Urađeno: " : "Nije urađeno: "}</span>
                           {STEP_LABEL[t.step]}: {t.chapterTitle}
                         </span>
-                        <span className="muted" style={{ fontSize: 12 }}>poglavlje {t.chapterId} · oko {t.minutes} min</span>
+                        <span className="muted" style={{ fontSize: 12 }}>Poglavlje {t.chapterId} · ~{t.minutes} min</span>
                       </span>
-                      <span style={{ fontFamily: "var(--mono)", color: "var(--warn)" }}>+{t.xp}</span>
+                      <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--warn)" }}>+{t.xp}</span>
                     </Link>
                   </li>
                 ))}
               </ul>
-              <span style={{ fontSize: 13, color: quest.completed ? "var(--ok)" : "var(--muted-2)" }}>
-                {quest.completed
-                  ? `Završeno! Osvojen ${quest.rewardPoints === 1 ? "slobodan poen" : `${quest.rewardPoints} slobodna poena`}.`
-                  : `Nagrada: +${quest.rewardPoints} ${quest.rewardPoints === 1 ? "slobodan poen" : "slobodna poena"}.`}
-              </span>
             </>
           )}
         </section>
