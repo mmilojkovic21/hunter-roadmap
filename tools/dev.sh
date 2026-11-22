@@ -17,8 +17,20 @@ until docker compose exec -T db pg_isready -U hunter -d hunter >/dev/null 2>&1; 
 
 [ -d web/node_modules ] || (cd web && npm ci)
 
-# Oba procesa rade u pozadini ovog skripta; Ctrl+C gasi oba, da ne ostane API koji drži port 8080.
-trap 'kill 0' INT TERM EXIT
-(cd api/src/Hunter.Api && dotnet watch --non-interactive) &
-(cd web && npm run dev) &
+# Svaki proces dobija svoju grupu (set -m), pa se pri izlasku gasi cela grupa: dotnet watch, njegov build i API.
+# `dotnet watch` ne izlazi uvek na TERM, pa posle 2 s ide KILL. Inače ostaje „siroče” koje prati fajlove
+# i pri sledećoj izmeni ponovo zauzme port 8080.
+set -m
+(cd api/src/Hunter.Api && exec dotnet watch --non-interactive) &
+api=$!
+(cd web && exec npm run dev) &
+web=$!
+
+stop() {
+  trap - INT TERM EXIT
+  kill -TERM -- "-$api" "-$web" 2>/dev/null || true
+  sleep 2
+  kill -KILL -- "-$api" "-$web" 2>/dev/null || true
+}
+trap stop INT TERM EXIT
 wait
