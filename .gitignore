@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+*.user
+node_modules/
+dist/
+.env
+content/**/out/
+*.zip
+!examples/*.zip
+*.tsbuildinfo
+.DS_Store

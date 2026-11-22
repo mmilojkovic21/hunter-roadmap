@@ -1,0 +1,41 @@
+# Pokretanje cele aplikacije: docker compose up --build  →  http://localhost:8088
+# (vodič, pogl. 36: više servisa, mreža, volumeni)
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: hunter
+      POSTGRES_USER: hunter
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hunter}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+   # ports:
+   #   - "127.0.0.1:5433:5433"   # samo lokalno, za DBeaver/psql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hunter -d hunter"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./api
+    environment:
+      ConnectionStrings__Db: "Host=db;Database=hunter;Username=hunter;Password=${POSTGRES_PASSWORD:-hunter}"
+      Hunter__PacksPath: /packs
+      Hunter__TimeZone: Europe/Belgrade
+    volumes:
+      - ./packs:/packs:ro       # paketi iz foldera se uvoze pri pokretanju
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./web
+    ports:
+      - "8088:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

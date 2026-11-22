@@ -1,0 +1,321 @@
+{
+  "format": "hunter-pack/1",
+  "id": "fullstack-dotnet",
+  "title": "Full Stack .NET inženjer",
+  "description": "Od nule do posla: .NET, React, DevOps, cloud, AI i priprema za intervju. 49 poglavlja iz PDF vodiča i 31 poglavlje sa punim sadržajem.",
+  "language": "sr-Latn",
+  "version": "1.0.0",
+  "author": "Miljan",
+  "passPct": 70,
+  "xp": {
+    "lesson": 50,
+    "deeper": 30,
+    "lab": 100,
+    "test": 80,
+    "boss": 500
+  },
+  "stats": [
+    {
+      "key": "INT",
+      "name": "Osnove i web",
+      "color": "#B9A4FF"
+    },
+    {
+      "key": "STR",
+      "name": "Backend · .NET",
+      "color": "#7DBBFF"
+    },
+    {
+      "key": "AGI",
+      "name": "Frontend · React",
+      "color": "#5FE0B7"
+    },
+    {
+      "key": "VIT",
+      "name": "DevOps i cloud",
+      "color": "#FFB547"
+    },
+    {
+      "key": "PER",
+      "name": "Intervju",
+      "color": "#FF9EC2"
+    }
+  ],
+  "regions": [
+    {
+      "code": "0",
+      "title": "Deo 0 · Programiranje od nule",
+      "stat": "INT",
+      "levels": [
+        {
+          "name": "TEMELJI",
+          "chapters": [
+            "0.1",
+            "0.2",
+            "0.3",
+            "0.4"
+          ]
+        },
+        {
+          "name": "SREDNJI NIVO",
+          "chapters": [
+            "0.5",
+            "0.6",
+            "0.7"
+          ]
+        },
+        {
+          "name": "NAPREDNI NIVO",
+          "chapters": [
+            "0.8",
+            "0.9"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "I",
+      "title": "Deo I · Zajedničke osnove",
+      "stat": "INT",
+      "levels": [
+        {
+          "name": "TEMELJI",
+          "chapters": [
+            "1",
+            "2"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "II",
+      "title": "Deo II · Backend: .NET",
+      "stat": "STR",
+      "levels": [
+        {
+          "name": "TEMELJI",
+          "chapters": [
+            "3",
+            "4",
+            "5",
+            "6",
+            "7"
+          ]
+        },
+        {
+          "name": "SREDNJI NIVO",
+          "chapters": [
+            "8",
+            "9",
+            "10",
+            "11",
+            "12"
+          ]
+        },
+        {
+          "name": "NAPREDNI NIVO",
+          "chapters": [
+            "13",
+            "14",
+            "15",
+            "16",
+            "17"
+          ]
+        },
+        {
+          "name": "KROZ ZALIHE",
+          "chapters": [
+            "18",
+            "19"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "III",
+      "title": "Deo III · Frontend: React",
+      "stat": "AGI",
+      "levels": [
+        {
+          "name": "TEMELJI",
+          "chapters": [
+            "20",
+            "21",
+            "22",
+            "23"
+          ]
+        },
+        {
+          "name": "SREDNJI NIVO",
+          "chapters": [
+            "24",
+            "25",
+            "26",
+            "27"
+          ]
+        },
+        {
+          "name": "NAPREDNI NIVO",
+          "chapters": [
+            "28",
+            "29"
+          ]
+        },
+        {
+          "name": "KROZ ZALIHE",
+          "chapters": [
+            "30",
+            "31"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "IV",
+      "title": "Deo IV · DevOps",
+      "stat": "VIT",
+      "levels": [
+        {
+          "name": "TEMELJI",
+          "chapters": [
+            "32",
+            "33",
+            "34"
+          ]
+        },
+        {
+          "name": "SREDNJI NIVO",
+          "chapters": [
+            "35",
+            "36",
+            "37"
+          ]
+        },
+        {
+          "name": "NAPREDNI NIVO",
+          "chapters": [
+            "38",
+            "39"
+          ]
+        },
+        {
+          "name": "KROZ ZALIHE",
+          "chapters": [
+            "40",
+            "41"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "V",
+      "title": "Deo V · Sve zajedno",
+      "stat": "PER",
+      "levels": [
+        {
+          "name": "KROZ ZALIHE",
+          "chapters": [
+            "42",
+            "43"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "VI",
+      "title": "Deo VI · Priprema za intervju",
+      "stat": "PER",
+      "levels": [
+        {
+          "name": "BOSS ZONA",
+          "chapters": [
+            "44",
+            "45",
+            "46",
+            "47",
+            "48",
+            "49"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "C",
+      "title": "Dodatak C · Cloud i infrastruktura",
+      "stat": "VIT",
+      "levels": [
+        {
+          "name": "SREDNJI NIVO",
+          "chapters": [
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ]
+        },
+        {
+          "name": "NAPREDNI NIVO",
+          "chapters": [
+            "C5",
+            "C6",
+            "C7",
+            "C8"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "AI",
+      "title": "Dodatak AI · AI u razvoju i u proizvodu",
+      "stat": "INT",
+      "levels": [
+        {
+          "name": "TEMELJI",
+          "chapters": [
+            "AI1",
+            "AI2"
+          ]
+        },
+        {
+          "name": "NAPREDNI NIVO",
+          "chapters": [
+            "AI3",
+            "AI4",
+            "AI5"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "PRO",
+      "title": "Dodatak PRO · Veštine koje dele juniora od mediora",
+      "stat": "PER",
+      "levels": [
+        {
+          "name": "KVALITET",
+          "chapters": [
+            "P1",
+            "P2",
+            "P3",
+            "P4"
+          ]
+        },
+        {
+          "name": "FRONTEND+",
+          "chapters": [
+            "P5",
+            "P6",
+            "P7"
+          ]
+        },
+        {
+          "name": "TIM I KARIJERA",
+          "chapters": [
+            "P8",
+            "P9"
+          ]
+        }
+      ]
+    }
+  ]
+}

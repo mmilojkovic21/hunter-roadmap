@@ -1,0 +1,29 @@
+[
+  {
+    "id": "1", "title": "Sokratov metod", "subtitle": "pitanja umesto odgovora", "minutes": 20,
+    "externalRef": null,
+    "intro": "Sokrat nije pisao knjige. Njegov metod poznajemo iz Platonovih dijaloga: kroz niz pitanja sagovornik sam otkriva protivrečnosti u svom stavu.",
+    "lessonMarkdown": "## Koraci metoda\n\n1. Sagovornik iznese definiciju (npr. šta je hrabrost).\n2. Pitanjima se nađe slučaj koji joj protivreči.\n3. Definicija se popravi ili odbaci.\n4. Postupak se ponavlja.\n\nCilj nije pobeda u raspravi, nego jasniji pojam.",
+    "deeperMarkdown": "",
+    "exercise": { "steps": ["Izaberi pojam (npr. pravda)", "Napiši svoju definiciju u jednoj rečenici", "Nađi dva primera koja joj protivreče", "Napiši popravljenu definiciju"], "done": "Imaš prvu i popravljenu definiciju i dva kontraprimera." },
+    "cards": [ { "q": "Šta je elenhos?", "a": "Postupak pobijanja: pitanjima se pokazuje da sagovornikov stav vodi u protivrečnost." } ],
+    "test": [
+      { "text": "Odakle najviše znamo o Sokratovom metodu?", "code": null, "options": ["Iz Sokratovih knjiga", "Iz Platonovih dijaloga", "Iz Aristotelove Fizike", "Iz Homerovih epova"], "correct": 1, "why": "Sokrat nije pisao; njegov metod je zabeležen u Platonovim dijalozima." },
+      { "text": "Šta je cilj Sokratovog metoda?", "code": null, "options": ["Pobediti sagovornika", "Jasniji pojam kroz uklanjanje protivrečnosti", "Naučiti retoriku", "Doneti zakon"], "correct": 1, "why": "Metod služi razjašnjavanju pojmova, ne nadmudrivanju." }
+    ],
+    "sources": [ { "title": "Stanford Encyclopedia of Philosophy: Socrates", "url": "https://plato.stanford.edu/entries/socrates/" } ]
+  },
+  {
+    "id": "2", "title": "Etika vrline", "subtitle": "Aristotel i dobar život", "minutes": 25,
+    "externalRef": null,
+    "intro": "Za Aristotela, pitanje nije samo „šta treba da uradim”, nego „kakva osoba treba da budem”.",
+    "lessonMarkdown": "Vrlina je **sredina između dve krajnosti**: hrabrost je između kukavičluka i drskosti. Vrline se stiču navikom, kao veština.",
+    "deeperMarkdown": "",
+    "exercise": null,
+    "cards": [ { "q": "Šta je zlatna sredina?", "a": "Vrlina kao sredina između manjka i viška, npr. velikodušnost između škrtosti i rasipništva." } ],
+    "test": [
+      { "text": "Kako se, po Aristotelu, stiče vrlina?", "code": null, "options": ["Rođenjem", "Navikom i vežbom", "Čitanjem zakona", "Slučajno"], "correct": 1, "why": "Vrline se stiču ponavljanjem dobrih dela, kao veština." }
+    ],
+    "sources": []
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "format": "hunter-pack/1",
+  "id": "primer-filozofija",
+  "title": "Primer: Uvod u filozofiju",
+  "description": "Mali primer paketa van IT-a. Služi kao šablon za pravljenje sopstvenih paketa.",
+  "language": "sr-Latn",
+  "version": "1.0.0",
+  "author": "Hunter Roadmap",
+  "passPct": 70,
+  "xp": { "lesson": 50, "deeper": 30, "lab": 100, "test": 80, "boss": 500 },
+  "stats": [
+    { "key": "LOG", "name": "Logika i argumentacija", "color": "#A78BFA" },
+    { "key": "ETI", "name": "Etika", "color": "#5FE0B7" }
+  ],
+  "regions": [
+    { "code": "I", "title": "Deo I · Antika", "stat": "LOG",
+      "levels": [ { "name": "TEMELJI", "chapters": ["1"] } ] },
+    { "code": "II", "title": "Deo II · Etika", "stat": "ETI",
+      "levels": [ { "name": "TEMELJI", "chapters": ["2"] } ] }
+  ]
+}
