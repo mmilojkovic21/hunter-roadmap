@@ -1,15 +1,17 @@
-import { StrictMode } from "react";
+import { lazy, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import { Layout } from "./components/Layout";
-import { StatusPage } from "./pages/StatusPage";
-import { MapPage } from "./pages/MapPage";
-import { ChapterPage } from "./pages/ChapterPage";
-import { TestPage } from "./pages/TestPage";
-import { BossPage } from "./pages/BossPage";
-import { LibraryPage } from "./pages/LibraryPage";
-import { SettingsPage } from "./pages/SettingsPage";
+// Svaka stranica je poseban deo bundle-a i preuzima se tek kad se prvi put otvori (vodič, pogl. 28).
+// Stranice izvoze imenovane komponente, a React.lazy traži default, pa se mapira ovde.
+const StatusPage = lazy(() => import("./pages/StatusPage").then((m) => ({ default: m.StatusPage })));
+const MapPage = lazy(() => import("./pages/MapPage").then((m) => ({ default: m.MapPage })));
+const ChapterPage = lazy(() => import("./pages/ChapterPage").then((m) => ({ default: m.ChapterPage })));
+const TestPage = lazy(() => import("./pages/TestPage").then((m) => ({ default: m.TestPage })));
+const BossPage = lazy(() => import("./pages/BossPage").then((m) => ({ default: m.BossPage })));
+const LibraryPage = lazy(() => import("./pages/LibraryPage").then((m) => ({ default: m.LibraryPage })));
+const SettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })));
 import "./styles.css";
 
 const queryClient = new QueryClient({

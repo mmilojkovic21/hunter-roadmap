@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { NavLink, Outlet } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
 import { Icon } from "./Icon";
+import { Loading } from "./common";
 
 const NAV = [
   { to: "/", label: "Status", icon: "grid" },
@@ -44,7 +45,10 @@ export function Layout() {
         </div>
       </nav>
       <main className="main">
-        <Outlet />
+        {/* Stranice su lazy: dok se deo bundle-a preuzima, meni ostaje, a umesto sadržaja ide Loading. */}
+        <Suspense fallback={<Loading />}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );

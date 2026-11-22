@@ -1,16 +1,5 @@
 import { Link } from "react-router";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { ApiError } from "../api";
-
-export function Markdown({ text }: { text: string }) {
-  // react-markdown ne izvršava HTML iz sadržaja, pa je bezbedno i za tuđe pakete (dodatak P3).
-  return (
-    <div className="prose">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
-    </div>
-  );
-}
 
 export function Loading() {
   return <div className="empty" role="status">Sistem učitava podatke…</div>;

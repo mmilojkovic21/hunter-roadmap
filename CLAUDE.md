@@ -48,7 +48,7 @@ Posle svake izmene pokreni build i testove dela koji si menjao. Zadatak nije got
 - Radi: status, mapa, poglavlje (lekcija/dublje/vežba/kartice/izvori), test sa mešanjem opcija i objašnjenjima, biblioteka (upload .zip, aktivacija), podešavanja (4 teme, sjaj, animacije, dnevni cilj).
 - Baza se pravi EF migracijama (`Data/Migrations`, `MigrateAsync` pri startu). Posle izmene modela: `dotnet ef migrations add <Ime> --project src/Hunter.Api --output-dir Data/Migrations`.
 - Jedan korisnik, bez prijave; upload je zato bez antiforgery (`.DisableAntiforgery()`).
-- JS bundle je oko 540 kB (nema lazy učitavanja ruta).
+- Stranice su `React.lazy` (main.tsx), `Suspense` je u Layout-u. Početni JS je ~354 kB; react-markdown je samo u delu ChapterPage (`components/Markdown.tsx`, ne uvoziti ga u common.tsx).
 
 ## Faza 2: plan
 
@@ -60,7 +60,7 @@ Raditi redom; posle svake stavke build, testovi i commit.
 4. ✅ **Kazneni zadatak.** Ako jučerašnji dnevni zadatak nije završen, danas prvo ide ponavljanje slabih tačaka (20 min) pre nove lekcije. Uključuje se ili isključuje u podešavanjima (`PenaltyEnabled`).
 5. ✅ **Slobodni poeni.** Dobijaju se za završen dnevni zadatak i za level-up; dodeljuju se statistici (fokus nedelje). Prikaz i dugme „+” na karticama statistika.
 6. ✅ **Boss test regiona.** Kad su sva poglavlja regiona očišćena: 20–25 nasumičnih pitanja iz regiona, prolaz 80%, +500 XP, oznaka na mapi.
-7. **Lazy rute** u React-u (`React.lazy` po stranici) da bundle padne ispod 500 kB. (pogl. 28)
+7. ✅ **Lazy rute** u React-u (`React.lazy` po stranici) da bundle padne ispod 500 kB. (pogl. 28)
 8. **Animacije sistema.** Samo CSS (`@keyframes` u `styles.css`), bez novih biblioteka. Trajanje do 1,5 s, nikad ne blokiraju klikove.
    Kad je `reduceMotion` uključen ILI je u sistemu `prefers-reduced-motion: reduce`, ostaje samo kratak fade (≤150 ms).
    Okidači dolaze iz odgovora API-ja (`XpResult.levelUp`, `TestResultView`, promena ranga na statusu), ne iz pogađanja na klijentu.
