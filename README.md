@@ -67,7 +67,13 @@ tools/e2e.sh                # E2E (Playwright): ceo tok kroz pravi Chrome nad sv
 E2E testovi (`web/e2e/*.e2e.ts`) klikću kroz aplikaciju kao korisnik: koraci i +XP, level up, kapija pred test,
 dnevni zadatak, boss i „DUNGEON CLEARED”, smanjeni pokreti. `tools/e2e.sh` podiže poseban compose projekat
 (`hunter-e2e`, port 8099, sopstvena baza), pa glavna aplikacija na 8088 i njen napredak ostaju netaknuti.
-Koriste instalirani Chrome (`channel: "chrome"`). `tools/e2e.sh --headed` otvara pregledač da gledaš.
+Koriste instalirani Chrome (`channel: "chrome"`). Praćenje uživo:
+
+```bash
+SLOWMO=500 tools/e2e.sh --headed   # vidljiv Chrome, svaka radnja usporena 0,5 s
+tools/e2e.sh --ui                  # Playwright UI: lista testova, koraci, snimak ekrana po koraku, ponovno pokretanje
+tools/e2e.sh --debug               # Inspector: korak po korak, uz dugme „Resume”
+```
 
 ## Struktura
 

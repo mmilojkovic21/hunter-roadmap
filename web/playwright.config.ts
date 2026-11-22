@@ -12,6 +12,8 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://127.0.0.1:8099",
     channel: "chrome", // instalirani Chrome, bez preuzimanja Playwright pregledača
+    // SLOWMO=500 usporava svaku radnju (ms), da se uz --headed može pratiti šta test radi.
+    launchOptions: { slowMo: Number(process.env.SLOWMO ?? 0) },
     trace: "retain-on-failure",
   },
 });
