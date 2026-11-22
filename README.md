@@ -37,11 +37,24 @@ cd api && dotnet ef migrations add ImeIzmene --project src/Hunter.Api --output-d
 
 ## Razvoj bez Dockera za API i frontend
 
+Za svakodnevni rad: izmene se vide odmah, bez `docker compose up --build`.
+
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up db   # samo baza, na localhost:5432
-cd api/src/Hunter.Api && dotnet run --urls http://localhost:8080
-cd web && npm install && npm run dev                  # http://localhost:5173, /api ide na :8080
+tools/dev.sh        # baza u Dockeru (localhost:5433) + dotnet watch (:8080) + Vite (http://localhost:5173)
 ```
+
+- React izmene se vide odmah (Vite HMR), C# izmene posle par sekundi (`dotnet watch` sam restartuje API).
+- Ctrl+C gasi API i web; baza ostaje da radi. Napredak je isti kao u Docker verziji (isti volumen).
+- Baza je na **5433**, ne 5432, jer na 5432 često radi lokalno instaliran PostgreSQL.
+- Isto, ručno u tri terminala:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+cd api/src/Hunter.Api && dotnet watch     # Properties/launchSettings.json: Development, :8080
+cd web && npm run dev                     # /api ide na :8080
+```
+
+`docker compose up --build -d` (http://localhost:8088) treba samo za proveru produkcijske verzije.
 
 Testovi:
 

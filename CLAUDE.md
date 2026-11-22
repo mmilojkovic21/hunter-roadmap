@@ -20,6 +20,7 @@ Projekat je ujedno portfolio, pa kod mora biti čist i lako objašnjiv na interv
 
 ```bash
 docker compose up --build                 # cela aplikacija, http://localhost:8088
+tools/dev.sh                              # razvoj: baza :5433 + dotnet watch :8080 + Vite :5173
 cd api && dotnet build && dotnet test     # backend + testovi
 cd web && npm run build && npm test       # tsc + vite build, vitest
 tools/build_pack.sh fullstack-dotnet      # sadržaj → paket (Python 3)
