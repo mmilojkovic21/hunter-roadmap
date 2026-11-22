@@ -94,24 +94,34 @@ Raditi redom; posle svake stavke build, testovi i commit.
 Dizajn za stavke 3–6 postoji kao Claude Design kanvas „Hunter Roadmap — dizajn aplikacije” (ekrani Status i Podešavanja),
 za stavku 8 ekran „7 · Animacije sistema”, a za stavku 9 ekran „8 · Učitavanje aplikacije (boot)” na istom kanvasu (tačne keyframes vrednosti su u njima).
 
-## Faza 3: plan (Intervju arena)
+## Faza 3: plan (nalozi i Intervju arena)
 
 Raditi redom; posle svake stavke build, testovi (i `tools/e2e.sh` za UI) i commit. Dizajn: ekran „Intervju arena” na istom kanvasu.
 Materijal: kartice „Pitanja sa intervjua” iz paketa (203). Oblasti arene su statistike paketa (npr. INT/STR/AGI/VIT/PER), pa arena radi za svaki paket.
 
-Dogovorene odluke: intervali 1/3/7/14 dana; ponavljanje daje mali XP sa dnevnim limitom; simulacija je sa samoocenjivanjem; faza 3 ide pre faze 4 (deploy).
+Dogovorene odluke: nalozi pre arene (svaka nova tabela je odmah po korisniku); intervali 1/3/7/14 dana; ponavljanje daje mali XP sa dnevnim limitom; simulacija je sa samoocenjivanjem; faza 3 ide pre faze 4 (deploy).
 
-1. **Pravila ponavljanja (`ReviewRules` u Core-u).** Leitner kutije 1/3/7/14 dana: „Nisam znao” → 1 dan, „Delimično” → 3 dana,
+1. **Nalozi (registracija i prijava).** ASP.NET Core Identity (`Microsoft.AspNetCore.Identity.EntityFrameworkCore`, odobreno)
+   sa `MapIdentityApi`; prijava kolačićem (HttpOnly, SameSite), ne JWT: frontend i API su na istom domenu preko nginx-a.
+   - `UserId` u svim tabelama napretka (StepCompletions, XpEvents, TestAttempts, DailyQuests, StatPoints, BossAttempts, RegionClears);
+     jedinstveni indeksi uključuju korisnika; `UserSettings` jedan red po korisniku (više nema `Id = 1`).
+   - EF Core global query filter po prijavljenom korisniku, da nijedan upit ne može da ga zaobiđe. Integracioni test: A ne vidi napredak B.
+   - Paketi su zajednički; upload i aktivacija paketa za sve: samo uloga `Admin`. Svaki korisnik bira svoj aktivni paket.
+   - Registracija otvorena; bez potvrde mejlom i resetovanja lozinke za sada (nema mail servera).
+   - CSRF: antiforgery se vraća na upload (kolačić sada nosi identitet); ukloniti `.DisableAntiforgery()`.
+   - Migracija postojećih podataka: dosadašnji napredak dobija prvi (vlasnikov) nalog, koji je i `Admin`.
+   - Frontend: stranice Prijava i Registracija, zaštićene rute, odjava u meniju; E2E se prijavljuje kroz fixture.
+2. **Pravila ponavljanja (`ReviewRules` u Core-u).** Leitner kutije 1/3/7/14 dana: „Nisam znao” → 1 dan, „Delimično” → 3 dana,
    „Znao sam” → sledeći interval (7, pa 14). Red za danas: zakasnele prve, najviše 10 novih kartica dnevno. Čiste funkcije sa testovima.
-2. **Ocena kartice je događaj.** Tabela `CardRatings` (kartica, ocena, vreme) + migracija; kutija i sledeći datum se računaju iz istorije
+3. **Ocena kartice je događaj.** Tabela `CardRatings` (kartica, ocena, vreme) + migracija; kutija i sledeći datum se računaju iz istorije
    (isti princip kao XP). Kartica se prepoznaje po id-ju poglavlja + hešu teksta pitanja, ne po indeksu, da izmena paketa ne pomeša istoriju.
-3. **API arene.** `GET /api/arena?area=…` (današnji red, brojevi za danas, spremnost po oblasti = % kartica na intervalu ≥ 7 dana),
+4. **API arene.** `GET /api/arena?area=…` (današnji red, brojevi za danas, spremnost po oblasti = % kartica na intervalu ≥ 7 dana),
    `POST /api/arena/cards/{id}/rate`. Integracioni testovi. Izmene u `Contracts.cs` uz iste u `api.ts`.
-4. **Stranica „Intervju arena”** po kanvasu: stavka u meniju, filter po oblasti, kartica sa „Otkrij odgovor” i tri ocene,
+5. **Stranica „Intervju arena”** po kanvasu: stavka u meniju, filter po oblasti, kartica sa „Otkrij odgovor” i tri ocene,
    brojevi za danas, trake spremnosti. Prečice: Space = otkrij, 1/2/3 = ocena. E2E test toka.
-5. **Arena u dnevnom zadatku.** Novi tip zadatka „Ponovi N kartica” kad ih ima na redu (`DailyQuestRules`). XP za ponavljanje
+6. **Arena u dnevnom zadatku.** Novi tip zadatka „Ponovi N kartica” kad ih ima na redu (`DailyQuestRules`). XP za ponavljanje
    (npr. 5 po kartici, dnevni limit), pravilo u Core-u sa testovima.
-6. **STAR priča.** Forma S/T/A/R sačuvana u bazi; prikaz u areni (kao na kanvasu) i u simulaciji. Popunjava se uz poglavlje 43.
-7. **Simulacija intervjua.** 45 min sa tajmerom: 10 kartica iz svih oblasti (bira server, prednost slabijim), jedan zadatak na tabli,
+7. **STAR priča.** Forma S/T/A/R sačuvana u bazi; prikaz u areni (kao na kanvasu) i u simulaciji. Popunjava se uz poglavlje 43.
+8. **Simulacija intervjua.** 45 min sa tajmerom: 10 kartica iz svih oblasti (bira server, prednost slabijim), jedan zadatak na tabli,
    STAR priča; samoocenjivanje; izveštaj po oblastima se čuva (napredak kroz vreme). Ulazna animacija iz postojećeg sistema animacija.
-8. **Sadržaj: zadaci na tabli.** 10–15 SQL i algoritamskih zadataka sa rešenjem i objašnjenjem, u `vodic-*.md` formatu sa istom proverom.
+9. **Sadržaj: zadaci na tabli.** 10–15 SQL i algoritamskih zadataka sa rešenjem i objašnjenjem, u `vodic-*.md` formatu sa istom proverom.
