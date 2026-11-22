@@ -39,7 +39,9 @@ public static class PackReader
             using var c = chapters.Open();
             return Parse(p, c);
         }
-        catch (InvalidDataException)
+        // Nevažeći zip ne javlja uvek InvalidDataException: nad upload streamom (IFormFile) ZipArchive
+        // pokuša da skoči van kraja kratkog fajla i baci ArgumentOutOfRangeException. Oba su „nije zip”, ne 500.
+        catch (Exception ex) when (ex is InvalidDataException or ArgumentOutOfRangeException)
         {
             return PackResult.Fail("Fajl nije ispravan zip.");
         }
