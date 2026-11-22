@@ -87,6 +87,15 @@ public class DailyQuestTask
     public bool IsReview { get; set; }
 }
 
+/// <summary>Jedan slobodan poen dodeljen statistici paketa. Potrošeni poeni = broj ovih redova.</summary>
+public class StatPoint
+{
+    public long Id { get; set; }
+    public required string PackId { get; set; }
+    public required string StatKey { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
 public class UserSettings
 {
     public int Id { get; set; } = 1;  // aplikacija je lokalna, za jednog korisnika
@@ -107,6 +116,7 @@ public class HunterDb(DbContextOptions<HunterDb> options) : DbContext(options)
     public DbSet<XpEvent> XpEvents => Set<XpEvent>();
     public DbSet<UserSettings> Settings => Set<UserSettings>();
     public DbSet<DailyQuest> DailyQuests => Set<DailyQuest>();
+    public DbSet<StatPoint> StatPoints => Set<StatPoint>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -135,6 +145,7 @@ public class HunterDb(DbContextOptions<HunterDb> options) : DbContext(options)
             e.HasMany(x => x.Tasks).WithOne().HasForeignKey(t => t.DailyQuestId).OnDelete(DeleteBehavior.Cascade);
         });
         b.Entity<DailyQuestTask>().ToTable("DailyQuestTasks");
+        b.Entity<StatPoint>(e => e.HasIndex(x => x.PackId));
         b.Entity<UserSettings>().HasData(new UserSettings { Id = 1 });
     }
 }

@@ -71,12 +71,7 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
         var pct = refs.Count == 0 ? 0 : (int)Math.Floor(doneCount * 100.0 / refs.Count);
         var next = RankRules.NextRank(pct);
 
-        var stats = ctx.Loaded.Pack.Stats.Select(s =>
-        {
-            var mine = refs.Where(r => r.Place.Region.Stat == s.Key).ToList();
-            var d = mine.Count(r => r.Ref.Status == ChapterStatus.Done);
-            return new StatView(s.Key, s.Name, s.Color, mine.Count == 0 ? 0 : (int)Math.Floor(d * 100.0 / mine.Count), d, mine.Count);
-        }).ToList();
+        var stats = await StatsAsync(ctx, ct);
 
         var current = refs.FirstOrDefault(r => r.Ref.Status != ChapterStatus.Done);
         List<ChapterRef> currentLevel = current.Place is null ? [] :
@@ -100,8 +95,53 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
         return new StatusView(
             Summary(ctx.Entity, ctx.Loaded, true), level, RankRules.FromCompletion(pct), next?.Next, next?.AtPct ?? 100,
             pct, doneCount, refs.Count, StreakRules.Current(byDay.Keys, today), byDay.GetValueOrDefault(today),
-            settings.DailyGoalMinutes, stats, current.Ref, currentLevel, current.Place?.Region.Title,
+            settings.DailyGoalMinutes, stats, await FreePointsAsync(level, ct), current.Ref, currentLevel, current.Place?.Region.Title,
             quest is null ? null : await QuestViewAsync(ctx, quest, ct), weak, activity);
+    }
+
+    // ---------- statistike i slobodni poeni ----------
+
+    private async Task<List<StatView>> StatsAsync(Ctx ctx, CancellationToken ct)
+    {
+        var points = await db.StatPoints.AsNoTracking().Where(p => p.PackId == ctx.Entity.Id)
+            .GroupBy(p => p.StatKey).Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+        return ctx.Loaded.Pack.Stats.Select(s =>
+        {
+            var mine = ctx.Places.Values.Where(p => p.Region.Stat == s.Key).ToList();
+            var done = mine.Count(p => Ref(ctx, p).Status == ChapterStatus.Done);
+            var pct = mine.Count == 0 ? 0 : (int)Math.Floor(done * 100.0 / mine.Count);
+            var pts = points.GetValueOrDefault(s.Key);
+            return new StatView(s.Key, s.Name, s.Color, pct, done, mine.Count, pts, FreePointRules.StatValue(pct, pts));
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Slobodni poeni na raspolaganju: zarađeni (nivo + završeni dnevni zadaci) minus dodeljeni.
+    /// Nivo je zajednički za sve pakete, pa je zajednički i fond poena.
+    /// </summary>
+    private async Task<int> FreePointsAsync(LevelInfo level, CancellationToken ct)
+    {
+        var quests = await db.DailyQuests.CountAsync(q => q.CompletedAt != null, ct);
+        var spent = await db.StatPoints.CountAsync(ct);
+        return FreePointRules.Available(FreePointRules.Earned(level.Level, quests), spent);
+    }
+
+    public async Task<(AllocatePointResult? Result, string? Error)> AllocatePointAsync(string statKey, CancellationToken ct)
+    {
+        var ctx = await LoadAsync(ct);
+        if (ctx is null) return (null, "Nema aktivnog paketa.");
+        if (ctx.Loaded.Pack.Stats.All(s => s.Key != statKey)) return (null, $"Paket nema statistiku '{statKey}'.");
+
+        // Provera pa upis bez zaključavanja je dovoljna: aplikacija je lokalna, za jednog korisnika,
+        // a dugme „+” je onemogućeno dok zahtev traje. Sa više korisnika ovde bi išla transakcija.
+        var free = await FreePointsAsync(LevelRules.FromTotalXp(await TotalXpAsync(ct)), ct);
+        if (free == 0) return (null, "Nema slobodnih poena.");
+
+        db.StatPoints.Add(new StatPoint { PackId = ctx.Entity.Id, StatKey = statKey, CreatedAt = clock.GetUtcNow() });
+        await db.SaveChangesAsync(ct);
+        var stat = (await StatsAsync(ctx, ct)).Single(s => s.Key == statKey);
+        return (new AllocatePointResult(free - 1, stat), null);
     }
 
     // ---------- dnevni zadatak ----------

@@ -70,6 +70,14 @@ public static class Endpoints
             return result is not null ? TypedResults.Ok(result) : TypedResults.BadRequest(error!);
         });
 
+        // ---------- slobodni poeni ----------
+        api.MapPost("/stats/{key}/points", async Task<Results<Ok<AllocatePointResult>, BadRequest<string>>> (
+            string key, ProgressService s, CancellationToken ct) =>
+        {
+            var (result, error) = await s.AllocatePointAsync(key, ct);
+            return result is not null ? TypedResults.Ok(result) : TypedResults.BadRequest(error!);
+        });
+
         // ---------- podešavanja ----------
         api.MapGet("/settings", async (HunterDb db, CancellationToken ct) =>
         {

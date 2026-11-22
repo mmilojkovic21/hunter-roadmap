@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { Bar, ErrorBox, Loading, STATUS_LABEL } from "../components/common";
 import { Icon } from "../components/Icon";
@@ -27,6 +27,11 @@ export function StatusPage() {
   const q = useQuery({ queryKey: ["status"], queryFn: api.status });
   const settings = useQuery({ queryKey: ["settings"], queryFn: api.settings });
   const timeLeft = useTimeToMidnight();
+  const qc = useQueryClient();
+  const allocate = useMutation({
+    mutationFn: api.allocatePoint,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["status"] }),
+  });
   if (q.isPending) return <Loading />;
   if (q.isError) return <ErrorBox error={q.error} />;
   const s = q.data;
@@ -80,17 +85,31 @@ export function StatusPage() {
       </section>
 
       <section style={{ display: "flex", flexDirection: "column", gap: 14 }} aria-labelledby="stats-h">
-        <h2 id="stats-h" style={{ fontSize: 20 }}>Statistike</h2>
+        <div className="row between" style={{ gap: 10 }}>
+          <h2 id="stats-h" style={{ fontSize: 20 }}>Statistike</h2>
+          <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--accent)" }}>
+            SLOBODNI POENI: {s.freePoints} · dodeli ih oblasti na koju se fokusiraš ove nedelje
+          </span>
+        </div>
+        {allocate.isError && <ErrorBox error={allocate.error} />}
         <div className="grid" style={{ ["--min" as string]: "180px" }}>
           {s.stats.map((st) => (
             <div key={st.key} className="card">
               <div className="row between">
                 <span className="stat-key" style={{ color: st.color }}>{st.key}</span>
-                <span className="stat-val">{st.percent}%</span>
+                <span className="stat-val">{st.value}</span>
               </div>
               <span style={{ fontWeight: 600, fontSize: 14 }}>{st.name}</span>
-              <Bar pct={st.percent} color={st.color} />
-              <span className="muted" style={{ fontSize: 12 }}>{st.done} / {st.total} poglavlja</span>
+              <Bar pct={st.value} color={st.color} />
+              <div className="row between" style={{ gap: 8, flexWrap: "nowrap" }}>
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {st.done} / {st.total} poglavlja{st.points > 0 && ` · ${st.points} ${st.points === 1 ? "poen" : "poena"}`}
+                </span>
+                <button type="button" className="stat-add" aria-label={`Dodeli poen: ${st.name}`}
+                  disabled={s.freePoints === 0 || allocate.isPending} onClick={() => allocate.mutate(st.key)}>
+                  <span aria-hidden="true">+</span>
+                </button>
+              </div>
             </div>
           ))}
         </div>

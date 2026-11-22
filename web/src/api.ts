@@ -8,7 +8,8 @@ export interface PackSummary {
   author: string | null; chapterCount: number; regionCount: number; isActive: boolean; importedAt: string;
 }
 export interface LevelInfo { level: number; xpIntoLevel: number; xpForNextLevel: number; totalXp: number; percent: number }
-export interface StatView { key: string; name: string; color: string; percent: number; done: number; total: number }
+/** percent = očišćena poglavlja; value = percent + bonus od dodeljenih poena (najviše 100). */
+export interface StatView { key: string; name: string; color: string; percent: number; done: number; total: number; points: number; value: number }
 export interface ChapterRef {
   id: string; title: string; subtitle: string | null; regionCode: string; level: string; status: ChapterStatus;
   stepsDone: number; stepsTotal: number; external: boolean; hasTest: boolean; minutes: number;
@@ -20,7 +21,7 @@ export interface ActivityDay { day: string; xp: number }
 export interface StatusView {
   pack: PackSummary; level: LevelInfo; rank: string; nextRank: string | null; nextRankAtPct: number;
   completionPct: number; doneChapters: number; totalChapters: number; streak: number; todayXp: number;
-  dailyGoalMinutes: number; stats: StatView[]; current: ChapterRef | null; currentLevel: ChapterRef[];
+  dailyGoalMinutes: number; stats: StatView[]; freePoints: number; current: ChapterRef | null; currentLevel: ChapterRef[];
   currentRegionTitle: string | null; dailyQuest: DailyQuestView | null; weakPoints: WeakPointView[]; activity: ActivityDay[];
 }
 export interface LevelView { name: string; chapters: ChapterRef[] }
@@ -41,6 +42,7 @@ export interface TestResultView {
   grade: { correctCount: number; total: number; percent: number; passed: boolean; questions: QuestionResult[] };
   xp: XpResult; firstPass: boolean;
 }
+export interface AllocatePointResult { freePoints: number; stat: StatView }
 export interface Settings { activePackId: string | null; theme: Theme; glow: boolean; reduceMotion: boolean; dailyGoalMinutes: number; penaltyEnabled: boolean }
 export type Theme = "sistem" | "monarh" | "crveni" | "zlatni";
 
@@ -82,6 +84,7 @@ export const api = {
     return request<PackSummary>("/packs", { method: "POST", body: form });
   },
   activatePack: (id: string) => request<void>(`/packs/${encodeURIComponent(id)}/activate`, { method: "POST" }),
+  allocatePoint: (statKey: string) => request<AllocatePointResult>(`/stats/${encodeURIComponent(statKey)}/points`, { method: "POST" }),
   settings: () => request<Settings>("/settings"),
   saveSettings: (s: Settings) => request<Settings>("/settings", json("PUT", s)),
 };

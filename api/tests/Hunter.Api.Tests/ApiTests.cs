@@ -264,6 +264,48 @@ public sealed class ApiTests(HunterApiFactory factory) : IAsyncLifetime
         Assert.False((await StatusAsync()).DailyQuest!.Penalty);
     }
 
+    // ---------- slobodni poeni ----------
+
+    [Fact]
+    public async Task No_free_points_at_start_so_allocation_is_rejected()
+    {
+        Assert.Equal(0, (await StatusAsync()).FreePoints);
+
+        var response = await _client.PostAsync("/api/stats/LOG/points", null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Level_ups_and_completed_quest_give_points_that_raise_a_stat()
+    {
+        await StatusAsync();
+        await CompleteAsync(Chapter, Step.Lesson);
+        await CompleteAsync(Chapter, Step.Exercise);
+        await SubmitTestAsync(Chapter, [1, 1]);
+        await CompleteAsync("2", Step.Lesson);   // 280 XP = nivo 3 (2 level-up-a) + završen dnevni zadatak
+
+        Assert.Equal(3, (await StatusAsync()).FreePoints);
+
+        // ETI (pogl. 2) je na 0%; LOG je već 100% jer je pogl. 1 očišćeno, pa se tamo bonus ne bi video.
+        var response = await _client.PostAsync("/api/stats/ETI/points", null);
+        var result = (await response.Content.ReadFromJsonAsync<AllocatePointResult>(Json))!;
+
+        Assert.Equal(2, result.FreePoints);
+        Assert.Equal(1, result.Stat.Points);
+        Assert.Equal((0, 2), (result.Stat.Percent, result.Stat.Value));
+        Assert.Equal(2, (await StatusAsync()).FreePoints);
+    }
+
+    [Fact]
+    public async Task Allocating_to_unknown_stat_is_rejected()
+    {
+        var response = await _client.PostAsync("/api/stats/NEMA/points", null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("nema statistiku", await response.Content.ReadAsStringAsync());
+    }
+
     // ---------- pomoćno ----------
 
     private async Task<XpResult> CompleteAsync(string chapter, Step step)

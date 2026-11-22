@@ -149,6 +149,32 @@ namespace Hunter.Api.Data.Migrations
                     b.ToTable("Packs");
                 });
 
+            modelBuilder.Entity("Hunter.Api.Data.StatPoint", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PackId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("StatKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PackId");
+
+                    b.ToTable("StatPoints");
+                });
+
             modelBuilder.Entity("Hunter.Api.Data.StepCompletion", b =>
                 {
                     b.Property<long>("Id")

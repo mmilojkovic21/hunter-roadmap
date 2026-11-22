@@ -42,6 +42,7 @@ public sealed class HunterApiFactory : WebApplicationFactory<Program>, IAsyncLif
         var db = scope.ServiceProvider.GetRequiredService<HunterDb>();
         await db.XpEvents.ExecuteDeleteAsync();
         await db.DailyQuests.ExecuteDeleteAsync();
+        await db.StatPoints.ExecuteDeleteAsync();
         await db.StepCompletions.ExecuteDeleteAsync();
         await db.TestAttempts.ExecuteDeleteAsync();
         await db.Packs.Where(p => p.Id != SeedPackId).ExecuteDeleteAsync();

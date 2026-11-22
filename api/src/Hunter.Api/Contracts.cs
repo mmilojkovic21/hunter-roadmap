@@ -8,7 +8,10 @@ namespace Hunter.Api;
 public sealed record PackSummary(string Id, string Title, string Description, string Language, string Version,
     string? Author, int ChapterCount, int RegionCount, bool IsActive, DateTimeOffset ImportedAt);
 
-public sealed record StatView(string Key, string Name, string Color, int Percent, int Done, int Total);
+/// <param name="Percent">Procenat očišćenih poglavlja oblasti.</param>
+/// <param name="Points">Slobodni poeni dodeljeni ovoj statistici.</param>
+/// <param name="Value">Vrednost na kartici: procenat + bonus od poena (FreePointRules.StatValue).</param>
+public sealed record StatView(string Key, string Name, string Color, int Percent, int Done, int Total, int Points, int Value);
 
 public sealed record ChapterRef(string Id, string Title, string? Subtitle, string RegionCode, string Level,
     ChapterStatus Status, int StepsDone, int StepsTotal, bool External, bool HasTest, int Minutes);
@@ -38,6 +41,7 @@ public sealed record StatusView(
     int TodayXp,
     int DailyGoalMinutes,
     IReadOnlyList<StatView> Stats,
+    int FreePoints,
     ChapterRef? Current,
     IReadOnlyList<ChapterRef> CurrentLevel,
     string? CurrentRegionTitle,
@@ -64,6 +68,8 @@ public sealed record ChapterView(
 public sealed record XpResult(int XpAwarded, LevelInfo Level, bool LevelUp, bool QuestCompleted);
 
 public sealed record SubmitTestRequest(IReadOnlyList<int> Answers);
+
+public sealed record AllocatePointResult(int FreePoints, StatView Stat);
 
 public sealed record TestResultView(GradeResult Grade, XpResult Xp, bool FirstPass);
 
