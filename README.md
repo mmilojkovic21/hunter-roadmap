@@ -18,6 +18,23 @@ Otvori **http://localhost:8088**. Pri prvom pokretanju API napravi bazu i uveze 
 
 Ako promeniš `POSTGRES_PASSWORD` posle prvog pokretanja, obriši volumen (`docker compose down -v`), jer je baza već napravljena sa starom lozinkom.
 
+### Migracije baze
+
+Šema se pravi i menja kroz EF Core migracije (`api/src/Hunter.Api/Data/Migrations`). API ih primeni sam pri pokretanju.
+
+**Baza napravljena pre migracija** (faza 1, `EnsureCreated`) nema tabelu `__EFMigrationsHistory`, pa bi API pokušao da ponovo napravi postojeće tabele i pao. Obriši je jednom (napredak se gubi):
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+Nova migracija posle izmene modela (`dotnet tool install -g dotnet-ef` ako alat nemaš):
+
+```bash
+cd api && dotnet ef migrations add ImeIzmene --project src/Hunter.Api --output-dir Data/Migrations
+```
+
 ## Razvoj bez Dockera za API i frontend
 
 ```bash
@@ -90,4 +107,3 @@ tools/build_pack.sh fullstack-dotnet    # content/fullstack-dotnet/src → packs
 ## Poznata ograničenja faze 1
 
 - Jedan korisnik, bez prijave (lokalna aplikacija). Upload paketa zato nema CSRF zaštitu; uključuje se kad stignu nalozi.
-- Baza se pravi sa `EnsureCreated`. Ako promeniš model pre faze 2, obriši volumen (`docker compose down -v`).

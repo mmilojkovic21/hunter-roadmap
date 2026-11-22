@@ -10,6 +10,11 @@
   <ItemGroup>
     <!-- EF Core provider za PostgreSQL (vodič, pogl. 12). Verzija prati .NET 10. -->
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.*" />
+    <!-- Samo za alat `dotnet ef` (pravljenje migracija); PrivateAssets=all ga drži van izlaza aplikacije. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.*">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>

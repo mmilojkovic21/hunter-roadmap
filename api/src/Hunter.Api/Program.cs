@@ -31,8 +31,9 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
-// Baza i seed pri pokretanju. Faza 1 koristi EnsureCreated;
-// prelazak na EF migracije je vežba iz vodiča (pogl. 12) za fazu 2.
+// Baza i seed pri pokretanju. Migracije (a ne EnsureCreated) jer EnsureCreated ne ume
+// da izmeni postojeću šemu, a nove funkcije dodaju tabele i kolone (vodič, pogl. 12).
+// Ponavljanje pokušaja: u docker compose-u API može da krene pre nego što baza primi veze.
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<HunterDb>();
@@ -41,7 +42,7 @@ await using (var scope = app.Services.CreateAsyncScope())
     {
         try
         {
-            await db.Database.EnsureCreatedAsync();
+            await db.Database.MigrateAsync();
             break;
         }
         catch (Exception ex) when (attempt < 10)

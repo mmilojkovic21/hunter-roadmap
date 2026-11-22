@@ -44,7 +44,7 @@ Posle svake izmene pokreni build i testove dela koji si menjao. Zadatak nije got
 ## Poznato stanje (faza 1, gotova)
 
 - Radi: status, mapa, poglavlje (lekcija/dublje/vežba/kartice/izvori), test sa mešanjem opcija i objašnjenjima, biblioteka (upload .zip, aktivacija), podešavanja (4 teme, sjaj, animacije, dnevni cilj).
-- Baza se pravi sa `EnsureCreated` (nema migracija).
+- Baza se pravi EF migracijama (`Data/Migrations`, `MigrateAsync` pri startu). Posle izmene modela: `dotnet ef migrations add <Ime> --project src/Hunter.Api --output-dir Data/Migrations`.
 - Jedan korisnik, bez prijave; upload je zato bez antiforgery (`.DisableAntiforgery()`).
 - JS bundle je oko 540 kB (nema lazy učitavanja ruta).
 
