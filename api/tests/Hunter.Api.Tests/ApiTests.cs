@@ -161,6 +161,62 @@ public sealed class ApiTests(HunterApiFactory factory) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    // ---------- dnevni zadatak ----------
+    // Primer paket: pogl. 1 (20 min: lekcija, vežba, test), pogl. 2 (25 min: lekcija, test).
+    // Procena po težini: 1/Lesson 9, 1/Exercise 9, 1/Test 5, 2/Lesson 20, 2/Test 5 minuta.
+
+    [Fact]
+    public async Task Status_shows_daily_quest_tailored_to_goal()
+    {
+        var quest = (await StatusAsync()).DailyQuest!;
+
+        // Cilj 60 min: prva tri (23 min) uvek, 2/Lesson (+20 = 43) staje, pa su 4 zadatka.
+        Assert.Equal(["1:Lesson", "1:Exercise", "1:Test", "2:Lesson"], quest.Tasks.Select(t => $"{t.ChapterId}:{t.Step}"));
+        Assert.Equal(43, quest.Minutes);
+        Assert.Equal(0, quest.DoneCount);
+        Assert.False(quest.Completed);
+    }
+
+    [Fact]
+    public async Task Daily_quest_is_locked_for_the_day()
+    {
+        await StatusAsync();   // zadatak se pravi pri prvom statusu u danu
+        await _client.PutAsJsonAsync("/api/settings", new SettingsView(HunterApiFactory.SeedPackId, "sistem", true, false, 10), Json);
+
+        var quest = (await StatusAsync()).DailyQuest!;
+
+        Assert.Equal(4, quest.Tasks.Count);   // sa ciljem 10 min bila bi 3, ali današnji je već zaključan
+    }
+
+    [Fact]
+    public async Task Step_done_before_opening_status_counts_for_daily_quest()
+    {
+        await CompleteAsync(Chapter, Step.Lesson);
+
+        var quest = (await StatusAsync()).DailyQuest!;
+
+        Assert.True(quest.Tasks[0].Done);
+        Assert.Equal(1, quest.DoneCount);
+    }
+
+    [Fact]
+    public async Task Finishing_last_task_completes_daily_quest_once()
+    {
+        await StatusAsync();
+        Assert.False((await CompleteAsync(Chapter, Step.Lesson)).QuestCompleted);
+        Assert.False((await CompleteAsync(Chapter, Step.Exercise)).QuestCompleted);
+        Assert.False((await SubmitTestAsync(Chapter, [1, 1])).Xp.QuestCompleted);
+
+        var last = await CompleteAsync("2", Step.Lesson);
+        var afterQuest = await SubmitTestAsync("2", [1]);   // korak van zadatka
+
+        Assert.True(last.QuestCompleted);
+        Assert.False(afterQuest.Xp.QuestCompleted);
+        var quest = (await StatusAsync()).DailyQuest!;
+        Assert.True(quest.Completed);
+        Assert.Equal(4, quest.DoneCount);
+    }
+
     // ---------- pomoćno ----------
 
     private async Task<XpResult> CompleteAsync(string chapter, Step step)

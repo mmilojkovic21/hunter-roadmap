@@ -13,14 +13,15 @@ export interface ChapterRef {
   id: string; title: string; subtitle: string | null; regionCode: string; level: string; status: ChapterStatus;
   stepsDone: number; stepsTotal: number; external: boolean; hasTest: boolean; minutes: number;
 }
-export interface NextStepView { chapterId: string; chapterTitle: string; step: Step; xp: number }
+export interface DailyQuestTaskView { chapterId: string; chapterTitle: string; step: Step; minutes: number; xp: number; done: boolean }
+export interface DailyQuestView { day: string; tasks: DailyQuestTaskView[]; doneCount: number; minutes: number; completed: boolean; rewardPoints: number }
 export interface WeakPointView { chapterId: string; chapterTitle: string; question: string }
 export interface ActivityDay { day: string; xp: number }
 export interface StatusView {
   pack: PackSummary; level: LevelInfo; rank: string; nextRank: string | null; nextRankAtPct: number;
   completionPct: number; doneChapters: number; totalChapters: number; streak: number; todayXp: number;
   dailyGoalMinutes: number; stats: StatView[]; current: ChapterRef | null; currentLevel: ChapterRef[];
-  currentRegionTitle: string | null; nextSteps: NextStepView[]; weakPoints: WeakPointView[]; activity: ActivityDay[];
+  currentRegionTitle: string | null; dailyQuest: DailyQuestView | null; weakPoints: WeakPointView[]; activity: ActivityDay[];
 }
 export interface LevelView { name: string; chapters: ChapterRef[] }
 export interface RegionView { code: string; title: string; stat: string; statColor: string; percent: number; levels: LevelView[] }
@@ -34,7 +35,7 @@ export interface ChapterView {
   steps: Step[]; completed: Step[]; status: ChapterStatus; bestPercent: number | null; passPct: number;
   regionTitle: string; level: string; prevId: string | null; nextId: string | null;
 }
-export interface XpResult { xpAwarded: number; level: LevelInfo; levelUp: boolean }
+export interface XpResult { xpAwarded: number; level: LevelInfo; levelUp: boolean; questCompleted: boolean }
 export interface QuestionResult { index: number; chosen: number; correct: number; isCorrect: boolean; why: string }
 export interface TestResultView {
   grade: { correctCount: number; total: number; percent: number; passed: boolean; questions: QuestionResult[] };

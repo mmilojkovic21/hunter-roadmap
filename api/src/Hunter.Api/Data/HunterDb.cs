@@ -61,6 +61,30 @@ public class XpEvent
     public DateTimeOffset CreatedAt { get; set; }
 }
 
+/// <summary>
+/// Dnevni zadatak paketa za jedan dan. Zadaci se biraju jednom i čuvaju (zaključani za taj dan);
+/// da li je zadatak urađen ne čuva se ovde, nego se čita iz <see cref="StepCompletion"/>.
+/// </summary>
+public class DailyQuest
+{
+    public long Id { get; set; }
+    public required string PackId { get; set; }
+    public DateOnly Day { get; set; }                    // lokalni dan (Hunter:TimeZone), ne UTC
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }     // kad je završen poslednji zadatak; nagrada se računa iz ovoga
+    public List<DailyQuestTask> Tasks { get; set; } = [];
+}
+
+public class DailyQuestTask
+{
+    public long Id { get; set; }
+    public long DailyQuestId { get; set; }
+    public int Order { get; set; }
+    public required string ChapterId { get; set; }
+    public required string Step { get; set; }
+    public int Minutes { get; set; }
+}
+
 public class UserSettings
 {
     public int Id { get; set; } = 1;  // aplikacija je lokalna, za jednog korisnika
@@ -79,6 +103,7 @@ public class HunterDb(DbContextOptions<HunterDb> options) : DbContext(options)
     public DbSet<TestAttempt> TestAttempts => Set<TestAttempt>();
     public DbSet<XpEvent> XpEvents => Set<XpEvent>();
     public DbSet<UserSettings> Settings => Set<UserSettings>();
+    public DbSet<DailyQuest> DailyQuests => Set<DailyQuest>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -100,6 +125,13 @@ public class HunterDb(DbContextOptions<HunterDb> options) : DbContext(options)
         });
         b.Entity<TestAttempt>(e => e.HasIndex(x => new { x.PackId, x.ChapterId, x.CreatedAt }));
         b.Entity<XpEvent>(e => e.HasIndex(x => x.CreatedAt));
+        b.Entity<DailyQuest>(e =>
+        {
+            // Jedan zadatak po paketu po danu; štiti i od dva istovremena prva učitavanja statusa.
+            e.HasIndex(x => new { x.PackId, x.Day }).IsUnique();
+            e.HasMany(x => x.Tasks).WithOne().HasForeignKey(t => t.DailyQuestId).OnDelete(DeleteBehavior.Cascade);
+        });
+        b.Entity<DailyQuestTask>().ToTable("DailyQuestTasks");
         b.Entity<UserSettings>().HasData(new UserSettings { Id = 1 });
     }
 }

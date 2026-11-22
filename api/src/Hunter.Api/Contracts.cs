@@ -13,7 +13,11 @@ public sealed record StatView(string Key, string Name, string Color, int Percent
 public sealed record ChapterRef(string Id, string Title, string? Subtitle, string RegionCode, string Level,
     ChapterStatus Status, int StepsDone, int StepsTotal, bool External, bool HasTest, int Minutes);
 
-public sealed record NextStepView(string ChapterId, string ChapterTitle, Step Step, int Xp);
+public sealed record DailyQuestTaskView(string ChapterId, string ChapterTitle, Step Step, int Minutes, int Xp, bool Done);
+
+/// <summary>Dnevni zadatak za danas. Null u statusu kad paket nema više nezavršenih koraka.</summary>
+public sealed record DailyQuestView(DateOnly Day, IReadOnlyList<DailyQuestTaskView> Tasks, int DoneCount,
+    int Minutes, bool Completed, int RewardPoints);
 
 public sealed record WeakPointView(string ChapterId, string ChapterTitle, string Question);
 
@@ -35,7 +39,7 @@ public sealed record StatusView(
     ChapterRef? Current,
     IReadOnlyList<ChapterRef> CurrentLevel,
     string? CurrentRegionTitle,
-    IReadOnlyList<NextStepView> NextSteps,
+    DailyQuestView? DailyQuest,
     IReadOnlyList<WeakPointView> WeakPoints,
     IReadOnlyList<ActivityDay> Activity);
 
@@ -54,7 +58,8 @@ public sealed record ChapterView(
     IReadOnlyList<Step> Steps, IReadOnlyList<Step> Completed, ChapterStatus Status, int? BestPercent,
     int PassPct, string RegionTitle, string Level, string? PrevId, string? NextId);
 
-public sealed record XpResult(int XpAwarded, LevelInfo Level, bool LevelUp);
+/// <param name="QuestCompleted">Ovaj korak je završio dnevni zadatak (okidač za poruku sistema na klijentu).</param>
+public sealed record XpResult(int XpAwarded, LevelInfo Level, bool LevelUp, bool QuestCompleted);
 
 public sealed record SubmitTestRequest(IReadOnlyList<int> Answers);
 

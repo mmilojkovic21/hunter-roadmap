@@ -46,6 +46,67 @@ namespace Hunter.Api.Data.Migrations
                     b.ToTable("Chapters");
                 });
 
+            modelBuilder.Entity("Hunter.Api.Data.DailyQuest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PackId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PackId", "Day")
+                        .IsUnique();
+
+                    b.ToTable("DailyQuests");
+                });
+
+            modelBuilder.Entity("Hunter.Api.Data.DailyQuestTask", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ChapterId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("DailyQuestId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Minutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Step")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DailyQuestId");
+
+                    b.ToTable("DailyQuestTasks", (string)null);
+                });
+
             modelBuilder.Entity("Hunter.Api.Data.PackEntity", b =>
                 {
                     b.Property<string>("Id")
@@ -236,6 +297,20 @@ namespace Hunter.Api.Data.Migrations
                         .HasForeignKey("PackId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Hunter.Api.Data.DailyQuestTask", b =>
+                {
+                    b.HasOne("Hunter.Api.Data.DailyQuest", null)
+                        .WithMany("Tasks")
+                        .HasForeignKey("DailyQuestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hunter.Api.Data.DailyQuest", b =>
+                {
+                    b.Navigation("Tasks");
                 });
 
             modelBuilder.Entity("Hunter.Api.Data.PackEntity", b =>

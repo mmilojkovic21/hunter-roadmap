@@ -7,7 +7,7 @@ Projekat je ujedno portfolio, pa kod mora biti čist i lako objašnjiv na interv
 
 ## Stack i struktura
 
-- `api/src/Hunter.Core`: čista pravila (LevelRules, RankRules, ChapterRules, QuizGrader, StreakRules) i format paketa (PackReader, PackValidator). **Bez NuGet zavisnosti.**
+- `api/src/Hunter.Core`: čista pravila (LevelRules, RankRules, ChapterRules, QuizGrader, StreakRules, DailyQuestRules) i format paketa (PackReader, PackValidator). **Bez NuGet zavisnosti.**
 - `api/src/Hunter.Api`: ASP.NET Core 10 minimal API. `Endpoints.cs` (rute), `Contracts.cs` (DTO ugovor), `Services/` (PackCatalog, PackImporter, ProgressService), `Data/HunterDb.cs` (EF Core + Npgsql).
 - `api/tests/Hunter.Core.Tests`: xUnit testovi za Core.
 - `api/tests/Hunter.Api.Tests`: integracioni testovi (`WebApplicationFactory<Program>` + Testcontainers PostgreSQL, primer paket kao seed). Traže pokrenut Docker.
@@ -55,7 +55,7 @@ Raditi redom; posle svake stavke build, testovi i commit.
 
 1. ✅ **EF migracije umesto EnsureCreated.** Dodaj `Microsoft.EntityFrameworkCore.Design`, inicijalna migracija, `Database.MigrateAsync()` pri startu. Uputstvo u README za postojeću bazu: `docker compose down -v`. (vodič, pogl. 12)
 2. ✅ **Integracioni testovi API-ja.** Projekat `Hunter.Api.Tests`: `WebApplicationFactory<Program>` + Testcontainers.PostgreSql. Pokriti: uvoz paketa, završetak koraka (XP samo jednom), predaju testa (prolaz/pad, prvi prolaz daje XP), aktivaciju paketa, odbijen neispravan zip. (pogl. 17)
-3. **Dnevni zadatak.** Svaki dan 3–4 zadatka iz sledećih koraka, skrojeni prema `DailyGoalMinutes`. Pravila u Core-u (`DailyQuestRules`) sa testovima. Na statusu: „[ ! ] DNEVNI ZADATAK”, napredak X/4, nagrada +1 slobodan poen.
+3. ✅ **Dnevni zadatak.** Svaki dan 3–4 zadatka iz sledećih koraka, skrojeni prema `DailyGoalMinutes`. Pravila u Core-u (`DailyQuestRules`) sa testovima. Na statusu: „[ ! ] DNEVNI ZADATAK”, napredak X/4, nagrada +1 slobodan poen.
 4. **Kazneni zadatak.** Ako jučerašnji dnevni zadatak nije završen, danas prvo ide ponavljanje slabih tačaka (20 min) pre nove lekcije. Uključuje se ili isključuje u podešavanjima (`PenaltyEnabled`).
 5. **Slobodni poeni.** Dobijaju se za završen dnevni zadatak i za level-up; dodeljuju se statistici (fokus nedelje). Prikaz i dugme „+” na karticama statistika.
 6. **Boss test regiona.** Kad su sva poglavlja regiona očišćena: 20–25 nasumičnih pitanja iz regiona, prolaz 80%, +500 XP, oznaka na mapi.

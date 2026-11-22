@@ -13,6 +13,9 @@ public static class DailyQuestRules
     public const int MinTasks = 3;
     public const int MaxTasks = 4;
 
+    /// <summary>Slobodni poeni za završen dnevni zadatak (troše se u fazi 2, stavka 5).</summary>
+    public const int RewardPoints = 1;
+
     // Udeo koraka u trajanju poglavlja. Paket daje samo ukupne minute poglavlja,
     // pa ih delimo po težini: lekcija i vežba nose najviše, test je najkraći.
     private static int Weight(Step step) => step switch

@@ -17,7 +17,7 @@ public sealed class HunterApiFactory : WebApplicationFactory<Program>, IAsyncLif
 {
     public const string SeedPackId = "primer-filozofija";
 
-    private readonly PostgreSqlContainer _db = new PostgreSqlBuilder().WithImage("postgres:17").Build();
+    private readonly PostgreSqlContainer _db = new PostgreSqlBuilder("postgres:17").Build();
 
     public async Task InitializeAsync() => await _db.StartAsync();
 
@@ -41,10 +41,13 @@ public sealed class HunterApiFactory : WebApplicationFactory<Program>, IAsyncLif
         await using var scope = Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<HunterDb>();
         await db.XpEvents.ExecuteDeleteAsync();
+        await db.DailyQuests.ExecuteDeleteAsync();
         await db.StepCompletions.ExecuteDeleteAsync();
         await db.TestAttempts.ExecuteDeleteAsync();
         await db.Packs.Where(p => p.Id != SeedPackId).ExecuteDeleteAsync();
-        await db.Settings.ExecuteUpdateAsync(s => s.SetProperty(x => x.ActivePackId, SeedPackId));
+        await db.Settings.ExecuteUpdateAsync(s => s
+            .SetProperty(x => x.ActivePackId, SeedPackId)
+            .SetProperty(x => x.DailyGoalMinutes, 60));
     }
 }
 

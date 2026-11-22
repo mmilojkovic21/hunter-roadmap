@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { ErrorBox, Loading } from "../components/common";
 import { Icon } from "../components/Icon";
+import { QuestCompletedNotice } from "../components/SystemNotice";
 import { KEYS, shuffledOrder } from "../lib/quiz";
 
 export function TestPage() {
@@ -63,6 +64,7 @@ export function TestPage() {
           </div>
         </section>
       )}
+      {result?.xp.questCompleted && <QuestCompletedNotice />}
 
       {c.test.map((question, qi) => {
         const graded = result?.grade.questions[qi];

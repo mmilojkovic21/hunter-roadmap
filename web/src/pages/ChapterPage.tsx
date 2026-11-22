@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Step, type XpResult } from "../api";
 import { ErrorBox, Loading, Markdown, STATUS_LABEL } from "../components/common";
 import { Icon } from "../components/Icon";
+import { QuestCompletedNotice } from "../components/SystemNotice";
 import { STEP_LABEL } from "../lib/quiz";
 
 type Tab = "Lesson" | "Deeper" | "Exercise" | "Cards" | "Sources";
@@ -72,6 +73,7 @@ export function ChapterPage() {
           {reward.levelUp && <h2 style={{ marginTop: 6 }}>LEVEL UP! Nivo {reward.level.level}</h2>}
         </div>
       )}
+      {reward?.questCompleted && <QuestCompletedNotice />}
       {complete.isError && <ErrorBox error={complete.error} />}
 
       <div className="tabs" role="tablist" aria-label="Delovi poglavlja">

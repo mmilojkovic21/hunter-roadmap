@@ -2,6 +2,7 @@ using Hunter.Api.Data;
 using Hunter.Core.Packs;
 using Hunter.Core.Progress;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Hunter.Api.Services;
 
@@ -82,18 +83,7 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
             refs.Where(r => r.Place.Region.Code == current.Place.Region.Code && r.Place.Level == current.Place.Level)
                 .Select(r => r.Ref).ToList();
 
-        // Sledeći koraci: prvi nezavršeni koraci od trenutnog poglavlja nadalje.
-        var nextSteps = new List<NextStepView>();
-        foreach (var r in refs.SkipWhile(r => r.Ref.Status == ChapterStatus.Done))
-        {
-            var done = ctx.Done.GetValueOrDefault(r.Place.Chapter.Id) ?? [];
-            foreach (var st in ChapterRules.StepsOf(r.Place.Chapter).Where(s => !done.Contains(s)))
-            {
-                nextSteps.Add(new NextStepView(r.Place.Chapter.Id, r.Place.Chapter.Title, st, ChapterRules.XpFor(st, ctx.Loaded.Pack.Xp)));
-                if (nextSteps.Count == 4) break;
-            }
-            if (nextSteps.Count == 4) break;
-        }
+        var quest = await TodayQuestAsync(ctx, ct);
 
         var now = clock.GetUtcNow();
         var events = await db.XpEvents.AsNoTracking().Where(x => x.CreatedAt >= now.AddDays(-400))
@@ -111,7 +101,71 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
             Summary(ctx.Entity, ctx.Loaded, true), level, RankRules.FromCompletion(pct), next?.Next, next?.AtPct ?? 100,
             pct, doneCount, refs.Count, StreakRules.Current(byDay.Keys, today), byDay.GetValueOrDefault(today),
             settings.DailyGoalMinutes, stats, current.Ref, currentLevel, current.Place?.Region.Title,
-            nextSteps, weak, activity);
+            quest is null ? null : QuestView(ctx, quest), weak, activity);
+    }
+
+    // ---------- dnevni zadatak ----------
+
+    /// <summary>Nezavršeni koraci redom mape (završena poglavlja nemaju nijedan, pa se sama preskaču).</summary>
+    private static IEnumerable<(ChapterPlace Place, Step Step)> PendingSteps(Ctx ctx) =>
+        ctx.Places.Values.OrderBy(p => p.Order).SelectMany(p => ChapterRules.StepsOf(p.Chapter)
+            .Where(s => !IsDone(ctx, p.Chapter.Id, s))
+            .Select(s => (p, s)));
+
+    private static bool IsDone(Ctx ctx, string chapterId, Step step) =>
+        ctx.Done.GetValueOrDefault(chapterId)?.Contains(step) ?? false;
+
+    // Zadatak čije je poglavlje izbacila nova verzija paketa računa se kao urađen, da dan ne ostane nezavršiv.
+    private static bool IsDone(Ctx ctx, DailyQuestTask t) =>
+        !ctx.Places.ContainsKey(t.ChapterId) || IsDone(ctx, t.ChapterId, Enum.Parse<Step>(t.Step));
+
+    /// <summary>
+    /// Današnji zadatak aktivnog paketa. Pravi se pri prvom pozivu u danu (status ili prvi završen korak)
+    /// i posle se ne menja. Null kad paket nema više nezavršenih koraka.
+    /// </summary>
+    private async Task<DailyQuest?> TodayQuestAsync(Ctx ctx, CancellationToken ct)
+    {
+        var today = LocalDay(clock.GetUtcNow());
+        var quest = await db.DailyQuests.Include(q => q.Tasks)
+            .FirstOrDefaultAsync(q => q.PackId == ctx.Entity.Id && q.Day == today, ct);
+        if (quest is not null) return quest;
+
+        var goal = await db.Settings.Where(s => s.Id == 1).Select(s => s.DailyGoalMinutes).SingleAsync(ct);
+        var candidates = PendingSteps(ctx).Select(x => new QuestCandidate(x.Place.Chapter.Id, x.Step,
+            DailyQuestRules.StepMinutes(x.Step, ChapterRules.StepsOf(x.Place.Chapter), x.Place.Chapter.Minutes)));
+        var picked = DailyQuestRules.Pick(candidates, goal);
+        if (picked.Count == 0) return null;
+
+        quest = new DailyQuest
+        {
+            PackId = ctx.Entity.Id, Day = today, CreatedAt = clock.GetUtcNow(),
+            Tasks = picked.Select((c, i) => new DailyQuestTask
+                { Order = i, ChapterId = c.ChapterId, Step = c.Step.ToString(), Minutes = c.Minutes }).ToList()
+        };
+        db.DailyQuests.Add(quest);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            return quest;
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            // Dva zahteva su istovremeno pravila današnji zadatak; jedinstven indeks je pustio samo jedan. Koristi taj.
+            db.ChangeTracker.Clear();
+            return await db.DailyQuests.Include(q => q.Tasks).FirstAsync(q => q.PackId == ctx.Entity.Id && q.Day == today, ct);
+        }
+    }
+
+    private static DailyQuestView QuestView(Ctx ctx, DailyQuest q)
+    {
+        var tasks = q.Tasks.OrderBy(t => t.Order).Select(t =>
+        {
+            var step = Enum.Parse<Step>(t.Step);
+            var title = ctx.Places.GetValueOrDefault(t.ChapterId)?.Chapter.Title ?? t.ChapterId;
+            return new DailyQuestTaskView(t.ChapterId, title, step, t.Minutes, ChapterRules.XpFor(step, ctx.Loaded.Pack.Xp), IsDone(ctx, t));
+        }).ToList();
+        return new DailyQuestView(q.Day, tasks, tasks.Count(t => t.Done), tasks.Sum(t => t.Minutes),
+            q.CompletedAt is not null, DailyQuestRules.RewardPoints);
     }
 
     private async Task<IReadOnlyList<WeakPointView>> WeakPointsAsync(Ctx ctx, CancellationToken ct)
@@ -204,7 +258,7 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
         var firstPass = grade.Passed && !(ctx.Done.GetValueOrDefault(id)?.Contains(Step.Test) ?? false);
         var xp = firstPass
             ? await AwardStepAsync(ctx, id, Step.Test, ct)
-            : new XpResult(0, LevelRules.FromTotalXp(await TotalXpAsync(ct)), false);
+            : new XpResult(0, LevelRules.FromTotalXp(await TotalXpAsync(ct)), false, false);
         return (new TestResultView(grade, xp, firstPass), null);
     }
 
@@ -213,16 +267,26 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
         var before = LevelRules.FromTotalXp(await TotalXpAsync(ct));
         var already = await db.StepCompletions.AnyAsync(s =>
             s.PackId == ctx.Entity.Id && s.ChapterId == chapterId && s.Step == step.ToString(), ct);
-        if (already) return new XpResult(0, before, false);   // idempotentno: drugi klik ne daje XP
+        if (already) return new XpResult(0, before, false, false);   // idempotentno: drugi klik ne daje XP
+
+        // Zadatak se pravi PRE upisa koraka, da korak koji upravo završavaš može biti deo današnjeg zadatka
+        // i kad danas još nisi otvorio status.
+        var quest = await TodayQuestAsync(ctx, ct);
 
         var amount = ChapterRules.XpFor(step, ctx.Loaded.Pack.Xp);
         var now = clock.GetUtcNow();
         db.StepCompletions.Add(new StepCompletion { PackId = ctx.Entity.Id, ChapterId = chapterId, Step = step.ToString(), CompletedAt = now });
         db.XpEvents.Add(new XpEvent { PackId = ctx.Entity.Id, ChapterId = chapterId, Reason = step.ToString(), Amount = amount, CreatedAt = now });
+
+        if (!ctx.Done.TryGetValue(chapterId, out var doneSteps)) ctx.Done[chapterId] = doneSteps = [];
+        doneSteps.Add(step);
+        var questCompleted = quest is { CompletedAt: null } && quest.Tasks.All(t => IsDone(ctx, t));
+        if (questCompleted) quest!.CompletedAt = now;   // isti SaveChanges: korak i završetak zadatka idu zajedno
+
         await db.SaveChangesAsync(ct);
 
         var after = LevelRules.FromTotalXp(before.TotalXp + amount);
-        return new XpResult(amount, after, after.Level > before.Level);
+        return new XpResult(amount, after, after.Level > before.Level, questCompleted);
     }
 
     public async Task<IReadOnlyList<PackSummary>> ListPacksAsync(CancellationToken ct)
