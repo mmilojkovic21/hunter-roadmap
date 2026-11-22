@@ -90,6 +90,9 @@ namespace Hunter.Api.Data.Migrations
                     b.Property<long>("DailyQuestId")
                         .HasColumnType("bigint");
 
+                    b.Property<bool>("IsReview")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("Minutes")
                         .HasColumnType("integer");
 
@@ -236,6 +239,9 @@ namespace Hunter.Api.Data.Migrations
                     b.Property<bool>("Glow")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("PenaltyEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("ReduceMotion")
                         .HasColumnType("boolean");
 
@@ -253,6 +259,7 @@ namespace Hunter.Api.Data.Migrations
                             Id = 1,
                             DailyGoalMinutes = 60,
                             Glow = true,
+                            PenaltyEnabled = true,
                             ReduceMotion = false,
                             Theme = "sistem"
                         });

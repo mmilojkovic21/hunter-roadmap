@@ -140,3 +140,12 @@ h1, h2, h3 { font-family: var(--display); margin: 0; }
 .quest-check { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border: 2px solid #4a5878; border-radius: 4px; color: #07101f; }
 .quest-task.done .quest-check { border-color: var(--accent); background: var(--accent); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* Kazneni zadatak (dizajn kanvas, ekran Status): crvena tabla nezavisno od teme, jer je to upozorenje. */
+:root { --penalty-text: #ff8fa3; }
+.penalty { border: 1px solid #7a2638; background: #1e0f16; border-radius: 6px; padding: 20px 22px; display: flex; flex-direction: column; gap: 8px; }
+.penalty-title { margin: 0; font-family: var(--mono); font-size: 14px; font-weight: 600; letter-spacing: 0.08em; color: var(--penalty-text); }
+.penalty-text { font-size: 14px; color: #f3d3da; line-height: 1.5; }
+.quest-task.review { border-color: #7a2638; background: #1e0f16; }
+.quest-task.review .quest-check { border-color: #a0445f; }
+.quest-task.review.done .quest-check { border-color: var(--penalty-text); background: var(--penalty-text); }

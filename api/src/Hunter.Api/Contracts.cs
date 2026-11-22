@@ -13,11 +13,13 @@ public sealed record StatView(string Key, string Name, string Color, int Percent
 public sealed record ChapterRef(string Id, string Title, string? Subtitle, string RegionCode, string Level,
     ChapterStatus Status, int StepsDone, int StepsTotal, bool External, bool HasTest, int Minutes);
 
-public sealed record DailyQuestTaskView(string ChapterId, string ChapterTitle, Step Step, int Minutes, int Xp, bool Done);
+/// <param name="Review">Kazneni zadatak: ponovo položi test ovog poglavlja.</param>
+public sealed record DailyQuestTaskView(string ChapterId, string ChapterTitle, Step Step, int Minutes, int Xp, bool Done, bool Review);
 
 /// <summary>Dnevni zadatak za danas. Null u statusu kad paket nema više nezavršenih koraka.</summary>
+/// <param name="Penalty">Jučerašnji zadatak nije završen, pa današnji počinje ponavljanjem (kazneni zadatak).</param>
 public sealed record DailyQuestView(DateOnly Day, IReadOnlyList<DailyQuestTaskView> Tasks, int DoneCount,
-    int Minutes, bool Completed, int RewardPoints);
+    int Minutes, bool Completed, int RewardPoints, bool Penalty);
 
 public sealed record WeakPointView(string ChapterId, string ChapterTitle, string Question);
 
@@ -65,4 +67,4 @@ public sealed record SubmitTestRequest(IReadOnlyList<int> Answers);
 
 public sealed record TestResultView(GradeResult Grade, XpResult Xp, bool FirstPass);
 
-public sealed record SettingsView(string? ActivePackId, string Theme, bool Glow, bool ReduceMotion, int DailyGoalMinutes);
+public sealed record SettingsView(string? ActivePackId, string Theme, bool Glow, bool ReduceMotion, int DailyGoalMinutes, bool PenaltyEnabled);

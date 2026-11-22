@@ -47,7 +47,35 @@ public sealed class HunterApiFactory : WebApplicationFactory<Program>, IAsyncLif
         await db.Packs.Where(p => p.Id != SeedPackId).ExecuteDeleteAsync();
         await db.Settings.ExecuteUpdateAsync(s => s
             .SetProperty(x => x.ActivePackId, SeedPackId)
-            .SetProperty(x => x.DailyGoalMinutes, 60));
+            .SetProperty(x => x.DailyGoalMinutes, 60)
+            .SetProperty(x => x.PenaltyEnabled, true));
+    }
+
+    /// <summary>
+    /// Stanje za kazneni zadatak: test poglavlja 1 položen juče (sa jednom greškom, pa je slaba tačka)
+    /// i jučerašnji dnevni zadatak, završen ili ne. Upisuje se direktno, jer API ne ume da „vrati sat”.
+    /// </summary>
+    public async Task SeedPenaltyAsync(bool yesterdayCompleted)
+    {
+        await using var scope = Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<HunterDb>();
+        var zone = scope.ServiceProvider.GetRequiredService<TimeZoneInfo>();
+        var yesterdayAt = DateTimeOffset.UtcNow.AddDays(-1);
+        var yesterday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(yesterdayAt, zone).DateTime);
+
+        db.StepCompletions.Add(new StepCompletion { PackId = SeedPackId, ChapterId = "1", Step = "Test", CompletedAt = yesterdayAt });
+        db.TestAttempts.Add(new TestAttempt
+        {
+            PackId = SeedPackId, ChapterId = "1", CorrectCount = 1, Total = 2, Percent = 50, Passed = true,
+            WrongQuestions = [0], CreatedAt = yesterdayAt
+        });
+        db.DailyQuests.Add(new DailyQuest
+        {
+            PackId = SeedPackId, Day = yesterday, CreatedAt = yesterdayAt,
+            CompletedAt = yesterdayCompleted ? yesterdayAt : null,
+            Tasks = [new DailyQuestTask { Order = 0, ChapterId = "1", Step = "Lesson", Minutes = 9 }]
+        });
+        await db.SaveChangesAsync();
     }
 }
 

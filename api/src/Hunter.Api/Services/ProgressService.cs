@@ -101,7 +101,7 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
             Summary(ctx.Entity, ctx.Loaded, true), level, RankRules.FromCompletion(pct), next?.Next, next?.AtPct ?? 100,
             pct, doneCount, refs.Count, StreakRules.Current(byDay.Keys, today), byDay.GetValueOrDefault(today),
             settings.DailyGoalMinutes, stats, current.Ref, currentLevel, current.Place?.Region.Title,
-            quest is null ? null : QuestView(ctx, quest), weak, activity);
+            quest is null ? null : await QuestViewAsync(ctx, quest, ct), weak, activity);
     }
 
     // ---------- dnevni zadatak ----------
@@ -116,8 +116,56 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
         ctx.Done.GetValueOrDefault(chapterId)?.Contains(step) ?? false;
 
     // Zadatak čije je poglavlje izbacila nova verzija paketa računa se kao urađen, da dan ne ostane nezavršiv.
-    private static bool IsDone(Ctx ctx, DailyQuestTask t) =>
-        !ctx.Places.ContainsKey(t.ChapterId) || IsDone(ctx, t.ChapterId, Enum.Parse<Step>(t.Step));
+    // Kazneni zadatak (ponavljanje) je urađen kad je test tog poglavlja položen posle nastanka današnjeg zadatka.
+    private static bool IsDone(Ctx ctx, DailyQuestTask t, IReadOnlySet<string> reviewed) =>
+        !ctx.Places.ContainsKey(t.ChapterId) ||
+        (t.IsReview ? reviewed.Contains(t.ChapterId) : IsDone(ctx, t.ChapterId, Enum.Parse<Step>(t.Step)));
+
+    /// <summary>Poglavlja čiji je test položen od nastanka zadatka (za kaznene zadatke).</summary>
+    private async Task<IReadOnlySet<string>> ReviewedAsync(Ctx ctx, DailyQuest q, CancellationToken ct) =>
+        q.Tasks.Any(t => t.IsReview)
+            ? (await db.TestAttempts.AsNoTracking()
+                .Where(a => a.PackId == ctx.Entity.Id && a.Passed && a.CreatedAt >= q.CreatedAt)
+                .Select(a => a.ChapterId).Distinct().ToListAsync(ct)).ToHashSet()
+            : new HashSet<string>();
+
+    /// <summary>Označava zadatak završenim kad je sve urađeno. True samo u trenutku završetka; čuva pozivalac.</summary>
+    private async Task<bool> MarkQuestIfDoneAsync(Ctx ctx, DailyQuest? quest, DateTimeOffset now, CancellationToken ct)
+    {
+        if (quest is not { CompletedAt: null }) return false;
+        var reviewed = await ReviewedAsync(ctx, quest, ct);
+        if (!quest.Tasks.All(t => IsDone(ctx, t, reviewed))) return false;
+        quest.CompletedAt = now;
+        return true;
+    }
+
+    /// <summary>
+    /// Testovi za kazneni zadatak, ako je kazna danas na snazi: prvo poglavlja sa slabim tačkama (najnovija prva),
+    /// pa ostala sa već položenim testom (poslednja prva). Ponavlja se samo položen test; bez njih nema kazne.
+    /// </summary>
+    private async Task<IReadOnlyList<QuestCandidate>> PenaltyReviewAsync(Ctx ctx, DateOnly today, CancellationToken ct)
+    {
+        // Za odluku je dovoljan poslednji raniji zadatak: ili je jučerašnji, ili je juče propušteno.
+        var past = await db.DailyQuests.AsNoTracking()
+            .Where(q => q.PackId == ctx.Entity.Id && q.Day < today)
+            .OrderByDescending(q => q.Day).Take(1)
+            .Select(q => new PastQuest(q.Day, q.CompletedAt != null)).ToListAsync(ct);
+        if (!PenaltyRules.IsDue(today, past)) return [];
+
+        var attempts = await db.TestAttempts.AsNoTracking()
+            .Where(a => a.PackId == ctx.Entity.Id)
+            .OrderByDescending(a => a.CreatedAt).Take(200)
+            .Select(a => new { a.ChapterId, a.WrongQuestions }).ToListAsync(ct);
+        var weak = attempts.GroupBy(a => a.ChapterId).Select(g => g.First())   // GroupBy čuva redosled: najnoviji pokušaj
+            .Where(a => a.WrongQuestions.Length > 0).Select(a => a.ChapterId);
+        var passed = ctx.Places.Values.OrderByDescending(p => p.Order).Select(p => p.Chapter.Id);
+
+        var candidates = weak.Concat(passed).Distinct()
+            .Where(id => ctx.Places.ContainsKey(id) && IsDone(ctx, id, Step.Test))
+            .Select(id => ctx.Places[id].Chapter)
+            .Select(c => new QuestCandidate(c.Id, Step.Test, DailyQuestRules.StepMinutes(Step.Test, ChapterRules.StepsOf(c), c.Minutes)));
+        return PenaltyRules.PickReview(candidates);
+    }
 
     /// <summary>
     /// Današnji zadatak aktivnog paketa. Pravi se pri prvom pozivu u danu (status ili prvi završen korak)
@@ -130,17 +178,21 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
             .FirstOrDefaultAsync(q => q.PackId == ctx.Entity.Id && q.Day == today, ct);
         if (quest is not null) return quest;
 
-        var goal = await db.Settings.Where(s => s.Id == 1).Select(s => s.DailyGoalMinutes).SingleAsync(ct);
+        var settings = await db.Settings.AsNoTracking().SingleAsync(s => s.Id == 1, ct);
         var candidates = PendingSteps(ctx).Select(x => new QuestCandidate(x.Place.Chapter.Id, x.Step,
             DailyQuestRules.StepMinutes(x.Step, ChapterRules.StepsOf(x.Place.Chapter), x.Place.Chapter.Minutes)));
-        var picked = DailyQuestRules.Pick(candidates, goal);
-        if (picked.Count == 0) return null;
+        var picked = DailyQuestRules.Pick(candidates, settings.DailyGoalMinutes);
+        // Kazna se dodaje na redovne zadatke (+20 min) i ide prva: ponavljanje pre nove lekcije.
+        var review = settings.PenaltyEnabled ? await PenaltyReviewAsync(ctx, today, ct) : [];
+        if (picked.Count == 0 && review.Count == 0) return null;
 
         quest = new DailyQuest
         {
             PackId = ctx.Entity.Id, Day = today, CreatedAt = clock.GetUtcNow(),
-            Tasks = picked.Select((c, i) => new DailyQuestTask
-                { Order = i, ChapterId = c.ChapterId, Step = c.Step.ToString(), Minutes = c.Minutes }).ToList()
+            Tasks = review.Select(c => (c, IsReview: true)).Concat(picked.Select(c => (c, IsReview: false)))
+                .Select((x, i) => new DailyQuestTask
+                    { Order = i, ChapterId = x.c.ChapterId, Step = x.c.Step.ToString(), Minutes = x.c.Minutes, IsReview = x.IsReview })
+                .ToList()
         };
         db.DailyQuests.Add(quest);
         try
@@ -156,16 +208,18 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
         }
     }
 
-    private static DailyQuestView QuestView(Ctx ctx, DailyQuest q)
+    private async Task<DailyQuestView> QuestViewAsync(Ctx ctx, DailyQuest q, CancellationToken ct)
     {
+        var reviewed = await ReviewedAsync(ctx, q, ct);
         var tasks = q.Tasks.OrderBy(t => t.Order).Select(t =>
         {
             var step = Enum.Parse<Step>(t.Step);
             var title = ctx.Places.GetValueOrDefault(t.ChapterId)?.Chapter.Title ?? t.ChapterId;
-            return new DailyQuestTaskView(t.ChapterId, title, step, t.Minutes, ChapterRules.XpFor(step, ctx.Loaded.Pack.Xp), IsDone(ctx, t));
+            var xp = t.IsReview ? 0 : ChapterRules.XpFor(step, ctx.Loaded.Pack.Xp);   // ponovljen test ne daje XP
+            return new DailyQuestTaskView(t.ChapterId, title, step, t.Minutes, xp, IsDone(ctx, t, reviewed), t.IsReview);
         }).ToList();
         return new DailyQuestView(q.Day, tasks, tasks.Count(t => t.Done), tasks.Sum(t => t.Minutes),
-            q.CompletedAt is not null, DailyQuestRules.RewardPoints);
+            q.CompletedAt is not null, DailyQuestRules.RewardPoints, q.Tasks.Any(t => t.IsReview));
     }
 
     private async Task<IReadOnlyList<WeakPointView>> WeakPointsAsync(Ctx ctx, CancellationToken ct)
@@ -246,20 +300,28 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
         if (p.Chapter.Test is not { Count: > 0 } test) return (null, "Poglavlje nema test.");
         if (answers.Count != test.Count) return (null, $"Očekuje se {test.Count} odgovora.");
 
+        // Današnji zadatak mora postojati PRE upisa pokušaja: ponovljen test se za kazneni zadatak
+        // računa samo ako je položen posle nastanka zadatka.
+        var quest = await TodayQuestAsync(ctx, ct);
+
         var grade = QuizGrader.Grade(test, answers, ctx.Loaded.Pack.PassPct);
+        var now = clock.GetUtcNow();
         db.TestAttempts.Add(new TestAttempt
         {
             PackId = ctx.Entity.Id, ChapterId = id, CorrectCount = grade.CorrectCount, Total = grade.Total,
-            Percent = grade.Percent, Passed = grade.Passed, CreatedAt = clock.GetUtcNow(),
+            Percent = grade.Percent, Passed = grade.Passed, CreatedAt = now,
             WrongQuestions = grade.Questions.Where(q => !q.IsCorrect).Select(q => q.Index).ToArray()
         });
         await db.SaveChangesAsync(ct);
 
         var firstPass = grade.Passed && !(ctx.Done.GetValueOrDefault(id)?.Contains(Step.Test) ?? false);
-        var xp = firstPass
-            ? await AwardStepAsync(ctx, id, Step.Test, ct)
-            : new XpResult(0, LevelRules.FromTotalXp(await TotalXpAsync(ct)), false, false);
-        return (new TestResultView(grade, xp, firstPass), null);
+        if (firstPass) return (new TestResultView(grade, await AwardStepAsync(ctx, id, Step.Test, ct), true), null);
+
+        // Ponovljen položen test ne daje XP, ali može da završi kazneni (pa i ceo dnevni) zadatak.
+        var questCompleted = grade.Passed && await MarkQuestIfDoneAsync(ctx, quest, now, ct);
+        if (questCompleted) await db.SaveChangesAsync(ct);
+        var xp = new XpResult(0, LevelRules.FromTotalXp(await TotalXpAsync(ct)), false, questCompleted);
+        return (new TestResultView(grade, xp, false), null);
     }
 
     private async Task<XpResult> AwardStepAsync(Ctx ctx, string chapterId, Step step, CancellationToken ct)
@@ -280,8 +342,7 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
 
         if (!ctx.Done.TryGetValue(chapterId, out var doneSteps)) ctx.Done[chapterId] = doneSteps = [];
         doneSteps.Add(step);
-        var questCompleted = quest is { CompletedAt: null } && quest.Tasks.All(t => IsDone(ctx, t));
-        if (questCompleted) quest!.CompletedAt = now;   // isti SaveChanges: korak i završetak zadatka idu zajedno
+        var questCompleted = await MarkQuestIfDoneAsync(ctx, quest, now, ct);   // isti SaveChanges: korak i završetak zadatka idu zajedno
 
         await db.SaveChangesAsync(ct);
 

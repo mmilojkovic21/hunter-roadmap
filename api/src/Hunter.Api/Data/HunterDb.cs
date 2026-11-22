@@ -83,6 +83,8 @@ public class DailyQuestTask
     public required string ChapterId { get; set; }
     public required string Step { get; set; }
     public int Minutes { get; set; }
+    /// <summary>Kazneni zadatak: ponovo položi test poglavlja (urađeno = prolaz posle nastanka zadatka).</summary>
+    public bool IsReview { get; set; }
 }
 
 public class UserSettings
@@ -93,6 +95,7 @@ public class UserSettings
     public bool Glow { get; set; } = true;
     public bool ReduceMotion { get; set; }
     public int DailyGoalMinutes { get; set; } = 60;
+    public bool PenaltyEnabled { get; set; } = true;
 }
 
 public class HunterDb(DbContextOptions<HunterDb> options) : DbContext(options)

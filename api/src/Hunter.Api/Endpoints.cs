@@ -74,7 +74,7 @@ public static class Endpoints
         api.MapGet("/settings", async (HunterDb db, CancellationToken ct) =>
         {
             var s = await db.Settings.AsNoTracking().SingleAsync(x => x.Id == 1, ct);
-            return new SettingsView(s.ActivePackId, s.Theme, s.Glow, s.ReduceMotion, s.DailyGoalMinutes);
+            return new SettingsView(s.ActivePackId, s.Theme, s.Glow, s.ReduceMotion, s.DailyGoalMinutes, s.PenaltyEnabled);
         });
 
         api.MapPut("/settings", async Task<Results<Ok<SettingsView>, BadRequest<string>>> (SettingsView body, HunterDb db, CancellationToken ct) =>
@@ -86,8 +86,9 @@ public static class Endpoints
             s.Glow = body.Glow;
             s.ReduceMotion = body.ReduceMotion;
             s.DailyGoalMinutes = body.DailyGoalMinutes;
+            s.PenaltyEnabled = body.PenaltyEnabled;
             await db.SaveChangesAsync(ct);
-            return TypedResults.Ok(new SettingsView(s.ActivePackId, s.Theme, s.Glow, s.ReduceMotion, s.DailyGoalMinutes));
+            return TypedResults.Ok(new SettingsView(s.ActivePackId, s.Theme, s.Glow, s.ReduceMotion, s.DailyGoalMinutes, s.PenaltyEnabled));
         });
     }
 }

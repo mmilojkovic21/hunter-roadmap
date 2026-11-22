@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
 import { Bar, ErrorBox, Loading, STATUS_LABEL } from "../components/common";
@@ -7,14 +8,33 @@ import { heatLevel, STEP_LABEL } from "../lib/quiz";
 
 const HEAT_ALPHA = [0, 0.25, 0.45, 0.7, 1];
 
+/** Vreme do ponoći po satu uređaja, za odbrojavanje na kartici kaznenog zadatka. */
+function useTimeToMidnight() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  const sec = Math.max(0, Math.floor((midnight.getTime() - now.getTime()) / 1000));
+  return [sec / 3600, (sec % 3600) / 60, sec % 60].map((n) => String(Math.floor(n)).padStart(2, "0")).join(":");
+}
+
 const points = (n: number) => (n === 1 ? "1 slobodan poen" : `${n} slobodna poena`);
 
 export function StatusPage() {
   const q = useQuery({ queryKey: ["status"], queryFn: api.status });
+  const settings = useQuery({ queryKey: ["settings"], queryFn: api.settings });
+  const timeLeft = useTimeToMidnight();
   if (q.isPending) return <Loading />;
   if (q.isError) return <ErrorBox error={q.error} />;
   const s = q.data;
   const quest = s.dailyQuest;
+  const reviews = quest?.tasks.filter((t) => t.review) ?? [];
+  const penaltyActive = reviews.some((t) => !t.done);
+  // Upozorenje za sutra: kazna je uključena, a današnji zadatak još nije završen.
+  const penaltyWarning = !penaltyActive && settings.data?.penaltyEnabled === true && quest !== null && !quest.completed;
   const filled = Math.round(s.level.percent / 5);
   const weeks = Array.from({ length: 12 }, (_, w) => s.activity.slice(w * 7, w * 7 + 7));
   const continueTo = s.current ? `/chapters/${encodeURIComponent(s.current.id)}` : "/map";
@@ -99,7 +119,7 @@ export function StatusPage() {
               <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
                 {quest.tasks.map((t) => (
                   <li key={t.chapterId + t.step}>
-                    <Link className={`quest-task${t.done ? " done" : ""}`}
+                    <Link className={`quest-task${t.done ? " done" : ""}${t.review ? " review" : ""}`}
                       to={t.step === "Test" ? `/chapters/${encodeURIComponent(t.chapterId)}/test` : `/chapters/${encodeURIComponent(t.chapterId)}`}>
                       <span className="quest-check" aria-hidden="true">
                         {t.done && (
@@ -111,11 +131,15 @@ export function StatusPage() {
                       <span style={{ flex: 1, display: "flex", flexDirection: "column", gap: 3 }}>
                         <span style={{ fontSize: 14, fontWeight: 600 }}>
                           <span className="sr-only">{t.done ? "Urađeno: " : "Nije urađeno: "}</span>
-                          {STEP_LABEL[t.step]}: {t.chapterTitle}
+                          {t.review ? "Ponovi test" : STEP_LABEL[t.step]}: {t.chapterTitle}
                         </span>
-                        <span className="muted" style={{ fontSize: 12 }}>Poglavlje {t.chapterId} · ~{t.minutes} min</span>
+                        <span className="muted" style={{ fontSize: 12 }}>
+                          {t.review ? "Kazneni zadatak · slabe tačke" : `Poglavlje ${t.chapterId}`} · ~{t.minutes} min
+                        </span>
                       </span>
-                      <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--warn)" }}>+{t.xp}</span>
+                      {t.review
+                        ? <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--penalty-text)" }}>KAZNA</span>
+                        : <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--warn)" }}>+{t.xp}</span>}
                     </Link>
                   </li>
                 ))}
@@ -124,6 +148,23 @@ export function StatusPage() {
           )}
         </section>
 
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {penaltyActive && (
+          <section className="penalty" aria-labelledby="pen-h">
+            <h2 id="pen-h" className="penalty-title">[ KAZNA ] KAZNENI ZADATAK AKTIVAN</h2>
+            <span className="penalty-text">
+              Jučerašnji dnevni zadatak nije završen. Pre nove lekcije ponovi slabe tačke:
+              {" "}{reviews.length === 1 ? "1 test" : `${reviews.length} testa`} (~{reviews.reduce((sum, t) => sum + t.minutes, 0)} min), na vrhu dnevnog zadatka.
+            </span>
+          </section>
+        )}
+        {penaltyWarning && (
+          <section className="penalty" aria-labelledby="pen-h">
+            <h2 id="pen-h" className="penalty-title">[ UPOZORENJE ] KAZNENI ZADATAK</h2>
+            <span className="penalty-text">Ako dnevni zadatak ne bude završen do ponoći, sutra se dodaje 20 minuta ponavljanja slabih tačaka pre nove lekcije.</span>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: "#ffb3c1" }} aria-live="off">Preostalo vreme: {timeLeft}</span>
+          </section>
+        )}
         <section className="card" aria-labelledby="dungeon-h">
           <div className="row between">
             <h2 id="dungeon-h" style={{ fontSize: 20 }}>Trenutni dungeon</h2>
@@ -141,6 +182,7 @@ export function StatusPage() {
           ))}
           <Link to="/map" style={{ fontWeight: 600, minHeight: 44, display: "flex", alignItems: "center" }}>Otvori celu mapu →</Link>
         </section>
+        </div>
       </div>
 
       <div className="grid" style={{ ["--min" as string]: "380px" }}>

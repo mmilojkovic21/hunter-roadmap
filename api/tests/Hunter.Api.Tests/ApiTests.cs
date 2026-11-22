@@ -181,7 +181,7 @@ public sealed class ApiTests(HunterApiFactory factory) : IAsyncLifetime
     public async Task Daily_quest_is_locked_for_the_day()
     {
         await StatusAsync();   // zadatak se pravi pri prvom statusu u danu
-        await _client.PutAsJsonAsync("/api/settings", new SettingsView(HunterApiFactory.SeedPackId, "sistem", true, false, 10), Json);
+        await _client.PutAsJsonAsync("/api/settings", new SettingsView(HunterApiFactory.SeedPackId, "sistem", true, false, 10, true), Json);
 
         var quest = (await StatusAsync()).DailyQuest!;
 
@@ -215,6 +215,53 @@ public sealed class ApiTests(HunterApiFactory factory) : IAsyncLifetime
         var quest = (await StatusAsync()).DailyQuest!;
         Assert.True(quest.Completed);
         Assert.Equal(4, quest.DoneCount);
+    }
+
+    // ---------- kazneni zadatak ----------
+
+    [Fact]
+    public async Task Unfinished_yesterday_puts_review_first_in_todays_quest()
+    {
+        await factory.SeedPenaltyAsync(yesterdayCompleted: false);
+
+        var quest = (await StatusAsync()).DailyQuest!;
+
+        Assert.True(quest.Penalty);
+        var review = quest.Tasks[0];
+        Assert.True(review.Review);
+        Assert.Equal((Chapter, Step.Test), (review.ChapterId, review.Step));
+        Assert.Equal(0, review.Xp);           // ponovljen test ne daje XP
+        Assert.False(review.Done);            // jučerašnji prolaz se ne računa, mora ponovo danas
+        Assert.All(quest.Tasks.Skip(1), t => Assert.False(t.Review));
+    }
+
+    [Fact]
+    public async Task Passing_review_test_today_completes_review_task()
+    {
+        await factory.SeedPenaltyAsync(yesterdayCompleted: false);
+        await StatusAsync();
+
+        var result = await SubmitTestAsync(Chapter, [1, 1]);
+
+        Assert.False(result.FirstPass);
+        Assert.True((await StatusAsync()).DailyQuest!.Tasks[0].Done);
+    }
+
+    [Fact]
+    public async Task Completed_yesterday_means_no_penalty()
+    {
+        await factory.SeedPenaltyAsync(yesterdayCompleted: true);
+
+        Assert.False((await StatusAsync()).DailyQuest!.Penalty);
+    }
+
+    [Fact]
+    public async Task Penalty_can_be_turned_off_in_settings()
+    {
+        await factory.SeedPenaltyAsync(yesterdayCompleted: false);
+        await _client.PutAsJsonAsync("/api/settings", new SettingsView(HunterApiFactory.SeedPackId, "sistem", true, false, 60, false), Json);
+
+        Assert.False((await StatusAsync()).DailyQuest!.Penalty);
     }
 
     // ---------- pomoćno ----------

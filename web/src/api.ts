@@ -13,8 +13,8 @@ export interface ChapterRef {
   id: string; title: string; subtitle: string | null; regionCode: string; level: string; status: ChapterStatus;
   stepsDone: number; stepsTotal: number; external: boolean; hasTest: boolean; minutes: number;
 }
-export interface DailyQuestTaskView { chapterId: string; chapterTitle: string; step: Step; minutes: number; xp: number; done: boolean }
-export interface DailyQuestView { day: string; tasks: DailyQuestTaskView[]; doneCount: number; minutes: number; completed: boolean; rewardPoints: number }
+export interface DailyQuestTaskView { chapterId: string; chapterTitle: string; step: Step; minutes: number; xp: number; done: boolean; review: boolean }
+export interface DailyQuestView { day: string; tasks: DailyQuestTaskView[]; doneCount: number; minutes: number; completed: boolean; rewardPoints: number; penalty: boolean }
 export interface WeakPointView { chapterId: string; chapterTitle: string; question: string }
 export interface ActivityDay { day: string; xp: number }
 export interface StatusView {
@@ -41,7 +41,7 @@ export interface TestResultView {
   grade: { correctCount: number; total: number; percent: number; passed: boolean; questions: QuestionResult[] };
   xp: XpResult; firstPass: boolean;
 }
-export interface Settings { activePackId: string | null; theme: Theme; glow: boolean; reduceMotion: boolean; dailyGoalMinutes: number }
+export interface Settings { activePackId: string | null; theme: Theme; glow: boolean; reduceMotion: boolean; dailyGoalMinutes: number; penaltyEnabled: boolean }
 export type Theme = "sistem" | "monarh" | "crveni" | "zlatni";
 
 export class ApiError extends Error {

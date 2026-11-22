@@ -72,6 +72,14 @@ export function SettingsPage() {
         </div>
       </section>
 
+      <section className="card" aria-labelledby="el-h">
+        <h2 id="el-h" style={{ fontSize: 20 }}>Elementi sistema</h2>
+        <div>
+          <Switch on={s.penaltyEnabled} label="Kazneni zadatak" hint="Ako propustiš dnevni zadatak, sutra prvo ide 20 min ponavljanja."
+            onToggle={() => set({ penaltyEnabled: !s.penaltyEnabled })} />
+        </div>
+      </section>
+
       <section className="card" aria-labelledby="goal-h">
         <h2 id="goal-h" style={{ fontSize: 20 }}>Dnevni cilj</h2>
         <div className="tabs" role="radiogroup" aria-labelledby="goal-h">
