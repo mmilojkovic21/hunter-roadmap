@@ -4,6 +4,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# API mora da dobije 8080 (Vite tamo šalje /api). Najčešći uzrok zauzetog porta je zaostali `dotnet watch`.
+if pid=$(lsof -nP -iTCP:8080 -sTCP:LISTEN -t 2>/dev/null | head -1) && [ -n "$pid" ]; then
+  echo "[ greška ] port 8080 je zauzet: $(ps -o command= -p "$pid" | cut -c1-80) (PID $pid)"
+  echo "           ugasi ga sa: kill $pid   pa pokreni ponovo"
+  exit 1
+fi
+
 echo "[ sistem ] baza na localhost:5433"
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
 until docker compose exec -T db pg_isready -U hunter -d hunter >/dev/null 2>&1; do sleep 1; done
