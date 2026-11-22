@@ -10,6 +10,7 @@ Projekat je ujedno portfolio, pa kod mora biti čist i lako objašnjiv na interv
 - `api/src/Hunter.Core`: čista pravila (LevelRules, RankRules, ChapterRules, QuizGrader, StreakRules) i format paketa (PackReader, PackValidator). **Bez NuGet zavisnosti.**
 - `api/src/Hunter.Api`: ASP.NET Core 10 minimal API. `Endpoints.cs` (rute), `Contracts.cs` (DTO ugovor), `Services/` (PackCatalog, PackImporter, ProgressService), `Data/HunterDb.cs` (EF Core + Npgsql).
 - `api/tests/Hunter.Core.Tests`: xUnit testovi za Core.
+- `api/tests/Hunter.Api.Tests`: integracioni testovi (`WebApplicationFactory<Program>` + Testcontainers PostgreSQL, primer paket kao seed). Traže pokrenut Docker.
 - `web/`: React 19, Vite 8, TypeScript strict, TanStack Query 5, React Router 7, react-markdown. Stil je u `src/styles.css` (CSS promenljive po temi, `[data-theme]`, `[data-glow]`).
 - `packs/<id>/pack.json + chapters.json`: uvoze se pri pokretanju API-ja. `examples/`: primer paket van IT-a.
 - `content/fullstack-dotnet/src/region-*.md` → `tools/build_pack.sh fullstack-dotnet` → `packs/fullstack-dotnet`.

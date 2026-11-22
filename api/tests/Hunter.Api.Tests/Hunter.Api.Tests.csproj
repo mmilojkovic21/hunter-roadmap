@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" />
+    <PackageReference Include="xunit" Version="2.9.*" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.*" />
+    <!-- Ceo API u memoriji, sa pravim DI-jem i rutama (vodič, pogl. 17). -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.*" />
+    <!-- Prava PostgreSQL baza u Docker kontejneru: jsonb, int[] i jedinstveni indeksi rade kao u produkciji. -->
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Hunter.Api\Hunter.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Mali primer paket (2 poglavlja) je seed za testove. -->
+    <None Include="..\..\..\examples\primer-filozofija\*.json" LinkBase="packs\primer-filozofija" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

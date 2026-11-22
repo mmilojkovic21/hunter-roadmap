@@ -46,7 +46,7 @@ cd web && npm install && npm run dev                  # http://localhost:5173, /
 Testovi:
 
 ```bash
-cd api && dotnet test       # pravila igre i validacija paketa (24 testa)
+cd api && dotnet test       # pravila igre (Core) + integracioni testovi API-ja (traže pokrenut Docker)
 cd web && npm test          # mešanje opcija i mapa aktivnosti
 ```
 
