@@ -51,9 +51,14 @@ public sealed record StatusView(
 
 public sealed record LevelView(string Name, IReadOnlyList<ChapterRef> Chapters);
 
-public sealed record RegionView(string Code, string Title, string Stat, string StatColor, int Percent, IReadOnlyList<LevelView> Levels);
+/// <param name="Boss">Stanje boss testa regiona (zaključan dok sva poglavlja nisu očišćena).</param>
+/// <param name="BossQuestions">Koliko pitanja će boss imati (najviše 25; manji region daje sva svoja).</param>
+public sealed record RegionView(string Code, string Title, string Stat, string StatColor, int Percent, IReadOnlyList<LevelView> Levels,
+    BossState Boss, int BossQuestions);
 
-public sealed record MapView(string PackId, string PackTitle, IReadOnlyList<RegionView> Regions);
+/// <param name="BossPassPct">Prolaz za boss test (BossRules.PassPct).</param>
+/// <param name="BossXp">Nagrada za prvi poraženi boss regiona (iz paketa).</param>
+public sealed record MapView(string PackId, string PackTitle, IReadOnlyList<RegionView> Regions, int BossPassPct, int BossXp);
 
 public sealed record PublicQuestion(string Text, string? Code, IReadOnlyList<string> Options);
 
@@ -70,6 +75,12 @@ public sealed record XpResult(int XpAwarded, LevelInfo Level, bool LevelUp, bool
 public sealed record SubmitTestRequest(IReadOnlyList<int> Answers);
 
 public sealed record AllocatePointResult(int FreePoints, StatView Stat);
+
+/// <summary>Započet boss test. Pitanja su bez tačnih odgovora; ocena ide preko AttemptId.</summary>
+public sealed record BossView(long AttemptId, string RegionCode, string RegionTitle, int PassPct, int XpReward,
+    IReadOnlyList<PublicQuestion> Questions);
+
+public sealed record BossResultView(GradeResult Grade, XpResult Xp, bool FirstClear);
 
 public sealed record TestResultView(GradeResult Grade, XpResult Xp, bool FirstPass);
 

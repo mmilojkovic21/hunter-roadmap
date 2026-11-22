@@ -87,6 +87,32 @@ public class DailyQuestTask
     public bool IsReview { get; set; }
 }
 
+/// <summary>
+/// Jedan boss test: server bira pitanja i pamti ih ovde, pa klijent nikad ne dobija tačne odgovore,
+/// a ocena se računa nad istim pitanjima koja su poslata. Pitanje i = (ChapterIds[i], QuestionIndexes[i]).
+/// </summary>
+public class BossAttempt
+{
+    public long Id { get; set; }
+    public required string PackId { get; set; }
+    public required string RegionCode { get; set; }
+    public string[] ChapterIds { get; set; } = [];
+    public int[] QuestionIndexes { get; set; } = [];
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? SubmittedAt { get; set; }
+    public int Percent { get; set; }
+    public bool Passed { get; set; }
+}
+
+/// <summary>Region čiji je boss poražen. Jedinstven indeks: Boss XP se dobija samo jednom po regionu.</summary>
+public class RegionClear
+{
+    public long Id { get; set; }
+    public required string PackId { get; set; }
+    public required string RegionCode { get; set; }
+    public DateTimeOffset ClearedAt { get; set; }
+}
+
 /// <summary>Jedan slobodan poen dodeljen statistici paketa. Potrošeni poeni = broj ovih redova.</summary>
 public class StatPoint
 {
@@ -117,6 +143,8 @@ public class HunterDb(DbContextOptions<HunterDb> options) : DbContext(options)
     public DbSet<UserSettings> Settings => Set<UserSettings>();
     public DbSet<DailyQuest> DailyQuests => Set<DailyQuest>();
     public DbSet<StatPoint> StatPoints => Set<StatPoint>();
+    public DbSet<BossAttempt> BossAttempts => Set<BossAttempt>();
+    public DbSet<RegionClear> RegionClears => Set<RegionClear>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -146,6 +174,8 @@ public class HunterDb(DbContextOptions<HunterDb> options) : DbContext(options)
         });
         b.Entity<DailyQuestTask>().ToTable("DailyQuestTasks");
         b.Entity<StatPoint>(e => e.HasIndex(x => x.PackId));
+        b.Entity<BossAttempt>(e => e.HasIndex(x => new { x.PackId, x.RegionCode }));
+        b.Entity<RegionClear>(e => e.HasIndex(x => new { x.PackId, x.RegionCode }).IsUnique());
         b.Entity<UserSettings>().HasData(new UserSettings { Id = 1 });
     }
 }

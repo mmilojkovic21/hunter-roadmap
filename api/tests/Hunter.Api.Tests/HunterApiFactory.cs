@@ -43,6 +43,8 @@ public sealed class HunterApiFactory : WebApplicationFactory<Program>, IAsyncLif
         await db.XpEvents.ExecuteDeleteAsync();
         await db.DailyQuests.ExecuteDeleteAsync();
         await db.StatPoints.ExecuteDeleteAsync();
+        await db.BossAttempts.ExecuteDeleteAsync();
+        await db.RegionClears.ExecuteDeleteAsync();
         await db.StepCompletions.ExecuteDeleteAsync();
         await db.TestAttempts.ExecuteDeleteAsync();
         await db.Packs.Where(p => p.Id != SeedPackId).ExecuteDeleteAsync();

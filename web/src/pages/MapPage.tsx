@@ -28,6 +28,7 @@ export function MapPage() {
             <span style={{ fontFamily: "var(--mono)", fontSize: 12, marginRight: 8, color: r.statColor }}>{r.code}</span>
             {r.title.split("·").pop()?.trim()}
             <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>{r.percent}%</span>
+            {r.boss === "Cleared" && <span className="boss-chip">BOSS ✓</span>}
           </button>
         ))}
       </div>
@@ -59,6 +60,23 @@ export function MapPage() {
           </div>
         </section>
       ))}
+
+      <section className="boss-card" aria-labelledby="boss-h">
+        <span style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <span id="boss-h" style={{ fontWeight: 700, color: "#ffcb7a" }}>Boss test regiona</span>
+          <span style={{ fontSize: 13, color: "#c9b48a" }}>
+            {selected.bossQuestions} pitanja iz svih poglavlja · prolaz {q.data.bossPassPct}% · +{q.data.bossXp} XP
+          </span>
+        </span>
+        {selected.boss === "Locked" && <span className="boss-state">ZAKLJUČAN · završi sva poglavlja</span>}
+        {selected.boss === "Ready" && <Link className="btn boss-btn" to={`/boss/${encodeURIComponent(selected.code)}`}>Uđi u boss gate →</Link>}
+        {selected.boss === "Cleared" && (
+          <span className="row" style={{ gap: 12 }}>
+            <span className="boss-state" style={{ color: "var(--ok)" }}>BOSS PORAŽEN ✓</span>
+            <Link to={`/boss/${encodeURIComponent(selected.code)}`} style={{ minHeight: 44, display: "flex", alignItems: "center", fontWeight: 600 }}>Ponovi</Link>
+          </span>
+        )}
+      </section>
     </>
   );
 }

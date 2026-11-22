@@ -306,6 +306,93 @@ public sealed class ApiTests(HunterApiFactory factory) : IAsyncLifetime
         Assert.Contains("nema statistiku", await response.Content.ReadAsStringAsync());
     }
 
+    // ---------- boss test regiona ----------
+    // Region I primer paketa = samo pogl. 1 (2 pitanja, tačna je opcija 1 u oba), pa je odgovor „sve 1” tačan
+    // bez obzira na to kojim redom server izmeša pitanja.
+
+    [Fact]
+    public async Task Boss_is_locked_until_region_is_cleared()
+    {
+        Assert.Equal(BossState.Locked, (await RegionAsync("I")).Boss);
+
+        var response = await _client.PostAsync("/api/regions/I/boss", null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Boss_questions_come_without_correct_answers()
+    {
+        await ClearChapterOneAsync();
+
+        var body = await (await _client.PostAsync("/api/regions/I/boss", null)).Content.ReadAsStringAsync();
+        var questions = JsonNode.Parse(body)!["questions"]!.AsArray();
+
+        Assert.Equal(2, questions.Count);   // region ima samo 2 pitanja, pa ih boss uzima sva
+        Assert.All(questions, q => { Assert.Null(q!["correct"]); Assert.Null(q["why"]); });
+    }
+
+    [Fact]
+    public async Task First_boss_win_gives_xp_and_marks_region_once()
+    {
+        await ClearChapterOneAsync();
+
+        var first = await FightBossAsync("I", answer: 1);
+        var second = await FightBossAsync("I", answer: 1);
+
+        Assert.True(first.Grade.Passed);
+        Assert.True(first.FirstClear);
+        Assert.Equal(500, first.Xp.XpAwarded);
+        Assert.False(second.FirstClear);
+        Assert.Equal(0, second.Xp.XpAwarded);
+        Assert.Equal(BossState.Cleared, (await RegionAsync("I")).Boss);
+    }
+
+    [Fact]
+    public async Task Lost_boss_gives_nothing_and_stays_ready()
+    {
+        await ClearChapterOneAsync();
+
+        var result = await FightBossAsync("I", answer: 0);
+
+        Assert.False(result.Grade.Passed);
+        Assert.Equal(0, result.Xp.XpAwarded);
+        Assert.Equal(BossState.Ready, (await RegionAsync("I")).Boss);
+    }
+
+    [Fact]
+    public async Task Boss_attempt_can_be_submitted_only_once()
+    {
+        await ClearChapterOneAsync();
+        var boss = (await (await _client.PostAsync("/api/regions/I/boss", null)).Content.ReadFromJsonAsync<BossView>(Json))!;
+        var answers = new SubmitTestRequest([1, 1]);
+
+        var first = await _client.PostAsJsonAsync($"/api/boss/{boss.AttemptId}", answers, Json);
+        var again = await _client.PostAsJsonAsync($"/api/boss/{boss.AttemptId}", answers, Json);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, again.StatusCode);
+    }
+
+    private async Task ClearChapterOneAsync()
+    {
+        await CompleteAsync(Chapter, Step.Lesson);
+        await CompleteAsync(Chapter, Step.Exercise);
+        await SubmitTestAsync(Chapter, [1, 1]);
+    }
+
+    private async Task<BossResultView> FightBossAsync(string region, int answer)
+    {
+        var boss = (await (await _client.PostAsync($"/api/regions/{region}/boss", null)).Content.ReadFromJsonAsync<BossView>(Json))!;
+        var response = await _client.PostAsJsonAsync($"/api/boss/{boss.AttemptId}",
+            new SubmitTestRequest(boss.Questions.Select(_ => answer).ToList()), Json);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<BossResultView>(Json))!;
+    }
+
+    private async Task<RegionView> RegionAsync(string code) =>
+        (await _client.GetFromJsonAsync<MapView>("/api/map", Json))!.Regions.Single(r => r.Code == code);
+
     // ---------- pomoćno ----------
 
     private async Task<XpResult> CompleteAsync(string chapter, Step step)

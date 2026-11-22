@@ -70,6 +70,21 @@ public static class Endpoints
             return result is not null ? TypedResults.Ok(result) : TypedResults.BadRequest(error!);
         });
 
+        // ---------- boss test regiona ----------
+        api.MapPost("/regions/{code}/boss", async Task<Results<Ok<BossView>, BadRequest<string>>> (
+            string code, ProgressService s, CancellationToken ct) =>
+        {
+            var (result, error) = await s.StartBossAsync(code, ct);
+            return result is not null ? TypedResults.Ok(result) : TypedResults.BadRequest(error!);
+        });
+
+        api.MapPost("/boss/{attemptId:long}", async Task<Results<Ok<BossResultView>, BadRequest<string>>> (
+            long attemptId, SubmitTestRequest body, ProgressService s, CancellationToken ct) =>
+        {
+            var (result, error) = await s.SubmitBossAsync(attemptId, body.Answers ?? [], ct);
+            return result is not null ? TypedResults.Ok(result) : TypedResults.BadRequest(error!);
+        });
+
         // ---------- slobodni poeni ----------
         api.MapPost("/stats/{key}/points", async Task<Results<Ok<AllocatePointResult>, BadRequest<string>>> (
             string key, ProgressService s, CancellationToken ct) =>

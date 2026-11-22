@@ -286,16 +286,97 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
         var ctx = await LoadAsync(ct);
         if (ctx is null) return null;
         var colors = ctx.Loaded.Pack.Stats.ToDictionary(s => s.Key, s => s.Color);
+        var cleared = await ClearedRegionsAsync(ctx, ct);
 
         var regions = ctx.Loaded.Pack.Regions.Select(r =>
         {
             var levels = r.Levels.Select(l => new LevelView(l.Name, l.Chapters.Select(id => Ref(ctx, ctx.Places[id])).ToList())).ToList();
             var all = levels.SelectMany(l => l.Chapters).ToList();
             var pct = all.Count == 0 ? 0 : (int)Math.Floor(all.Count(c => c.Status == ChapterStatus.Done) * 100.0 / all.Count);
-            return new RegionView(r.Code, r.Title, r.Stat, colors.GetValueOrDefault(r.Stat, "#4DA3FF"), pct, levels);
+            var boss = BossRules.State(all.Select(c => c.Status).ToList(), cleared.Contains(r.Code));
+            var questions = Math.Min(QuestionPool(RegionPlaces(ctx, r.Code)).Count, BossRules.MaxQuestions);
+            return new RegionView(r.Code, r.Title, r.Stat, colors.GetValueOrDefault(r.Stat, "#4DA3FF"), pct, levels, boss, questions);
         }).ToList();
 
-        return new MapView(ctx.Entity.Id, ctx.Entity.Title, regions);
+        return new MapView(ctx.Entity.Id, ctx.Entity.Title, regions, BossRules.PassPct, ctx.Loaded.Pack.Xp.Boss);
+    }
+
+    // ---------- boss test regiona ----------
+
+    private static List<ChapterPlace> RegionPlaces(Ctx ctx, string code) =>
+        ctx.Places.Values.Where(p => p.Region.Code == code).OrderBy(p => p.Order).ToList();
+
+    private static List<QuestionRef> QuestionPool(IEnumerable<ChapterPlace> places) =>
+        places.SelectMany(p => (p.Chapter.Test ?? []).Select((_, i) => new QuestionRef(p.Chapter.Id, i))).ToList();
+
+    private async Task<HashSet<string>> ClearedRegionsAsync(Ctx ctx, CancellationToken ct) =>
+        (await db.RegionClears.AsNoTracking().Where(c => c.PackId == ctx.Entity.Id)
+            .Select(c => c.RegionCode).ToListAsync(ct)).ToHashSet();
+
+    public async Task<(BossView? Result, string? Error)> StartBossAsync(string code, CancellationToken ct)
+    {
+        var ctx = await LoadAsync(ct);
+        var region = ctx?.Loaded.Pack.Regions.FirstOrDefault(r => r.Code == code);
+        if (ctx is null || region is null) return (null, "Region ne postoji u aktivnom paketu.");
+
+        var places = RegionPlaces(ctx, code);
+        var state = BossRules.State(places.Select(p => Ref(ctx, p).Status).ToList(), (await ClearedRegionsAsync(ctx, ct)).Contains(code));
+        if (state == BossState.Locked) return (null, "Boss se otključava kad očistiš sva poglavlja regiona.");
+        var pool = QuestionPool(places);
+        if (pool.Count == 0) return (null, "Region nema pitanja za boss test.");
+
+        // Server bira i pamti pitanja; klijent dobija samo tekst i opcije (vodič, pogl. 28).
+        var picked = BossRules.PickQuestions(pool, Random.Shared);
+        var attempt = new BossAttempt
+        {
+            PackId = ctx.Entity.Id, RegionCode = code, CreatedAt = clock.GetUtcNow(),
+            ChapterIds = picked.Select(q => q.ChapterId).ToArray(),
+            QuestionIndexes = picked.Select(q => q.Index).ToArray()
+        };
+        db.BossAttempts.Add(attempt);
+        await db.SaveChangesAsync(ct);
+
+        var questions = picked.Select(r => ctx.Places[r.ChapterId].Chapter.Test![r.Index])
+            .Select(q => new PublicQuestion(q.Text, q.Code, q.Options)).ToList();
+        return (new BossView(attempt.Id, code, region.Title, BossRules.PassPct, ctx.Loaded.Pack.Xp.Boss, questions), null);
+    }
+
+    public async Task<(BossResultView? Result, string? Error)> SubmitBossAsync(long attemptId, IReadOnlyList<int> answers, CancellationToken ct)
+    {
+        var ctx = await LoadAsync(ct);
+        if (ctx is null) return (null, "Nema aktivnog paketa.");
+        var attempt = await db.BossAttempts.FirstOrDefaultAsync(a => a.Id == attemptId && a.PackId == ctx.Entity.Id, ct);
+        if (attempt is null) return (null, "Boss pokušaj ne postoji.");
+        if (attempt.SubmittedAt is not null) return (null, "Ovaj boss pokušaj je već predat. Započni novi.");
+
+        // Pitanja se čitaju iz zapamćenih referenci. Ako je paket u međuvremenu izmenjen, pokušaj više ne važi.
+        var questions = new List<QuestionDef>();
+        for (var i = 0; i < attempt.ChapterIds.Length; i++)
+        {
+            var test = ctx.Places.GetValueOrDefault(attempt.ChapterIds[i])?.Chapter.Test;
+            if (test is null || attempt.QuestionIndexes[i] >= test.Count) return (null, "Paket je izmenjen posle početka. Započni boss ponovo.");
+            questions.Add(test[attempt.QuestionIndexes[i]]);
+        }
+        if (answers.Count != questions.Count) return (null, $"Očekuje se {questions.Count} odgovora.");
+
+        var grade = QuizGrader.Grade(questions, answers, BossRules.PassPct);
+        var now = clock.GetUtcNow();
+        attempt.SubmittedAt = now;
+        attempt.Percent = grade.Percent;
+        attempt.Passed = grade.Passed;
+
+        var before = LevelRules.FromTotalXp(await TotalXpAsync(ct));
+        var firstClear = grade.Passed && !await db.RegionClears.AnyAsync(c => c.PackId == ctx.Entity.Id && c.RegionCode == attempt.RegionCode, ct);
+        var amount = firstClear ? ctx.Loaded.Pack.Xp.Boss : 0;
+        if (firstClear)
+        {
+            db.RegionClears.Add(new RegionClear { PackId = ctx.Entity.Id, RegionCode = attempt.RegionCode, ClearedAt = now });
+            db.XpEvents.Add(new XpEvent { PackId = ctx.Entity.Id, Reason = $"Boss:{attempt.RegionCode}", Amount = amount, CreatedAt = now });
+        }
+        await db.SaveChangesAsync(ct);
+
+        var after = LevelRules.FromTotalXp(before.TotalXp + amount);
+        return (new BossResultView(grade, new XpResult(amount, after, after.Level > before.Level, false), firstClear), null);
     }
 
     // ---------- poglavlje ----------

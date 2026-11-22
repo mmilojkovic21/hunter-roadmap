@@ -5,7 +5,8 @@ import { api } from "../api";
 import { ErrorBox, Loading } from "../components/common";
 import { Icon } from "../components/Icon";
 import { QuestCompletedNotice } from "../components/SystemNotice";
-import { KEYS, shuffledOrder } from "../lib/quiz";
+import { QuestionCard } from "../components/QuestionCard";
+import { shuffledOrder } from "../lib/quiz";
 
 export function TestPage() {
   const { id = "" } = useParams();
@@ -66,37 +67,10 @@ export function TestPage() {
       )}
       {result?.xp.questCompleted && <QuestCompletedNotice />}
 
-      {c.test.map((question, qi) => {
-        const graded = result?.grade.questions[qi];
-        return (
-          <section key={`${attempt}-${qi}`} className="card" aria-labelledby={`q-${qi}`}>
-            <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--muted)" }}>PITANJE {qi + 1} / {c.test.length}</span>
-            <h2 id={`q-${qi}`} style={{ fontSize: 21, lineHeight: 1.35 }}>{question.text}</h2>
-            {question.code && <pre className="prose" style={{ margin: 0 }}><code>{question.code}</code></pre>}
-            <div role="radiogroup" aria-labelledby={`q-${qi}`} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {orders[qi]?.map((orig, pos) => {
-                const picked = answers[qi] === orig;
-                const cls = graded ? (orig === graded.correct ? "right" : picked ? "wrong" : "") : picked ? "picked" : "";
-                return (
-                  <button key={orig} type="button" role="radio" aria-checked={picked} className={`option ${cls}`}
-                    disabled={!!result} onClick={() => setAnswers({ ...answers, [qi]: orig })}>
-                    <span className="key">{KEYS[pos]}</span>
-                    <span style={{ flex: 1 }}>{question.options[orig]}</span>
-                    {graded && orig === graded.correct && <span className="state-Done" style={{ fontSize: 13, fontWeight: 700 }}>Tačno</span>}
-                    {graded && picked && !graded.isCorrect && <span style={{ fontSize: 13, fontWeight: 700, color: "var(--bad)" }}>Tvoj odgovor</span>}
-                  </button>
-                );
-              })}
-            </div>
-            {graded && (
-              <div className="card" style={{ background: graded.isCorrect ? "#0f2620" : "#24121a", borderColor: graded.isCorrect ? "#2f8f73" : "#a0445f" }}>
-                <strong style={{ color: graded.isCorrect ? "var(--ok)" : "var(--bad)" }}>{graded.isCorrect ? "Tačno." : "Netačno."}</strong>
-                <span style={{ lineHeight: 1.55 }}>{graded.why}</span>
-              </div>
-            )}
-          </section>
-        );
-      })}
+      {c.test.map((question, qi) => (
+        <QuestionCard key={`${attempt}-${qi}`} question={question} index={qi} total={c.test.length} order={orders[qi] ?? []}
+          picked={answers[qi]} graded={result?.grade.questions[qi]} onPick={(orig) => setAnswers({ ...answers, [qi]: orig })} />
+      ))}
 
       {submit.isError && <ErrorBox error={submit.error} />}
       {!result && (

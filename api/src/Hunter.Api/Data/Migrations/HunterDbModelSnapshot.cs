@@ -22,6 +22,49 @@ namespace Hunter.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Hunter.Api.Data.BossAttempt", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.PrimitiveCollection<string[]>("ChapterIds")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PackId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Passed")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Percent")
+                        .HasColumnType("integer");
+
+                    b.PrimitiveCollection<int[]>("QuestionIndexes")
+                        .IsRequired()
+                        .HasColumnType("integer[]");
+
+                    b.Property<string>("RegionCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PackId", "RegionCode");
+
+                    b.ToTable("BossAttempts");
+                });
+
             modelBuilder.Entity("Hunter.Api.Data.ChapterEntity", b =>
                 {
                     b.Property<string>("PackId")
@@ -147,6 +190,33 @@ namespace Hunter.Api.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Packs");
+                });
+
+            modelBuilder.Entity("Hunter.Api.Data.RegionClear", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("ClearedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PackId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RegionCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PackId", "RegionCode")
+                        .IsUnique();
+
+                    b.ToTable("RegionClears");
                 });
 
             modelBuilder.Entity("Hunter.Api.Data.StatPoint", b =>

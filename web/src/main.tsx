@@ -7,6 +7,7 @@ import { StatusPage } from "./pages/StatusPage";
 import { MapPage } from "./pages/MapPage";
 import { ChapterPage } from "./pages/ChapterPage";
 import { TestPage } from "./pages/TestPage";
+import { BossPage } from "./pages/BossPage";
 import { LibraryPage } from "./pages/LibraryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import "./styles.css";
@@ -23,6 +24,7 @@ const router = createBrowserRouter([
       { path: "/map", element: <MapPage /> },
       { path: "/chapters/:id", element: <ChapterPage /> },
       { path: "/chapters/:id/test", element: <TestPage /> },
+      { path: "/boss/:code", element: <BossPage /> },
       { path: "/library", element: <LibraryPage /> },
       { path: "/settings", element: <SettingsPage /> },
     ],
