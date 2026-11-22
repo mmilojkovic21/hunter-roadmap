@@ -15,6 +15,8 @@ from pathlib import Path
 src, dst = Path(sys.argv[1]), Path(sys.argv[2])
 manifest = json.loads((src / "manifest.json").read_text(encoding="utf-8"))
 content = {c["id"]: c for c in json.loads((src / "content.json").read_text(encoding="utf-8"))["chapters"]}
+guide_file = src / "guide.json"
+guide = json.loads(guide_file.read_text(encoding="utf-8")) if guide_file.exists() else {}
 
 STATS = [
     {"key": "INT", "name": "Osnove i web", "color": "#B9A4FF"},
@@ -29,9 +31,11 @@ pack = {
     "id": "fullstack-dotnet",
     "title": "Full Stack .NET inženjer",
     "description": "Od nule do posla: .NET, React, DevOps, cloud, AI i priprema za intervju. "
-                   "49 poglavlja iz PDF vodiča i 31 poglavlje sa punim sadržajem.",
+                   "49 poglavlja iz PDF vodiča (lekcija u vodiču, test i pitanja sa intervjua ovde) "
+                   "i 31 poglavlje sa punim sadržajem.",
     "language": "sr-Latn",
-    "version": "1.0.0",
+    # Nova verzija: API pri startu ponovo uvozi paket samo kad se verzija promeni (PackImporter.SeedFromFolderAsync).
+    "version": "1.1.0",
     "author": "Miljan",
     "passPct": manifest["passPct"],
     "xp": manifest["xp"],
@@ -45,11 +49,12 @@ for r in manifest["regions"]:
         region["levels"].append({"name": lvl["name"], "chapters": [c["id"] for c in lvl["chapters"]]})
         for c in lvl["chapters"]:
             if c["source"] == "vodic":
+                g = guide.get(c["id"], {"test": [], "cards": []})
                 chapters.append({
                     "id": c["id"], "title": c["title"], "subtitle": "", "minutes": 30,
                     "externalRef": f"PDF vodič „Od nule do posla”, poglavlje {c['guideChapter']}",
                     "intro": "", "lessonMarkdown": "", "deeperMarkdown": "",
-                    "exercise": None, "cards": [], "test": [], "sources": [],
+                    "exercise": None, "cards": g["cards"], "test": g["test"], "sources": [],
                 })
             else:
                 x = content[c["id"]]

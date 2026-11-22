@@ -923,8 +923,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Šta se dešava od trenutka kad u pregledač ukucaš URL do prikaza stranice?",
+        "a": "DNS pretvori ime domena u IP adresu, pregledač otvori TCP vezu (i TLS rukovanje za HTTPS) i pošalje HTTP zahtev. Server (često iza reverse proxy-ja) obradi zahtev i vrati HTML; pregledač ga parsira, povuče CSS, JS i slike dodatnim zahtevima, izgradi DOM i iscrta stranicu. U SPA aplikaciji JS posle toga sam traži podatke od API-ja."
+      },
+      {
+        "q": "Zašto kažemo da je HTTP „stateless” i kako onda aplikacija zna da si ulogovan?",
+        "a": "Svaki zahtev je nezavisan; server ne pamti prethodni. Stanje se prenosi u samom zahtevu: kolačić sa ID-jem sesije ili token (npr. JWT u Authorization zaglavlju) ide uz svaki zahtev, pa server iz njega zna ko je korisnik."
+      },
+      {
+        "q": "Čemu služi reverse proxy ispred aplikacije?",
+        "a": "Prima sav saobraćaj na 80/443, završava HTTPS, prosleđuje zahteve odgovarajućoj aplikaciji, može da servira statičke fajlove, kompresuje, kešira i deli opterećenje. Aplikacija iza njega ne mora da bude direktno izložena internetu."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta je prvi korak kad pregledač treba da otvori `https://shop.rs/korpa`?",
+        "code": null,
+        "options": [
+          "Šalje HTTP zahtev na port 80",
+          "Preko DNS-a saznaje IP adresu za `shop.rs`",
+          "Učitava React aplikaciju iz keša",
+          "Otvara WebSocket vezu"
+        ],
+        "correct": 1,
+        "why": "Pregledač ne može da se poveže na ime, već na IP adresu. Tek kad DNS vrati adresu, otvara TCP vezu, radi TLS rukovanje i šalje zahtev."
+      },
+      {
+        "text": "Gde se izvršava kod React komponente u klasičnoj SPA aplikaciji?",
+        "code": null,
+        "options": [
+          "Na serveru, pa se šalje gotov HTML",
+          "U bazi podataka",
+          "U pregledaču korisnika",
+          "U reverse proxy-ju"
+        ],
+        "correct": 2,
+        "why": "Server pošalje JS bundle, a pregledač izvršava React kod i crta interfejs. Podatke dobija od API-ja preko HTTP-a (fetch)."
+      },
+      {
+        "text": "Kako server zna koji je korisnik poslao zahtev, ako je HTTP bez stanja?",
+        "code": null,
+        "options": [
+          "Pamti IP adresu iz prethodnog zahteva",
+          "Uz svaki zahtev stiže kolačić ili token koji identifikuje korisnika",
+          "TCP veza ostaje otvorena dok se korisnik ne odjavi",
+          "Pregledač šalje korisničko ime i lozinku samo prvi put"
+        ],
+        "correct": 1,
+        "why": "Identitet putuje u svakom zahtevu (kolačić sesije ili Authorization zaglavlje sa tokenom). IP adresa nije pouzdana: deli je više korisnika i menja se."
+      },
+      {
+        "text": "Koji je podrazumevani port za HTTPS?",
+        "code": null,
+        "options": [
+          "80",
+          "8080",
+          "443",
+          "22"
+        ],
+        "correct": 2,
+        "why": "HTTP koristi 80, HTTPS 443, SSH 22. Port 8080 je uobičajen za aplikaciju iza reverse proxy-ja, ali nije standard za HTTPS."
+      },
+      {
+        "text": "Šta od navedenog NIJE uloga reverse proxy-ja?",
+        "code": null,
+        "options": [
+          "Završavanje HTTPS-a (TLS termination)",
+          "Prosleđivanje zahteva aplikaciji na internom portu",
+          "Izvršavanje SQL upita nad bazom",
+          "Serviranje statičkih fajlova"
+        ],
+        "correct": 2,
+        "why": "Reverse proxy (nginx, Caddy) radi na nivou HTTP-a. Upite ka bazi šalje aplikacija, ne proxy."
+      }
+    ],
     "sources": []
   },
   {
@@ -937,8 +1011,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Koja HTTP metoda je idempotentna, a koja nije, i zašto je to bitno?",
+        "a": "GET, PUT i DELETE su idempotentne: isti zahtev poslat više puta ostavlja isto stanje. POST nije: dva ista POST zahteva mogu napraviti dve porudžbine. Bitno je za ponovne pokušaje (retry): idempotentan zahtev je bezbedno ponoviti, a za POST treba idempotency key."
+      },
+      {
+        "q": "Koja je razlika između 401 i 403?",
+        "a": "401 Unauthorized znači „ne znam ko si” (nema ili ne važi prijava). 403 Forbidden znači „znam ko si, ali nemaš pravo”. Ponovna prijava pomaže kod 401, ne kod 403."
+      },
+      {
+        "q": "Kako izgleda dobar REST URL za stavke jedne porudžbine?",
+        "a": "Resursi su imenice u množini, a akcija je HTTP metoda: `GET /orders/42/items`, `POST /orders/42/items`, `DELETE /orders/42/items/7`. Glagoli u putanji (`/getOrderItems`) su znak RPC stila, ne REST-a."
+      }
+    ],
+    "test": [
+      {
+        "text": "Koja metoda NIJE idempotentna?",
+        "code": null,
+        "options": [
+          "GET",
+          "PUT",
+          "DELETE",
+          "POST"
+        ],
+        "correct": 3,
+        "why": "Ponovljen POST obično pravi novi resurs (dve porudžbine). PUT postavlja resurs na isto stanje, a DELETE briše isti resurs, pa ponavljanje ne menja ishod."
+      },
+      {
+        "text": "Koji statusni kod vraća uspešan POST koji je napravio novi resurs?",
+        "code": null,
+        "options": [
+          "200 OK",
+          "201 Created, uz `Location` zaglavlje",
+          "204 No Content",
+          "202 Accepted"
+        ],
+        "correct": 1,
+        "why": "201 kaže da je resurs napravljen, a `Location` pokazuje gde se nalazi. 202 znači da je zahtev primljen ali će se obraditi kasnije."
+      },
+      {
+        "text": "Prijavljen korisnik pokušava da obriše tuđu porudžbinu. Koji kod je ispravan?",
+        "code": null,
+        "options": [
+          "401 Unauthorized",
+          "403 Forbidden",
+          "404 Not Found, uvek",
+          "500 Internal Server Error"
+        ],
+        "correct": 1,
+        "why": "Korisnik je poznat, ali nema pravo: 403. (Neki API-ji namerno vraćaju 404 da ne otkriju da resurs postoji, ali to je svesna odluka, ne pravilo.)"
+      },
+      {
+        "text": "Koja je razlika između PUT i PATCH?",
+        "code": null,
+        "options": [
+          "PUT je za kreiranje, PATCH za brisanje",
+          "Nema razlike, to su sinonimi",
+          "PUT zamenjuje ceo resurs, PATCH menja samo poslata polja",
+          "PATCH je idempotentan, PUT nije"
+        ],
+        "correct": 2,
+        "why": "PUT šalje celo novo stanje resursa. PATCH šalje samo izmene. PATCH nije nužno idempotentan (npr. „povećaj količinu za 1”)."
+      },
+      {
+        "text": "Klijent šalje ispravan JSON, ali porudžbina u tom stanju ne može da se otkaže jer je već poslata. Koji kod najbolje opisuje situaciju?",
+        "code": null,
+        "options": [
+          "400 Bad Request",
+          "404 Not Found",
+          "409 Conflict",
+          "405 Method Not Allowed"
+        ],
+        "correct": 2,
+        "why": "409 znači da zahtev nije u skladu sa trenutnim stanjem resursa. 400 je za neispravan zahtev (pogrešan format, nedostaje polje)."
+      }
+    ],
     "sources": []
   },
   {
@@ -951,8 +1099,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Šta je CLR i šta radi JIT?",
+        "a": "CLR (Common Language Runtime) je izvršno okruženje .NET-a: učitava sklopove, upravlja memorijom (GC), izuzecima i bezbednošću tipova. C# kompajler pravi IL (međukod), a JIT ga pri izvršavanju prevodi u mašinske instrukcije za konkretan procesor."
+      },
+      {
+        "q": "Koja je razlika između .NET SDK i .NET Runtime?",
+        "a": "SDK služi za razvoj: kompajler, `dotnet build`, `dotnet test`, šabloni. Runtime je samo ono što treba za pokretanje gotove aplikacije. Zato Docker build koristi SDK image, a finalni image samo runtime (`aspnet`)."
+      },
+      {
+        "q": "Kako radi Garbage Collector u .NET-u, ukratko?",
+        "a": "GC automatski oslobađa objekte na hipu do kojih više ne vodi nijedna referenca. Deli ih u generacije (0, 1, 2): većina objekata umre mlada, pa GC najčešće čisti samo generaciju 0, što je brzo. Veliki objekti (preko ~85 KB) idu na Large Object Heap."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta pravi C# kompajler kad pokreneš `dotnet build`?",
+        "code": null,
+        "options": [
+          "Mašinski kod za tvoj procesor",
+          "IL međukod u .dll fajlu",
+          "JavaScript koji izvršava Node",
+          "Izvorni kod sa uklonjenim komentarima"
+        ],
+        "correct": 1,
+        "why": "IL je nezavisan od procesora. JIT ga prevodi u mašinski kod pri pokretanju (ili unapred, uz Native AOT)."
+      },
+      {
+        "text": "Koja verzija .NET-a ima dugoročnu podršku (LTS)?",
+        "code": null,
+        "options": [
+          ".NET 7",
+          ".NET 9",
+          ".NET 8 i .NET 10",
+          "Sve verzije imaju istu podršku"
+        ],
+        "correct": 2,
+        "why": "Parne verzije (6, 8, 10) su LTS sa tri godine podrške. Neparne (STS) imaju kraću podršku, pa se za produkciju obično bira LTS."
+      },
+      {
+        "text": "Šta treba u Docker image-u u kome se aplikacija samo POKREĆE?",
+        "code": null,
+        "options": [
+          "Ceo .NET SDK",
+          "Samo runtime (za web aplikaciju `aspnet` image)",
+          "Visual Studio",
+          "NuGet keš"
+        ],
+        "correct": 1,
+        "why": "SDK je potreban za build, ne za izvršavanje. Multi-stage Dockerfile gradi u SDK image-u, a kopira rezultat u manji runtime image."
+      },
+      {
+        "text": "Koji objekti su kandidati za Garbage Collector?",
+        "code": null,
+        "options": [
+          "Svi objekti stariji od jednog minuta",
+          "Samo objekti koji implementiraju IDisposable",
+          "Objekti na hipu do kojih ne vodi nijedna živa referenca",
+          "Lokalne promenljive na steku"
+        ],
+        "correct": 2,
+        "why": "GC prati reference od „korena” (statička polja, lokalne promenljive, registri). Ono do čega se ne može doći je smeće. Stek se ne čisti GC-om, oslobađa se izlaskom iz metode."
+      },
+      {
+        "text": "Čemu služi NuGet?",
+        "code": null,
+        "options": [
+          "Za pokretanje testova",
+          "Za kompajliranje IL-a u mašinski kod",
+          "Za preuzimanje i upravljanje bibliotekama (paketima) projekta",
+          "Za objavljivanje aplikacije na server"
+        ],
+        "correct": 2,
+        "why": "NuGet je menadžer paketa za .NET. Paketi se navode kao `PackageReference` u .csproj, a `dotnet restore` ih preuzima."
+      }
+    ],
     "sources": []
   },
   {
@@ -965,8 +1187,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Koja je razlika između value i reference tipova?",
+        "a": "Promenljiva value tipa (int, struct, DateTime) sadrži samu vrednost; dodela pravi kopiju. Promenljiva reference tipa (class, string, niz) sadrži referencu na objekat na hipu; dodela kopira referencu, pa obe promenljive pokazuju na isti objekat."
+      },
+      {
+        "q": "Zašto je string nepromenljiv (immutable) i šta to znači u praksi?",
+        "a": "Svaka „izmena” stringa pravi novi string. To ga čini bezbednim za deljenje između niti i za ključeve u rečniku. U praksi: spajanje stringova u velikoj petlji pravi mnogo smeća, pa se koristi StringBuilder ili string.Join."
+      },
+      {
+        "q": "Zašto se za novac koristi decimal, a ne double?",
+        "a": "double je binarni razlomak i ne može tačno da zapiše 0.1, pa sabiranje cena daje greške zaokruživanja (0.1 + 0.2 != 0.3). decimal je decimalni tip sa 28-29 cifara preciznosti, napravljen za finansijske proračune."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta ispisuje kod?",
+        "code": "int a = 5;\nint b = a;\nb = 10;\nConsole.WriteLine(a);",
+        "options": [
+          "5",
+          "10",
+          "15",
+          "Greška pri kompajliranju"
+        ],
+        "correct": 0,
+        "why": "int je value tip: `b = a` kopira vrednost. Izmena `b` ne utiče na `a`."
+      },
+      {
+        "text": "Šta ispisuje kod, ako je `Point` klasa sa poljem `X`?",
+        "code": "var p1 = new Point { X = 1 };\nvar p2 = p1;\np2.X = 7;\nConsole.WriteLine(p1.X);",
+        "options": [
+          "1",
+          "7",
+          "0",
+          "Baca NullReferenceException"
+        ],
+        "correct": 1,
+        "why": "Klasa je reference tip: p1 i p2 pokazuju na isti objekat. Da je Point struct, ispisalo bi se 1."
+      },
+      {
+        "text": "Koji tip je pravi izbor za iznos na računu?",
+        "code": null,
+        "options": [
+          "float",
+          "double",
+          "decimal",
+          "int, uvek u dinarima bez para"
+        ],
+        "correct": 2,
+        "why": "decimal tačno čuva decimalne vrednosti poput 0.10. float i double prave greške zaokruživanja koje se na računima vide."
+      },
+      {
+        "text": "Šta znači `string? ime` kad su uključeni nullable reference types?",
+        "code": null,
+        "options": [
+          "ime je value tip",
+          "ime sme da bude null, pa kompajler upozorava ako ga koristiš bez provere",
+          "ime nikad ne može biti null u izvršavanju",
+          "ime je opcioni parametar metode"
+        ],
+        "correct": 1,
+        "why": "Nullable reference types su provera u vreme kompajliranja. `string?` kaže „može biti null”, `string` kaže „ne bi trebalo da bude”. Runtime ponašanje se ne menja."
+      },
+      {
+        "text": "Kako se najefikasnije spaja 10.000 delova teksta u jedan string?",
+        "code": null,
+        "options": [
+          "`rezultat += deo;` u petlji",
+          "StringBuilder ili string.Join",
+          "string.Concat u svakoj iteraciji",
+          "Pretvaranjem u char[] posle svakog dodavanja"
+        ],
+        "correct": 1,
+        "why": "Pošto je string nepromenljiv, `+=` u petlji svaki put pravi novi string i kopira sve do tada. StringBuilder dopisuje u bafer, pa je linearan."
+      }
+    ],
     "sources": []
   },
   {
@@ -979,8 +1275,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Koja je razlika između apstraktne klase i interfejsa?",
+        "a": "Apstraktna klasa može imati stanje (polja), konstruktor i delimičnu implementaciju; klasa nasleđuje samo jednu. Interfejs je ugovor bez stanja; klasa implementira više njih. Interfejs koristiš za sposobnost („može da se sačuva”), apstraktnu klasu za zajedničku osnovu srodnih tipova."
+      },
+      {
+        "q": "Objasni polimorfizam na primeru.",
+        "a": "Isti poziv radi različito zavisno od stvarnog tipa objekta. Npr. `IPaymentProvider.Charge()` se poziva isto, a izvršava se Stripe ili PayPal implementacija. Pozivalac ne zna i ne mora da zna koja je; zato je kod otvoren za nove implementacije."
+      },
+      {
+        "q": "Šta znači „composition over inheritance”?",
+        "a": "Umesto da ponašanje dobijaš nasleđivanjem (duboke hijerarhije, krhke osnovne klase), sastavljaš ga od manjih objekata koje dobiješ kroz konstruktor. Kompozicija je fleksibilnija i lakše se testira, jer se delovi zamenjuju."
+      }
+    ],
+    "test": [
+      {
+        "text": "Koliko klasa C# klasa može direktno da nasledi?",
+        "code": null,
+        "options": [
+          "Jednu, a interfejsa koliko god hoće",
+          "Koliko god hoće",
+          "Nijednu, samo interfejse",
+          "Dve"
+        ],
+        "correct": 0,
+        "why": "C# nema višestruko nasleđivanje klasa (zbog problema „dijamanta”), ali klasa može implementirati više interfejsa."
+      },
+      {
+        "text": "Šta ispisuje kod?",
+        "code": "class Zivotinja { public virtual string Glas() => \"...\"; }\nclass Pas : Zivotinja { public override string Glas() => \"Av\"; }\n\nZivotinja z = new Pas();\nConsole.WriteLine(z.Glas());",
+        "options": [
+          "...",
+          "Av",
+          "Greška pri kompajliranju",
+          "Prazan red"
+        ],
+        "correct": 1,
+        "why": "virtual/override daje polimorfizam: poziva se metoda stvarnog tipa (Pas), iako je promenljiva tipa Zivotinja."
+      },
+      {
+        "text": "Šta je enkapsulacija?",
+        "code": null,
+        "options": [
+          "Nasleđivanje ponašanja od osnovne klase",
+          "Skrivanje unutrašnjeg stanja iza javnih metoda koje čuvaju pravila",
+          "Pakovanje klasa u NuGet paket",
+          "Pretvaranje value tipa u object"
+        ],
+        "correct": 1,
+        "why": "Npr. `Racun.Uplati(iznos)` proverava iznos, a polje `stanje` je private. Spolja niko ne može da postavi nevažeće stanje."
+      },
+      {
+        "text": "Šta znači `sealed` na klasi?",
+        "code": null,
+        "options": [
+          "Klasa ne može da se instancira",
+          "Klasa ne može da se nasledi",
+          "Sva polja su readonly",
+          "Klasa je thread-safe"
+        ],
+        "correct": 1,
+        "why": "sealed zabranjuje nasleđivanje. Instanciranje zabranjuje abstract (ili private konstruktor)."
+      },
+      {
+        "text": "Kada je apstraktna klasa bolji izbor od interfejsa?",
+        "code": null,
+        "options": [
+          "Kada klasa treba da implementira više ugovora",
+          "Kada srodni tipovi dele stanje i deo implementacije",
+          "Kada želiš da tip bude value tip",
+          "Nikada, interfejs je uvek bolji"
+        ],
+        "correct": 1,
+        "why": "Apstraktna klasa može da drži zajednička polja i konstruktor. Za čist ugovor bez stanja, ili kad tip treba više ugovora, bolji je interfejs."
+      }
+    ],
     "sources": []
   },
   {
@@ -993,8 +1363,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Šta je odloženo izvršavanje (deferred execution) u LINQ-u?",
+        "a": "Upit poput `lista.Where(x => x.Aktivan)` se ne izvršava kad ga napišeš, već kad ga prođeš (foreach, ToList, Count). Ako ga prođeš dvaput, izvršava se dvaput; ako se izvor u međuvremenu promeni, vidi se nova vrednost. ToList „zamrzava” rezultat."
+      },
+      {
+        "q": "Koja je razlika između IEnumerable<T> i IQueryable<T> kod EF Core-a?",
+        "a": "IQueryable gradi stablo izraza koje EF prevodi u SQL, pa se filter izvršava u bazi. Kad pređeš na IEnumerable (npr. posle AsEnumerable ili ToList), ostatak se izvršava u memoriji nad svim učitanim redovima."
+      },
+      {
+        "q": "Kada koristiš Dictionary, a kada List?",
+        "a": "List za redosled i prolazak kroz sve elemente; pretraga po vrednosti je O(n). Dictionary za brzu pretragu po ključu, prosečno O(1). Ako u petlji tražiš elemente po ID-ju, napravi Dictionary jednom pre petlje."
+      }
+    ],
+    "test": [
+      {
+        "text": "Kada se izvršava filter u ovom kodu?",
+        "code": "var aktivni = korisnici.Where(k => k.Aktivan);\nkorisnici.Add(noviAktivan);\nvar broj = aktivni.Count();",
+        "options": [
+          "Pri prvom redu, pa `broj` ne uključuje novog korisnika",
+          "Pri pozivu Count(), pa `broj` uključuje i novog korisnika",
+          "Nikada, Where vraća praznu listu",
+          "Baca izuzetak jer je lista izmenjena"
+        ],
+        "correct": 1,
+        "why": "Where samo opisuje upit. Izvršava se tek pri Count(), nad listom kakva je tada."
+      },
+      {
+        "text": "Šta je razlika između First() i Single()?",
+        "code": null,
+        "options": [
+          "Nema razlike",
+          "Single je brži",
+          "Single baca izuzetak ako ima više od jednog rezultata, First uzima prvi",
+          "First baca izuzetak ako ima više rezultata"
+        ],
+        "correct": 2,
+        "why": "Single izražava pretpostavku „postoji tačno jedan” i proverava je. First uzima prvi i ne gleda dalje. Obe bacaju izuzetak ako nema nijednog (za to su ...OrDefault varijante)."
+      },
+      {
+        "text": "Koja kolekcija daje najbržu proveru „da li ovaj ID već postoji”?",
+        "code": null,
+        "options": [
+          "List<int>",
+          "int[]",
+          "HashSet<int>",
+          "LinkedList<int>"
+        ],
+        "correct": 2,
+        "why": "HashSet.Contains je prosečno O(1). List.Contains i niz prolaze kroz elemente, O(n)."
+      },
+      {
+        "text": "Šta radi ovaj EF Core upit?",
+        "code": "var skupi = db.Proizvodi.AsEnumerable().Where(p => p.Cena > 1000).ToList();",
+        "options": [
+          "Filtrira u bazi, vraća samo skupe proizvode",
+          "Učitava SVE proizvode iz baze, pa filtrira u memoriji",
+          "Baca izuzetak jer AsEnumerable ne postoji",
+          "Izvršava dva SQL upita"
+        ],
+        "correct": 1,
+        "why": "AsEnumerable prelazi iz IQueryable u IEnumerable: SQL je `SELECT * FROM Proizvodi`, a Where se izvršava u C#-u. Bez AsEnumerable filter bi otišao u WHERE klauzulu."
+      },
+      {
+        "text": "Čemu služi ograničenje `where T : class` u generičkoj metodi?",
+        "code": null,
+        "options": [
+          "T mora imati konstruktor bez parametara",
+          "T mora biti reference tip",
+          "T mora implementirati IComparable",
+          "T ne sme biti string"
+        ],
+        "correct": 1,
+        "why": "Ograničenja (constraints) sužavaju tipove koje generik prima. `new()` traži konstruktor bez parametara, `struct` value tip, a `IComparable<T>` interfejs."
+      }
+    ],
     "sources": []
   },
   {
@@ -1007,8 +1451,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Da li async/await pravi novu nit?",
+        "a": "Ne. await na I/O operaciji (baza, HTTP) oslobađa trenutnu nit dok operacija čeka, a nastavak se izvršava kad stigne rezultat, često na drugoj niti iz pool-a. Zato async povećava propusnost servera: niti ne stoje blokirane čekajući mrežu."
+      },
+      {
+        "q": "Zašto je `async void` opasan?",
+        "a": "Pozivalac ne može da sačeka takvu metodu niti da uhvati njen izuzetak; neuhvaćen izuzetak ruši proces. async void je prihvatljiv samo za event handlere. Inače vraćaj Task."
+      },
+      {
+        "q": "Zašto ne treba pozivati `.Result` ili `.Wait()` na Task-u?",
+        "a": "Blokira nit dok se Task ne završi. U okruženjima sa SynchronizationContext-om (stari ASP.NET, UI) to može da izazove deadlock, a u ASP.NET Core-u troši niti iz pool-a i obara propusnost. Koristi await do kraja („async all the way”)."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta se dešava sa niti dok `await db.SaveChangesAsync()` čeka bazu?",
+        "code": null,
+        "options": [
+          "Nit je blokirana dok baza ne odgovori",
+          "Nit se vraća u pool i može da obrađuje druge zahteve",
+          "Pravi se nova nit samo za čekanje",
+          "Proces se pauzira"
+        ],
+        "correct": 1,
+        "why": "Dok traje I/O nema posla za procesor, pa se nit oslobađa. Kad baza odgovori, nastavak metode se zakazuje na nit iz pool-a."
+      },
+      {
+        "text": "Koja je razlika između `throw;` i `throw ex;` u catch bloku?",
+        "code": null,
+        "options": [
+          "Nema razlike",
+          "`throw;` čuva originalni stack trace, `throw ex;` ga resetuje",
+          "`throw ex;` čuva stack trace, `throw;` ga briše",
+          "`throw;` ne radi u catch bloku"
+        ],
+        "correct": 1,
+        "why": "`throw ex;` izgleda kao da je izuzetak nastao u catch bloku, pa se gubi mesto gde je stvarno nastao. Za ponovno bacanje koristi `throw;`."
+      },
+      {
+        "text": "Šta garantuje `using var fajl = File.OpenRead(putanja);`?",
+        "code": null,
+        "options": [
+          "Fajl se zatvara kad ga GC pokupi",
+          "Dispose se poziva na kraju opsega, i kad se baci izuzetak",
+          "Fajl se otvara samo za čitanje, ali se nikad ne zatvara",
+          "Fajl se kešira u memoriji"
+        ],
+        "correct": 1,
+        "why": "using prevodi u try/finally sa Dispose. Resurs (fajl, konekcija) se oslobađa odmah, ne „nekad” kad GC dođe."
+      },
+      {
+        "text": "Kako paralelno sačekati tri nezavisna HTTP poziva?",
+        "code": null,
+        "options": [
+          "Tri puta `await` jedan za drugim",
+          "Pokrenuti sva tri Task-a, pa `await Task.WhenAll(t1, t2, t3)`",
+          "`Task.WaitAll` u async metodi",
+          "Parallel.For sa tri iteracije"
+        ],
+        "correct": 1,
+        "why": "WhenAll čeka sve istovremeno: ukupno trajanje je najduži poziv, ne zbir. WaitAll blokira nit, a Parallel.For je za CPU posao, ne za I/O."
+      },
+      {
+        "text": "Čemu služi CancellationToken u async metodi API-ja?",
+        "code": null,
+        "options": [
+          "Da ubrza izvršavanje upita",
+          "Da se posao prekine kad klijent odustane (npr. zatvori stranicu)",
+          "Da spreči izuzetke",
+          "Da zaključa resurs od drugih niti"
+        ],
+        "correct": 1,
+        "why": "ASP.NET Core daje token koji se otkaže kad klijent prekine vezu. Prosleđen do EF-a i HttpClient-a, prekida posao koji više nikome ne treba."
+      }
+    ],
     "sources": []
   },
   {
@@ -1021,8 +1539,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Kojim redom ASP.NET Core čita konfiguraciju?",
+        "a": "Podrazumevano: appsettings.json, pa appsettings.{Environment}.json, pa user secrets (u Development), pa promenljive okruženja, pa argumenti komandne linije. Kasniji izvor pregazi raniji. Zato u Dockeru vrednosti postavljaš kroz promenljive okruženja (npr. `ConnectionStrings__Db`)."
+      },
+      {
+        "q": "Šta je Kestrel?",
+        "a": "Kestrel je ugrađen, višeplatformski web server u ASP.NET Core-u. Može da radi direktno na internetu, ali se u produkciji često stavlja iza reverse proxy-ja (nginx, IIS, Caddy) koji radi HTTPS, kompresiju i statičke fajlove."
+      },
+      {
+        "q": "Kada biraš minimal API, a kada kontrolere?",
+        "a": "Minimal API je manje ceremonije i brži start, dobar za male i srednje servise. Kontroleri daju strukturu, filtere i konvencije koje veliki timovi poznaju. Oba koriste isti pipeline, DI i model binding; nije pitanje performansi nego organizacije koda."
+      }
+    ],
+    "test": [
+      {
+        "text": "U appsettings.json je `\"Db\": \"lokalna\"`, a promenljiva okruženja je `ConnectionStrings__Db=produkcija`. Šta aplikacija dobija?",
+        "code": null,
+        "options": [
+          "lokalna",
+          "produkcija",
+          "Baca izuzetak zbog duplikata",
+          "Zavisi od operativnog sistema"
+        ],
+        "correct": 1,
+        "why": "Promenljive okruženja se čitaju posle JSON fajlova i pregaze ih. Dvostruka donja crta `__` zamenjuje `:` u ključu."
+      },
+      {
+        "text": "Kako aplikacija zna da je u Development okruženju?",
+        "code": null,
+        "options": [
+          "Po imenu računara",
+          "Iz promenljive `ASPNETCORE_ENVIRONMENT` (ili `DOTNET_ENVIRONMENT`)",
+          "Po tome da li je pokrenuta iz Visual Studio-a",
+          "Development je uvek podrazumevan"
+        ],
+        "correct": 1,
+        "why": "Bez te promenljive okruženje je Production. U razvoju je obično postavlja launchSettings.json."
+      },
+      {
+        "text": "Šta radi `builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(\"Smtp\"));`?",
+        "code": null,
+        "options": [
+          "Šalje test mejl",
+          "Vezuje sekciju konfiguracije za klasu, pa se ona ubacuje kao IOptions<SmtpOptions>",
+          "Upisuje podešavanja u appsettings.json",
+          "Registruje SMTP server kao middleware"
+        ],
+        "correct": 1,
+        "why": "To je options pattern: umesto čitanja stringova po kodu, dobiješ tipiziranu klasu kroz DI."
+      },
+      {
+        "text": "Šta je tačno za Kestrel?",
+        "code": null,
+        "options": [
+          "Radi samo na Windowsu",
+          "To je ugrađeni web server koji pokreće ASP.NET Core aplikaciju",
+          "To je biblioteka za rad sa bazom",
+          "Zamenjuje potrebu za DI kontejnerom"
+        ],
+        "correct": 1,
+        "why": "Kestrel prima HTTP zahteve i predaje ih pipeline-u aplikacije. Radi na Windowsu, Linuxu i macOS-u."
+      },
+      {
+        "text": "Gde u lokalnom razvoju čuvaš lozinku za bazu da ne završi u Git-u?",
+        "code": null,
+        "options": [
+          "U appsettings.json",
+          "U komentaru u Program.cs",
+          "U user secrets (`dotnet user-secrets`) ili u `.env` fajlu koji je u .gitignore",
+          "U imenu grane"
+        ],
+        "correct": 2,
+        "why": "User secrets se čuvaju van foldera projekta i čitaju se samo u Development okruženju. U produkciji idu promenljive okruženja ili sef tajni (Key Vault)."
+      }
+    ],
     "sources": []
   },
   {
@@ -1035,8 +1627,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Objasni tri životna veka servisa u ASP.NET Core DI-ju.",
+        "a": "Transient: nova instanca svaki put kad se zatraži. Scoped: jedna instanca po scope-u, a ASP.NET Core pravi scope za svaki HTTP zahtev. Singleton: jedna instanca za ceo život aplikacije. DbContext je Scoped, HttpClient fabrika i keš su obično Singleton."
+      },
+      {
+        "q": "Šta je captive dependency?",
+        "a": "Kada servis dužeg veka drži servis kraćeg veka, npr. Singleton u konstruktoru primi Scoped DbContext. Scoped objekat tada živi koliko i Singleton i deli se između zahteva i niti. U Development okruženju validacija scope-a baca izuzetak. Rešenje: IServiceScopeFactory i kratak scope po poslu."
+      },
+      {
+        "q": "Zašto je DI koristan, a ne samo „još jedan sloj”?",
+        "a": "Klasa traži zavisnosti kroz konstruktor umesto da ih pravi, pa ne zna konkretnu implementaciju. Zato se u testu ubaci lažna implementacija, a konfiguracija (koja baza, koji provajder) je na jednom mestu."
+      }
+    ],
+    "test": [
+      {
+        "text": "Koji životni vek daje jednu instancu po HTTP zahtevu?",
+        "code": null,
+        "options": [
+          "Transient",
+          "Scoped",
+          "Singleton",
+          "Static"
+        ],
+        "correct": 1,
+        "why": "ASP.NET Core pravi jedan scope po zahtevu, a Scoped servis živi koliko i scope."
+      },
+      {
+        "text": "Šta je problem ako Singleton u konstruktoru primi Scoped servis?",
+        "code": null,
+        "options": [
+          "Ništa, DI to sam reši",
+          "Scoped objekat postaje „zarobljen” i deli se između svih zahteva",
+          "Singleton postaje Scoped",
+          "Aplikacija radi sporije, ali ispravno"
+        ],
+        "correct": 1,
+        "why": "To je captive dependency. Za DbContext je posebno opasno, jer nije thread-safe i prati promene jednog posla."
+      },
+      {
+        "text": "Kako Singleton (npr. pozadinski servis) bezbedno koristi DbContext?",
+        "code": null,
+        "options": [
+          "Primi DbContext u konstruktoru",
+          "Napravi `new DbContext()` jednom i čuva ga",
+          "Kroz IServiceScopeFactory napravi scope, uzme DbContext, uradi posao i zatvori scope",
+          "Registruje DbContext kao Singleton"
+        ],
+        "correct": 2,
+        "why": "Kratak scope po jedinici posla daje svež DbContext i oslobađa ga posle. Tako radi i BackgroundService."
+      },
+      {
+        "text": "Šta dobiješ ako dva puta registruješ isti interfejs i u konstruktoru tražiš `IEnumerable<INotifier>`?",
+        "code": null,
+        "options": [
+          "Samo prvu registraciju",
+          "Izuzetak pri pokretanju",
+          "Obe implementacije, redom registracije",
+          "Samo poslednju registraciju"
+        ],
+        "correct": 2,
+        "why": "Ako tražiš jedan INotifier, dobiješ poslednju registrovanu. Ako tražiš IEnumerable<INotifier>, dobiješ sve. Tako se prave „plugin” liste."
+      },
+      {
+        "text": "Zašto je DbContext registrovan kao Scoped?",
+        "code": null,
+        "options": [
+          "Zato što je skup za pravljenje",
+          "Nije thread-safe i prati promene za jednu jedinicu rada",
+          "EF Core ne podržava Singleton",
+          "Da konekcija ostane otvorena zauvek"
+        ],
+        "correct": 1,
+        "why": "Change tracker prati učitane entitete jednog zahteva. Deljenje između zahteva bi mešalo promene i pravilo greške sa nitima."
+      }
+    ],
     "sources": []
   },
   {
@@ -1049,8 +1715,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Šta je middleware i zašto je redosled bitan?",
+        "a": "Middleware je komponenta u pipeline-u koja dobije zahtev, može nešto da uradi, pa pozove sledeću (`next`) ili sama vrati odgovor. Redosled registracije je redosled izvršavanja: npr. UseAuthentication mora pre UseAuthorization, a obrada izuzetaka na sam početak da bi uhvatila greške iz svega posle nje."
+      },
+      {
+        "q": "Koja je razlika između middleware-a i filtera?",
+        "a": "Middleware radi za svaki zahtev, na nivou HTTP-a, i ne zna za akciju ili model. Filteri (action, exception, resource) rade samo oko MVC akcija ili endpointa i vide argumente akcije i rezultat. Za logovanje svih zahteva middleware, za validaciju modela jedne grupe akcija filter."
+      },
+      {
+        "q": "Šta znači „short-circuit” u pipeline-u?",
+        "a": "Middleware vrati odgovor bez pozivanja `next`, pa ostatak pipeline-a ne radi. Tako radi npr. middleware za statičke fajlove kad nađe fajl, ili provera API ključa koja odmah vrati 401."
+      }
+    ],
+    "test": [
+      {
+        "text": "Kojim redom moraju da stoje ova dva poziva?",
+        "code": null,
+        "options": [
+          "`app.UseAuthentication();` pa `app.UseAuthorization();`",
+          "`app.UseAuthorization();` pa `app.UseAuthentication();`",
+          "Redosled nije bitan",
+          "Ne smeju oba da postoje"
+        ],
+        "correct": 0,
+        "why": "Autorizacija odlučuje šta korisnik sme, a za to mora prvo da se zna ko je (autentifikacija). Obrnut redosled znači da autorizacija vidi anonimnog korisnika."
+      },
+      {
+        "text": "Šta se dešava ako middleware ne pozove `next()`?",
+        "code": null,
+        "options": [
+          "Baca se izuzetak",
+          "Pipeline se prekida i odgovor se vraća odatle",
+          "Sledeći middleware se ipak izvršava",
+          "Zahtev se ponavlja"
+        ],
+        "correct": 1,
+        "why": "To je short-circuit. Koristi se namerno (keš, statički fajlovi, odbijanje zahteva), ali greškom zaboravljen `next` „guta” sve zahteve."
+      },
+      {
+        "text": "Gde treba da stoji middleware za obradu izuzetaka (UseExceptionHandler)?",
+        "code": null,
+        "options": [
+          "Na početku pipeline-a",
+          "Na kraju, posle mapiranja endpointa",
+          "Odmah posle UseAuthorization",
+          "Svejedno je"
+        ],
+        "correct": 0,
+        "why": "Middleware hvata samo izuzetke iz onoga što dolazi posle njega. Na početku obuhvata ceo pipeline."
+      },
+      {
+        "text": "Šta može action filter, a middleware ne može?",
+        "code": null,
+        "options": [
+          "Da vidi HTTP zaglavlja",
+          "Da vidi argumente akcije posle model bindinga",
+          "Da vrati odgovor 401",
+          "Da meri trajanje zahteva"
+        ],
+        "correct": 1,
+        "why": "Filter radi u kontekstu akcije i vidi vezane argumente i rezultat. Middleware vidi samo sirov HttpContext."
+      },
+      {
+        "text": "Koja je razlika između `app.Use(...)` i `app.Run(...)`?",
+        "code": null,
+        "options": [
+          "Nema razlike",
+          "Use može da pozove sledeći middleware, Run je terminalni i nikad ne poziva sledeći",
+          "Run se izvršava pre Use",
+          "Use je samo za statičke fajlove"
+        ],
+        "correct": 1,
+        "why": "Run završava pipeline. Sve registrovano posle njega se ne izvršava."
+      }
+    ],
     "sources": []
   },
   {
@@ -1063,8 +1803,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Zašto API vraća DTO, a ne entitet iz baze?",
+        "a": "Entitet je model baze: može da ima polja koja klijent ne sme da vidi (lozinka, interni status) ili cikluse koji ruše serijalizaciju. DTO je ugovor sa klijentom koji se menja nezavisno od baze. Na ulazu DTO sprečava overposting: klijent ne može da postavi polje koje nije u DTO-u (npr. `IsAdmin`)."
+      },
+      {
+        "q": "Kako radiš paginaciju u API-ju?",
+        "a": "Najjednostavnije offset/limit (`?page=2&pageSize=20`, u SQL-u OFFSET/FETCH) uz ukupan broj. Za velike i promenljive skupove bolja je keyset (cursor) paginacija: „daj 20 posle ID-ja 4580”, jer ne preskače redove i radi brzo i duboko u listi."
+      },
+      {
+        "q": "Šta je ProblemDetails?",
+        "a": "Standardni JSON format greške (RFC 9457, ranije 7807): `type`, `title`, `status`, `detail`, a za validaciju i `errors`. ASP.NET Core ga koristi za greške modela i AddProblemDetails, pa klijent uvek dobija isti oblik greške."
+      }
+    ],
+    "test": [
+      {
+        "text": "Klijent pošalje JSON u kome nedostaje obavezno polje. Šta vraća kontroler sa [ApiController]?",
+        "code": null,
+        "options": [
+          "500 Internal Server Error",
+          "400 Bad Request sa ProblemDetails i listom grešaka",
+          "200 OK sa praznim objektom",
+          "422, uvek"
+        ],
+        "correct": 1,
+        "why": "[ApiController] automatski proverava ModelState i vraća 400 pre nego što akcija krene. Telo je ValidationProblemDetails."
+      },
+      {
+        "text": "Šta je overposting?",
+        "code": null,
+        "options": [
+          "Slanje previše zahteva u sekundi",
+          "Klijent postavi polje koje ne bi smeo (npr. `IsAdmin`) jer API vezuje ceo entitet",
+          "Slanje istog POST zahteva dvaput",
+          "Prevelik JSON odgovor"
+        ],
+        "correct": 1,
+        "why": "Ako akcija prima entitet direktno, svako njegovo polje može doći iz zahteva. Ulazni DTO sa samo dozvoljenim poljima to sprečava."
+      },
+      {
+        "text": "Odakle ASP.NET Core podrazumevano čita složen parametar (klasu) u POST akciji sa [ApiController]?",
+        "code": null,
+        "options": [
+          "Iz query stringa",
+          "Iz zaglavlja",
+          "Iz tela zahteva (JSON)",
+          "Iz kolačića"
+        ],
+        "correct": 2,
+        "why": "Složeni tipovi se vezuju iz tela ([FromBody]), a prosti (int, string) iz rute ili query stringa."
+      },
+      {
+        "text": "Zašto keyset paginacija (`WHERE Id > @poslednji`) radi bolje od OFFSET na 500. strani?",
+        "code": null,
+        "options": [
+          "Vraća više redova",
+          "Baza ne mora da prođe i odbaci sve prethodne redove, nego skoči kroz indeks",
+          "Ne treba joj indeks",
+          "Radi samo sa GUID ključevima"
+        ],
+        "correct": 1,
+        "why": "OFFSET 10000 i dalje čita 10000 redova da bi ih preskočio. Keyset koristi indeks i počinje tačno gde treba, pa je brzina ista na svakoj strani."
+      },
+      {
+        "text": "Šta je dobra praksa za verzionisanje javnog API-ja?",
+        "code": null,
+        "options": [
+          "Menjati postojeće endpointe bez najave",
+          "Uvesti novu verziju (npr. `/v2/...`) kad se menja ugovor na način koji kvari postojeće klijente",
+          "Nikad ne menjati API",
+          "Svaki klijent dobija svoj API"
+        ],
+        "correct": 1,
+        "why": "Dodavanje novog polja obično ne kvari klijente; uklanjanje ili promena značenja kvari. Takve izmene idu u novu verziju dok stari klijenti ne pređu."
+      }
+    ],
     "sources": []
   },
   {
@@ -1077,8 +1891,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Šta je N+1 problem i kako ga rešavaš u EF Core-u?",
+        "a": "Učitaš N porudžbina jednim upitom, pa u petlji za svaku pristupiš stavkama i lazy loading pošalje još N upita. Rešenje: Include (eager loading) ili projekcija sa Select koja odmah uzme potrebne podatke, pa ide jedan (ili nekoliko) upita."
+      },
+      {
+        "q": "Čemu služi AsNoTracking?",
+        "a": "Upit bez praćenja promena: EF ne pravi snimke entiteta u change tracker-u, pa je brži i troši manje memorije. Koristiš ga za upite samo za čitanje (liste, izveštaji). Ako planiraš izmenu i SaveChanges, treba ti praćenje."
+      },
+      {
+        "q": "Kako radiš sa migracijama u timu i produkciji?",
+        "a": "Migracija je fajl u repozitorijumu koji opisuje promenu šeme; pravi se sa `dotnet ef migrations add` i ide kroz code review. U produkciji se primenjuje kontrolisano: SQL skripta (`migrations script --idempotent`), korak u CI/CD-u ili MigrateAsync pri startu za jednostavne aplikacije."
+      }
+    ],
+    "test": [
+      {
+        "text": "Koliko SQL upita šalje ovaj kod za 50 porudžbina, uz lazy loading?",
+        "code": "var porudzbine = db.Porudzbine.ToList();\nforeach (var p in porudzbine)\n    Console.WriteLine(p.Stavke.Count);",
+        "options": [
+          "1",
+          "2",
+          "51",
+          "50"
+        ],
+        "correct": 2,
+        "why": "Jedan upit za porudžbine i po jedan za stavke svake: N+1. Sa `.Include(p => p.Stavke)` ili projekcijom bio bi jedan upit."
+      },
+      {
+        "text": "Kada koristiš AsNoTracking()?",
+        "code": null,
+        "options": [
+          "Kad menjaš entitet pa zoveš SaveChanges",
+          "Kad samo čitaš podatke za prikaz",
+          "Kad brišeš redove",
+          "Nikad, usporava upite"
+        ],
+        "correct": 1,
+        "why": "Bez praćenja EF ne pamti snimak entiteta, pa je čitanje brže. Izmene na takvim entitetima SaveChanges ne vidi."
+      },
+      {
+        "text": "Koji JOIN vraća sve kupce, i one bez ijedne porudžbine?",
+        "code": null,
+        "options": [
+          "INNER JOIN",
+          "LEFT JOIN od kupaca ka porudžbinama",
+          "CROSS JOIN",
+          "RIGHT JOIN od kupaca ka porudžbinama"
+        ],
+        "correct": 1,
+        "why": "LEFT JOIN zadržava sve redove leve tabele; gde nema para, kolone desne su NULL. INNER JOIN izbacuje kupce bez porudžbina."
+      },
+      {
+        "text": "Šta radi `SaveChanges()` kad si izmenio tri entiteta?",
+        "code": null,
+        "options": [
+          "Šalje tri odvojene transakcije",
+          "Šalje sve izmene u jednoj transakciji: ili sve uspe, ili ništa",
+          "Čuva samo prvu izmenu",
+          "Ništa, treba pozvati Commit"
+        ],
+        "correct": 1,
+        "why": "Jedan SaveChanges je podrazumevano jedna transakcija. Za više SaveChanges u istoj transakciji koristi BeginTransaction."
+      },
+      {
+        "text": "Kako indeks ubrzava upit `WHERE Email = @email`?",
+        "code": null,
+        "options": [
+          "Kešira ceo rezultat u memoriji",
+          "Baza pretražuje uređenu strukturu (B-stablo) umesto da čita svaki red tabele",
+          "Sabija tabelu",
+          "Paralelizuje upit na više jezgara"
+        ],
+        "correct": 1,
+        "why": "Bez indeksa je full table scan, O(n). Indeks je kao registar u knjizi: brzo nađe red. Cena: sporiji INSERT/UPDATE i više prostora."
+      }
+    ],
     "sources": []
   },
   {
@@ -1091,8 +1979,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Objasni SOLID ukratko.",
+        "a": "S: klasa ima jedan razlog za promenu. O: proširuješ ponašanje novim kodom, ne menjanjem postojećeg. L: podtip mora da radi svuda gde i osnovni tip. I: mali, specifični interfejsi umesto jednog velikog. D: zavisi od apstrakcija, a konkretne implementacije se ubacuju spolja (DI)."
+      },
+      {
+        "q": "Šta je suština Clean (Onion) arhitekture?",
+        "a": "Zavisnosti idu ka centru: domen i poslovna pravila ne zavise od baze, web-a ni okvira; infrastruktura zavisi od njih (implementira njihove interfejse). Tako se pravila testiraju bez baze, a tehnologija se menja bez diranja pravila."
+      },
+      {
+        "q": "Da li treba repository iznad EF Core-a?",
+        "a": "Zavisi. DbContext je već Unit of Work, a DbSet repository, pa generički repository često samo sakrije korisne mogućnosti EF-a. Specifičan repository ima smisla kad želiš da izoluješ složene upite ili domen od EF-a. Bitno je da umeš da obrazložiš izbor."
+      }
+    ],
+    "test": [
+      {
+        "text": "Klasa `IzvestajServis` računa izveštaj, formatira PDF i šalje mejl. Koje načelo krši?",
+        "code": null,
+        "options": [
+          "Single Responsibility",
+          "Liskov Substitution",
+          "Interface Segregation",
+          "Nijedno"
+        ],
+        "correct": 0,
+        "why": "Tri razloga za promenu (računanje, format, slanje) u jednoj klasi. Bolje je razdvojiti, pa ih spojiti u servisu koji koordinira."
+      },
+      {
+        "text": "Novi način plaćanja dodaješ novom klasom koja implementira IPaymentProvider, bez izmene postojećeg koda. Koje načelo to ispunjava?",
+        "code": null,
+        "options": [
+          "Single Responsibility",
+          "Open/Closed",
+          "Liskov Substitution",
+          "Dependency Inversion"
+        ],
+        "correct": 1,
+        "why": "Kod je otvoren za proširenje (nova implementacija), a zatvoren za izmenu (postojeće klase se ne diraju)."
+      },
+      {
+        "text": "`Kvadrat` nasleđuje `Pravougaonik`, ali postavljanje širine menja i visinu, pa kod koji radi sa Pravougaonikom daje pogrešan rezultat. Koje načelo je prekršeno?",
+        "code": null,
+        "options": [
+          "Open/Closed",
+          "Liskov Substitution",
+          "Interface Segregation",
+          "Single Responsibility"
+        ],
+        "correct": 1,
+        "why": "Podtip mora da poštuje ponašanje osnovnog tipa. Ako zamena podtipom kvari pozivaoca, nasleđivanje je pogrešan model."
+      },
+      {
+        "text": "U Clean arhitekturi, ko od koga zavisi?",
+        "code": null,
+        "options": [
+          "Domen zavisi od Infrastructure sloja",
+          "Infrastructure zavisi od domena i implementira njegove interfejse",
+          "Svi slojevi zavise od API projekta",
+          "Zavisnosti nisu bitne"
+        ],
+        "correct": 1,
+        "why": "Strelice zavisnosti idu ka centru. Domen definiše npr. IEmailSender, a Infrastructure ga implementira."
+      },
+      {
+        "text": "Šta kaže Dependency Inversion?",
+        "code": null,
+        "options": [
+          "Klase treba praviti sa `new` gde god zatrebaju",
+          "Moduli visokog nivoa zavise od apstrakcija, ne od konkretnih implementacija",
+          "Zavisnosti se uvek ubacuju kroz svojstva",
+          "Interfejs mora imati bar jednu metodu"
+        ],
+        "correct": 1,
+        "why": "Servis zavisi od IEmailSender, a ne od SmtpEmailSender. DI kontejner je alat koji to sprovodi, ali načelo je o smeru zavisnosti."
+      }
+    ],
     "sources": []
   },
   {
@@ -1105,8 +2067,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Šta znači ACID?",
+        "a": "Atomicity: transakcija uspe cela ili nimalo. Consistency: posle nje važe sva pravila baze. Isolation: istovremene transakcije ne vide međustanja jedna druge (koliko, zavisi od nivoa izolacije). Durability: posle commit-a podaci prežive i pad sistema."
+      },
+      {
+        "q": "Kako sprečavaš „izgubljeno ažuriranje” kad dva korisnika istovremeno menjaju isti zapis?",
+        "a": "Optimistička konkurentnost: entitet ima token verzije (u SQL Serveru rowversion, u Postgres-u xmin ili kolona verzije). UPDATE uključuje staru verziju u WHERE; ako je neko u međuvremenu izmenio red, menja se 0 redova i EF baca DbUpdateConcurrencyException, pa korisniku javiš da osveži podatke."
+      },
+      {
+        "q": "Zašto `lock` ne radi sa await i šta koristiš umesto njega?",
+        "a": "lock je vezan za nit, a posle await nastavak može da radi na drugoj niti, pa kompajler ne dozvoljava await unutar lock-a. Za asinhrono zaključavanje koristi se SemaphoreSlim(1, 1) sa WaitAsync. I jedno i drugo važi samo za jedan proces; između instanci treba zaključavanje u bazi."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta garantuje atomičnost (A iz ACID)?",
+        "code": null,
+        "options": [
+          "Da transakcija bude brza",
+          "Da se izvrše sve operacije transakcije ili nijedna",
+          "Da dve transakcije ne vide jedna drugu",
+          "Da podaci prežive nestanak struje"
+        ],
+        "correct": 1,
+        "why": "Prenos novca skida sa jednog i dodaje na drugi račun. Atomičnost znači da se ne može desiti samo pola."
+      },
+      {
+        "text": "Šta baca EF Core kad optimistička provera otkrije da je red u međuvremenu izmenjen?",
+        "code": null,
+        "options": [
+          "TimeoutException",
+          "DbUpdateConcurrencyException",
+          "NullReferenceException",
+          "Ništa, poslednji upis pobeđuje"
+        ],
+        "correct": 1,
+        "why": "UPDATE sa starom verzijom u WHERE menja 0 redova, i EF to prijavljuje ovim izuzetkom. Bez tokena konkurentnosti poslednji upis tiho pobeđuje."
+      },
+      {
+        "text": "Dva zahteva istovremeno čitaju stanje zalihe 1, oba proveravaju „ima li” i oba prodaju poslednji komad. Kako se to zove?",
+        "code": null,
+        "options": [
+          "Deadlock",
+          "Race condition (trka)",
+          "N+1 problem",
+          "Memory leak"
+        ],
+        "correct": 1,
+        "why": "Provera i izmena nisu atomične. Rešenje je atomičan UPDATE sa uslovom (`... WHERE Kolicina >= 1`), zaključavanje ili optimistička konkurentnost."
+      },
+      {
+        "text": "Šta koristiš za međusobno isključivanje u async kodu unutar jednog procesa?",
+        "code": null,
+        "options": [
+          "lock sa await unutra",
+          "SemaphoreSlim sa WaitAsync",
+          "Thread.Sleep",
+          "Mutex sa .Result"
+        ],
+        "correct": 1,
+        "why": "lock ne dozvoljava await. SemaphoreSlim(1, 1) radi isto, ali asinhrono. Za više instanci aplikacije treba distribuirano zaključavanje (baza, Redis)."
+      },
+      {
+        "text": "Šta je deadlock u bazi?",
+        "code": null,
+        "options": [
+          "Upit koji traje predugo",
+          "Dve transakcije čekaju jedna drugu da oslobode zaključan red, pa nijedna ne može dalje",
+          "Transakcija koja nikad ne uradi commit",
+          "Prepuna tabela"
+        ],
+        "correct": 1,
+        "why": "Baza otkrije ciklus i jednu transakciju prekine. Smanjuje se tako što sve transakcije zaključavaju redove istim redom i traju kratko."
+      }
+    ],
     "sources": []
   },
   {
@@ -1119,8 +2155,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Kako se štitiš od SQL injection-a?",
+        "a": "Nikad ne lepiš korisnički unos u SQL string. Koristiš parametrizovane upite; EF Core i Dapper to rade sami, a i FromSqlInterpolated pretvara interpolaciju u parametre. Baza tada tretira unos kao podatak, ne kao kod."
+      },
+      {
+        "q": "Kako se čuvaju lozinke?",
+        "a": "Nikad u čitljivom obliku niti kao običan heš (MD5, SHA-256). Koristi se spor heš sa solju: PBKDF2 (ASP.NET Identity PasswordHasher), bcrypt ili Argon2. So sprečava rainbow tabele, a sporost otežava pogađanje grubom silom."
+      },
+      {
+        "q": "Šta je CORS i štiti li on API?",
+        "a": "CORS je pravilo pregledača: JS sa jednog origina ne sme da čita odgovor sa drugog, osim ako server to dozvoli zaglavljima. Ne štiti API od curl-a, Postman-a ili drugog servera; to je zaštita korisnika u pregledaču. API se štiti autentifikacijom i autorizacijom."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta je najbolja zaštita od SQL injection-a?",
+        "code": null,
+        "options": [
+          "Uklanjanje apostrofa iz unosa",
+          "Parametrizovani upiti",
+          "HTTPS",
+          "Skrivanje imena tabela"
+        ],
+        "correct": 1,
+        "why": "Parametar se šalje odvojeno od SQL teksta, pa ne može da promeni strukturu upita. Filtriranje znakova se lako zaobiđe."
+      },
+      {
+        "text": "Šta je tačno za JWT?",
+        "code": null,
+        "options": [
+          "Sadržaj je šifrovan, pa u njega možeš da staviš lozinku",
+          "Sadržaj je potpisan, ali čitljiv svakome ko ima token",
+          "Server mora da ga čuva u bazi da bi ga proverio",
+          "Važi zauvek ako se ne obriše"
+        ],
+        "correct": 1,
+        "why": "JWT je Base64 kodiran, ne šifrovan. Potpis garantuje da nije izmenjen. Zato u njemu nema tajni, a token ima kratko trajanje (exp)."
+      },
+      {
+        "text": "Kako treba čuvati lozinke korisnika?",
+        "code": null,
+        "options": [
+          "Šifrovane ključem iz appsettings.json",
+          "Kao SHA-256 heš",
+          "Sporim hešom sa solju (PBKDF2, bcrypt, Argon2)",
+          "U čitljivom obliku, ali u posebnoj tabeli"
+        ],
+        "correct": 2,
+        "why": "Brz heš se probija grubom silom na GPU-u. Spor heš sa solju to čini skupim. Šifrovanje je reverzibilno, a lozinku nikad ne treba vraćati."
+      },
+      {
+        "text": "Šta je XSS?",
+        "code": null,
+        "options": [
+          "Napad preopterećenjem servera",
+          "Ubacivanje skripte koja se izvrši u pregledaču drugog korisnika",
+          "Krađa lozinke iz baze",
+          "Prisluškivanje mreže"
+        ],
+        "correct": 1,
+        "why": "Npr. komentar sa `<script>` koji se prikaže bez escapovanja. React podrazumevano escapuje tekst; rizik je `dangerouslySetInnerHTML` i sirov HTML."
+      },
+      {
+        "text": "Šta štiti CORS?",
+        "code": null,
+        "options": [
+          "API od svih neovlašćenih poziva",
+          "Korisnika u pregledaču: JS sa drugog sajta ne može da čita odgovor tvog API-ja",
+          "Bazu od SQL injection-a",
+          "Server od DDoS napada"
+        ],
+        "correct": 1,
+        "why": "CORS sprovodi pregledač. Postman ili drugi server ga ignorišu, pa API i dalje mora imati autentifikaciju."
+      }
+    ],
     "sources": []
   },
   {
@@ -1133,8 +2243,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Zašto se HttpClient pravi preko IHttpClientFactory?",
+        "a": "`new HttpClient()` po zahtevu ostavlja otvorene sokete (socket exhaustion), a jedan statički HttpClient zauvek ne vidi promene DNS-a. Fabrika upravlja životom handler-a (pool i rotacija), a uz to daje imenovane ili tipizirane klijente i mesto za politike (retry, timeout)."
+      },
+      {
+        "q": "Šta je outbox pattern?",
+        "a": "Kad treba i upisati u bazu i poslati poruku (npr. „porudžbina napravljena”), poruka se upiše u outbox tabelu u ISTOJ transakciji sa podacima. Pozadinski proces posle čita outbox i šalje poruke. Tako nema slučaja da je porudžbina sačuvana a poruka izgubljena."
+      },
+      {
+        "q": "Kako bezbedno ponavljaš poziv ka spoljnom servisu?",
+        "a": "Retry sa eksponencijalnim čekanjem i jitter-om, samo za prolazne greške (timeout, 503), uz ukupni timeout i circuit breaker. Operacija mora biti idempotentna ili imati idempotency key, inače ponovljen POST napravi duplikat."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta je problem sa `using var client = new HttpClient();` u svakom zahtevu?",
+        "code": null,
+        "options": [
+          "HttpClient ne podržava async",
+          "Iscrpljuju se soketi jer veze ostaju u TIME_WAIT",
+          "Ne može da šalje JSON",
+          "Nema problema"
+        ],
+        "correct": 1,
+        "why": "Svaki novi HttpClient pravi novu vezu, a zatvorene veze neko vreme drže soket. Pod opterećenjem ponestane portova. Rešenje je IHttpClientFactory."
+      },
+      {
+        "text": "Kako se u ASP.NET Core-u pravi posao koji radi u pozadini dok aplikacija radi?",
+        "code": null,
+        "options": [
+          "Thread.Start u kontroleru",
+          "Klasa koja nasleđuje BackgroundService, registrovana sa AddHostedService",
+          "Task.Run bez await u Program.cs",
+          "Cron u appsettings.json"
+        ],
+        "correct": 1,
+        "why": "Host pokreće BackgroundService pri startu i lepo ga zaustavlja pri gašenju (CancellationToken). Ručno pokrenute niti host ne vidi."
+      },
+      {
+        "text": "Red poruka (queue) garantuje „at-least-once” isporuku. Šta to znači za potrošača?",
+        "code": null,
+        "options": [
+          "Poruka stiže tačno jednom",
+          "Ista poruka može stići više puta, pa obrada mora biti idempotentna",
+          "Poruke stižu uvek po redu",
+          "Poruka se može izgubiti"
+        ],
+        "correct": 1,
+        "why": "Ako potrošač obradi poruku ali padne pre potvrde, poruka se ponovo isporuči. Obrada se zato proverava po ID-ju poruke."
+      },
+      {
+        "text": "Šta rešava outbox pattern?",
+        "code": null,
+        "options": [
+          "Spore upite",
+          "Nekonzistentnost između upisa u bazu i slanja poruke",
+          "Previše otvorenih konekcija",
+          "Verzionisanje API-ja"
+        ],
+        "correct": 1,
+        "why": "Upis podataka i poruke u istu transakciju garantuje da ili oba postoje ili nijedno. Slanje ide kasnije, uz ponavljanje."
+      },
+      {
+        "text": "Šta je dobra politika za ponovne pokušaje ka spoljnom API-ju?",
+        "code": null,
+        "options": [
+          "Odmah ponavljati u beskonačnoj petlji",
+          "Nekoliko pokušaja sa sve dužim čekanjem, samo za prolazne greške",
+          "Ponavljati i za 400 Bad Request",
+          "Nikad ne ponavljati"
+        ],
+        "correct": 1,
+        "why": "400 se neće popraviti ponavljanjem. Za 503 i timeout eksponencijalni backoff daje servisu vremena da se oporavi, a jitter sprečava da svi klijenti udare istovremeno."
+      }
+    ],
     "sources": []
   },
   {
@@ -1147,8 +2331,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Koja je razlika između unit i integracionog testa?",
+        "a": "Unit test proverava jednu jedinicu (metodu, klasu) izolovano, bez baze i mreže, i radi u milisekundama. Integracioni test proverava više delova zajedno, npr. ceo API sa pravom bazom (WebApplicationFactory + Testcontainers). Unit testova ima više, integracionih manje ali hvataju greške u spoju delova."
+      },
+      {
+        "q": "Zašto EF Core InMemory provider nije dobar za testiranje upita?",
+        "a": "To nije relaciona baza: ne proverava strane ključeve, jedinstvene indekse ni transakcije, i prevodi upite drugačije od SQL-a. Test može da prođe, a isti upit da padne na Postgres-u. Bolje je SQLite in-memory ili prava baza u kontejneru."
+      },
+      {
+        "q": "Kako testiraš kod koji zavisi od trenutnog vremena?",
+        "a": "Ne zove se DateTime.Now direktno, nego se ubacuje TimeProvider (u .NET 8+) ili sopstveni IClock. U testu se ubaci FakeTimeProvider postavljen na tačan trenutak, pa je test ponovljiv i ne zavisi od dana kad se pokreće."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta znači AAA u pisanju testa?",
+        "code": null,
+        "options": [
+          "Arrange, Act, Assert",
+          "Async, Await, Assert",
+          "Always Assert Anything",
+          "Analyze, Apply, Approve"
+        ],
+        "correct": 0,
+        "why": "Pripremiš stanje, izvršiš radnju koju testiraš, proveriš rezultat. Jasna struktura čini test čitljivim."
+      },
+      {
+        "text": "Šta je glavna mana EF Core InMemory provajdera za testove?",
+        "code": null,
+        "options": [
+          "Spor je",
+          "Ne ponaša se kao prava relaciona baza (ograničenja, transakcije, SQL)",
+          "Ne radi sa xUnit-om",
+          "Zahteva Docker"
+        ],
+        "correct": 1,
+        "why": "Testovi prođu, a produkcija padne. Testcontainers daje pravu bazu po ceni par sekundi."
+      },
+      {
+        "text": "Kako učiniti ponovljivim test metode koja proverava „da li je danas vikend”?",
+        "code": null,
+        "options": [
+          "Pokretati test samo vikendom",
+          "Ubaciti TimeProvider i u testu postaviti fiksni datum",
+          "Koristiti DateTime.UtcNow umesto DateTime.Now",
+          "Preskočiti test u CI-ju"
+        ],
+        "correct": 1,
+        "why": "Zavisnost od sata je skrivena ulazna vrednost. Kad postane parametar (TimeProvider), test kontroliše vreme."
+      },
+      {
+        "text": "Šta radi WebApplicationFactory<Program>?",
+        "code": null,
+        "options": [
+          "Pravi novu aplikaciju od nule",
+          "Pokreće pravu aplikaciju u memoriji i daje HttpClient za pozive bez mreže",
+          "Generiše testove iz kontrolera",
+          "Zamenjuje bazu mock-om automatski"
+        ],
+        "correct": 1,
+        "why": "Ceo pipeline, DI i rute rade kao u produkciji, a servisi se mogu zameniti (npr. baza iz Testcontainers-a)."
+      },
+      {
+        "text": "Šta kaže „piramida testova”?",
+        "code": null,
+        "options": [
+          "Najviše treba UI testova",
+          "Mnogo brzih unit testova, manje integracionih, najmanje end-to-end",
+          "Svaki sloj treba isti broj testova",
+          "Unit testovi nisu potrebni ako postoje E2E"
+        ],
+        "correct": 1,
+        "why": "Niži slojevi su brzi i precizni u otkrivanju uzroka, viši su sporiji i krhkiji, ali proveravaju ceo tok."
+      }
+    ],
     "sources": []
   },
   {
@@ -1175,8 +2433,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Kako bi u dve rečenice objasnio tok jednog zahteva kroz ASP.NET Core API?",
+        "a": "Kestrel primi zahtev, prođe kroz middleware (izuzeci, HTTPS, autentifikacija, autorizacija), ruting izabere endpoint, model binding i validacija pripreme ulaz, a DI ubaci servise. Servis kroz Scoped DbContext pita bazu, rezultat se serijalizuje u JSON i vraća istim putem nazad."
+      },
+      {
+        "q": "Koje greške najčešće vidiš kod juniora u .NET kodu?",
+        "a": "Blokiranje async koda (.Result), N+1 upiti, entiteti umesto DTO-a u API-ju, hvatanje Exception bez razloga, nedostatak CancellationToken-a, captive dependency i tajne u appsettings.json. Dobro je imati primer kako si neku od njih sam ispravio."
+      },
+      {
+        "q": "Šta proveravaš u code review-u .NET koda?",
+        "a": "Ispravnost i granične slučajeve, async do kraja, upite (N+1, nedostatak indeksa, AsNoTracking), validaciju ulaza i autorizaciju, rukovanje greškama, nazive i čitljivost, i da li postoje testovi za izmenjeno ponašanje."
+      }
+    ],
+    "test": [
+      {
+        "text": "Koji životni vek je ispravan za DbContext?",
+        "code": null,
+        "options": [
+          "Singleton",
+          "Scoped",
+          "Transient, uvek",
+          "Static"
+        ],
+        "correct": 1,
+        "why": "Jedan po zahtevu: prati promene jednog posla i nije thread-safe."
+      },
+      {
+        "text": "Šta je ispravan način da metoda kontrolera čeka bazu?",
+        "code": null,
+        "options": [
+          "`var x = servis.UcitajAsync().Result;`",
+          "`var x = await servis.UcitajAsync(ct);`",
+          "`Task.Run(() => servis.UcitajAsync()).Wait();`",
+          "`servis.UcitajAsync();` bez await"
+        ],
+        "correct": 1,
+        "why": "await oslobađa nit i propagira izuzetke, a CancellationToken prekida posao kad klijent odustane."
+      },
+      {
+        "text": "Šta je najverovatniji uzrok sporosti ako liste šalju po jedan SQL upit za svaki red?",
+        "code": null,
+        "options": [
+          "Spora mreža",
+          "N+1 problem (lazy loading u petlji)",
+          "Previše indeksa",
+          "Mali connection pool"
+        ],
+        "correct": 1,
+        "why": "Rešenje je Include ili projekcija u jednom upitu."
+      },
+      {
+        "text": "Gde NE treba da stoji lozinka produkcijske baze?",
+        "code": null,
+        "options": [
+          "U promenljivoj okruženja na serveru",
+          "U Key Vault-u",
+          "U appsettings.json u Git repozitorijumu",
+          "U tajnama CI/CD sistema"
+        ],
+        "correct": 2,
+        "why": "Sve što je u Git-u treba smatrati javnim. Tajne idu u okruženje ili sef tajni."
+      },
+      {
+        "text": "Šta vraća API kad validacija ulaza ne prođe?",
+        "code": null,
+        "options": [
+          "500 sa stack trace-om",
+          "200 sa porukom o grešci",
+          "400 sa ProblemDetails i opisom grešaka po poljima",
+          "404"
+        ],
+        "correct": 2,
+        "why": "Klijent treba da zna šta da ispravi. Stack trace u odgovoru je bezbednosni propust."
+      }
+    ],
     "sources": []
   },
   {
@@ -1189,8 +2521,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Zašto je bitan semantički HTML?",
+        "a": "Elementi kao `<button>`, `<nav>`, `<main>`, `<label>` nose značenje: čitač ekrana ih najavljuje, tastatura radi sama (Tab, Enter, Space), a pretraživači bolje razumeju stranicu. `<div onClick>` izgleda isto, ali nije dostupan tastaturi ni čitaču ekrana bez dodatnog posla."
+      },
+      {
+        "q": "Šta je event delegation?",
+        "a": "Događaji se „penju” (bubbling) od elementa do korena. Umesto da staviš osluškivač na svaku od 1000 stavki liste, staviš jedan na roditelja i u njemu proveriš `event.target`. Manje osluškivača, a radi i za stavke dodate kasnije."
+      },
+      {
+        "q": "Kada koristiš flexbox, a kada grid?",
+        "a": "Flexbox je jednodimenzionalan: raspoređuje elemente u red ili kolonu (navigacija, dugmad, poravnanje). Grid je dvodimenzionalan: redovi i kolone zajedno (raspored stranice, galerije kartica). Često se kombinuju."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta radi `box-sizing: border-box`?",
+        "code": null,
+        "options": [
+          "Dodaje okvir svakom elementu",
+          "Širina elementa uključuje padding i border, pa `width: 200px` ostaje 200px",
+          "Uklanja margine",
+          "Pretvara element u flex kontejner"
+        ],
+        "correct": 1,
+        "why": "Podrazumevano (content-box) padding i border se dodaju na širinu. border-box olakšava raspored, pa se postavlja globalno."
+      },
+      {
+        "text": "Zašto je `<button>` bolji od `<div onClick>`?",
+        "code": null,
+        "options": [
+          "Brže se iscrtava",
+          "Fokusira se tastaturom, aktivira Enter/Space i čitač ekrana ga najavljuje kao dugme",
+          "Ne može da se stilizuje",
+          "Radi samo u formi"
+        ],
+        "correct": 1,
+        "why": "div zahteva tabindex, role i rukovanje tasterima da bi bio jednako dostupan. button sve to ima ugrađeno."
+      },
+      {
+        "text": "Kojim redom se izvršavaju osluškivači pri kliku na dugme u div-u (oba imaju click osluškivač, bez capture)?",
+        "code": null,
+        "options": [
+          "Prvo dugme, pa div (bubbling naviše)",
+          "Prvo div, pa dugme",
+          "Samo dugme",
+          "Samo div"
+        ],
+        "correct": 0,
+        "why": "Podrazumevana faza je bubbling: događaj ide od ciljnog elementa ka korenu. `event.stopPropagation()` ga zaustavlja."
+      },
+      {
+        "text": "Koje pravilo ima najveću specifičnost?",
+        "code": null,
+        "options": [
+          "`p { color: red }`",
+          "`.tekst { color: red }`",
+          "`#naslov { color: red }`",
+          "`* { color: red }`"
+        ],
+        "correct": 2,
+        "why": "Specifičnost: ID > klasa/atribut/pseudo-klasa > element > `*`. Inline stil i `!important` su iznad svega, ali ih treba izbegavati."
+      },
+      {
+        "text": "Šta treba svaka `<img>` slika sa sadržajem?",
+        "code": null,
+        "options": [
+          "`title` atribut",
+          "`alt` tekst koji opisuje sliku",
+          "Fiksnu širinu u pikselima",
+          "`loading=\"eager\"`"
+        ],
+        "correct": 1,
+        "why": "alt čita čitač ekrana i prikazuje se ako slika ne učita. Dekorativna slika dobija prazan `alt=\"\"` da je čitač preskoči."
+      }
+    ],
     "sources": []
   },
   {
@@ -1203,8 +2609,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Šta je closure?",
+        "a": "Funkcija „pamti” promenljive iz opsega u kome je napravljena, i kad se pozove kasnije van tog opsega. Koristi se za privatno stanje, fabrike funkcija i callback-e. Klasična zamka: u petlji sa `var` sve funkcije dele istu promenljivu; `let` pravi novu po iteraciji."
+      },
+      {
+        "q": "Kako radi event loop?",
+        "a": "JS izvršava kod u jednoj niti. Kad se stek isprazni, prvo se izvrše svi microtask-ovi (Promise.then, await nastavci), pa jedan macrotask (setTimeout, događaj, mreža), pa ponovo microtask-ovi. Zato Promise.then ide pre setTimeout(0)."
+      },
+      {
+        "q": "Koja je razlika između `==` i `===`?",
+        "a": "`===` poredi i tip i vrednost bez konverzije. `==` prvo pretvara tipove po složenim pravilima (`\"0\" == 0` je true, `null == undefined` je true). U praksi se koristi `===`."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta ispisuje kod?",
+        "code": "console.log(1);\nsetTimeout(() => console.log(2), 0);\nPromise.resolve().then(() => console.log(3));\nconsole.log(4);",
+        "options": [
+          "1 2 3 4",
+          "1 4 3 2",
+          "1 3 4 2",
+          "1 4 2 3"
+        ],
+        "correct": 1,
+        "why": "Sinhroni kod ide prvi (1, 4). Zatim microtask (Promise, 3), pa tek onda macrotask (setTimeout, 2)."
+      },
+      {
+        "text": "Šta ispisuje kod?",
+        "code": "for (var i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 0);\n}",
+        "options": [
+          "0 1 2",
+          "3 3 3",
+          "2 2 2",
+          "undefined tri puta"
+        ],
+        "correct": 1,
+        "why": "`var` ima opseg funkcije: sve tri lambde vide istu `i`, koja je posle petlje 3. Sa `let` svaka iteracija ima svoju `i`, pa se ispisuje 0 1 2."
+      },
+      {
+        "text": "Šta je tačno za `const korisnik = { ime: \"Ana\" };`?",
+        "code": null,
+        "options": [
+          "Objekat je zamrznut i ne može se menjati",
+          "`korisnik.ime = \"Mia\"` radi, ali `korisnik = {}` ne radi",
+          "Ni jedno ni drugo ne radi",
+          "const važi samo za brojeve i stringove"
+        ],
+        "correct": 1,
+        "why": "const zabranjuje novu dodelu promenljive, ne izmenu objekta. Za zamrzavanje postoji Object.freeze."
+      },
+      {
+        "text": "Šta vraća async funkcija?",
+        "code": null,
+        "options": [
+          "Vrednost iz return, odmah",
+          "Uvek Promise",
+          "undefined",
+          "Callback"
+        ],
+        "correct": 1,
+        "why": "I `async function f() { return 5; }` vraća Promise koji se razreši sa 5. Pozivalac mora `await f()` ili `.then`."
+      },
+      {
+        "text": "Šta radi spread u `const nova = { ...stara, ime: \"Mia\" };`?",
+        "code": null,
+        "options": [
+          "Menja objekat `stara`",
+          "Pravi novi plitki objekat sa svim poljima iz `stara`, a `ime` pregazi",
+          "Pravi duboku kopiju svih ugnežđenih objekata",
+          "Baca grešku ako `stara` već ima `ime`"
+        ],
+        "correct": 1,
+        "why": "Kopija je plitka: ugnežđeni objekti se dele. U React-u se tako pravi novo stanje bez menjanja starog."
+      }
+    ],
     "sources": []
   },
   {
@@ -1217,8 +2697,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Koja je razlika između `any` i `unknown`?",
+        "a": "any isključuje proveru tipova: sve je dozvoljeno, greške se vide tek u izvršavanju. unknown kaže „ne znam šta je” i ne dozvoljava upotrebu dok tip ne suziš proverom (typeof, instanceof, validacija). Za podatke spolja (JSON, API) bolji je unknown."
+      },
+      {
+        "q": "Šta je strukturno tipiziranje?",
+        "a": "TypeScript poredi oblik, ne ime tipa: objekat koji ima sva tražena polja odgovara tipu, iako nije „deklarisan” kao taj tip. Za razliku od C#-a, gde klasa mora eksplicitno da implementira interfejs."
+      },
+      {
+        "q": "Da li TypeScript tipovi postoje u izvršavanju?",
+        "a": "Ne. Kompajler ih briše, ostaje čist JS. Zato TS ne proverava JSON koji stigne sa API-ja: ako server vrati nešto drugo, tip laže. Za proveru u izvršavanju koristi se validacija (npr. zod) ili jasan ugovor sa API-jem."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta je ispravno za vrednost tipa `unknown`?",
+        "code": null,
+        "options": [
+          "Može se koristiti kao bilo šta, kao any",
+          "Mora se suziti proverom pre upotrebe",
+          "Uvek je null ili undefined",
+          "Ne može se dodeliti promenljivoj"
+        ],
+        "correct": 1,
+        "why": "unknown je bezbedna varijanta any: kompajler traži dokaz o tipu (npr. `typeof x === \"string\"`) pre upotrebe."
+      },
+      {
+        "text": "Kako TypeScript zna da je `x` string u grani `if`?",
+        "code": "function duzina(x: string | number) {\n  if (typeof x === \"string\") return x.length;\n  return x;\n}",
+        "options": [
+          "Ne zna, potreban je cast",
+          "Sužavanje tipa (narrowing) na osnovu typeof provere",
+          "Iz imena parametra",
+          "Iz poziva funkcije"
+        ],
+        "correct": 1,
+        "why": "Posle provere TS u toj grani zna da je x string, a posle return-a da je ostao samo number."
+      },
+      {
+        "text": "Šta pravi `Partial<Korisnik>`?",
+        "code": null,
+        "options": [
+          "Tip sa samo prvim poljem",
+          "Tip u kome su sva polja opciona",
+          "Tip bez polja",
+          "Tip u kome su sva polja readonly"
+        ],
+        "correct": 1,
+        "why": "Partial je koristan za izmene (PATCH). Srodni su Pick (izaberi polja), Omit (izbaci polja), Readonly i Required."
+      },
+      {
+        "text": "Da li TypeScript proverava JSON koji stigne sa API-ja u izvršavanju?",
+        "code": null,
+        "options": [
+          "Da, uvek",
+          "Ne, tipovi se brišu pri kompajliranju",
+          "Samo u strict režimu",
+          "Samo za nizove"
+        ],
+        "correct": 1,
+        "why": "`res.json() as Korisnik` je obećanje kompajleru, ne provera. Ako server pošalje drugo, greška će se videti negde kasnije."
+      },
+      {
+        "text": "Prolazi li ovaj kod proveru tipova?",
+        "code": "interface Tacka { x: number; y: number }\nconst p = { x: 1, y: 2, boja: \"crvena\" };\nconst t: Tacka = p;",
+        "options": [
+          "Da, jer p ima sva polja koja traži Tacka (strukturno tipiziranje)",
+          "Ne, jer p nije deklarisan kao Tacka",
+          "Ne, jer p ima višak polja",
+          "Samo uz `as Tacka`"
+        ],
+        "correct": 0,
+        "why": "Provera viška polja važi samo za objektni literal dodeljen direktno. Promenljiva sa više polja je kompatibilna jer ima traženi oblik."
+      }
+    ],
     "sources": []
   },
   {
@@ -1231,8 +2785,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Kada se React komponenta ponovo iscrtava (re-render)?",
+        "a": "Kad se promeni njeno stanje (setState), kad se iscrta roditelj (i props se nisu promenili, osim uz memo), ili kad se promeni context koji koristi. Re-render znači ponovo pozvati funkciju komponente; React zatim upoređuje rezultat i menja samo ono što se razlikuje u DOM-u."
+      },
+      {
+        "q": "Zašto se stanje ne menja direktno (`niz.push(x)`)?",
+        "a": "React poredi staro i novo stanje po referenci. Ako izmeniš isti niz, referenca je ista i React ne zna da je nešto promenjeno, pa ne iscrta. Novo stanje se pravi kao nova vrednost: `setNiz([...niz, x])`."
+      },
+      {
+        "q": "Čemu služi `key` u listi?",
+        "a": "key govori React-u koja stavka je koja između dva iscrtavanja, pa može da sačuva stanje i DOM tačne stavke pri dodavanju, brisanju ili promeni redosleda. Treba stabilan, jedinstven ID; indeks niza je loš izbor kad se lista menja."
+      }
+    ],
+    "test": [
+      {
+        "text": "Zašto se lista ne osvežava na ekranu posle klika?",
+        "code": "const [stavke, setStavke] = useState<string[]>([]);\nconst dodaj = () => { stavke.push(\"nova\"); setStavke(stavke); };",
+        "options": [
+          "useState ne radi sa nizovima",
+          "Ista referenca niza, pa React misli da se stanje nije promenilo",
+          "Treba pozvati forceUpdate",
+          "push je asinhron"
+        ],
+        "correct": 1,
+        "why": "React poredi Object.is(staro, novo). Ispravno: `setStavke([...stavke, \"nova\"])`."
+      },
+      {
+        "text": "Šta je loše kod `key={index}` u listi koja se sortira?",
+        "code": null,
+        "options": [
+          "Ništa, index je uvek jedinstven",
+          "Posle sortiranja ključevi pripadaju drugim stavkama, pa se stanje (npr. unos u polju) „seli” na pogrešnu stavku",
+          "React baca grešku",
+          "Lista se ne iscrtava"
+        ],
+        "correct": 1,
+        "why": "key mora da prati identitet stavke (ID iz baze), ne njen položaj."
+      },
+      {
+        "text": "Šta su props?",
+        "code": null,
+        "options": [
+          "Lokalno stanje komponente koje ona menja",
+          "Ulazni podaci koje komponenta dobija od roditelja i ne menja ih",
+          "Globalne promenljive aplikacije",
+          "CSS klase komponente"
+        ],
+        "correct": 1,
+        "why": "Props su samo za čitanje. Ako dete treba da promeni podatak, roditelj mu prosledi funkciju (callback)."
+      },
+      {
+        "text": "Šta je kontrolisana (controlled) forma u React-u?",
+        "code": null,
+        "options": [
+          "Forma koju kontroliše pregledač",
+          "Vrednost polja dolazi iz stanja, a onChange menja stanje",
+          "Forma bez dugmeta za slanje",
+          "Forma koja koristi ref za čitanje vrednosti"
+        ],
+        "correct": 1,
+        "why": "React stanje je „izvor istine” za vrednost polja. Nekontrolisana forma čita vrednost iz DOM-a (ref, FormData)."
+      },
+      {
+        "text": "Šta vraća funkcijska komponenta?",
+        "code": null,
+        "options": [
+          "HTML string",
+          "JSX (React elemente) koji opisuju šta treba prikazati",
+          "DOM čvorove",
+          "Promise sa HTML-om"
+        ],
+        "correct": 1,
+        "why": "JSX se prevodi u pozive koji prave opis interfejsa. React od tog opisa pravi i ažurira stvarni DOM."
+      }
+    ],
     "sources": []
   },
   {
@@ -1245,8 +2873,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Koja su pravila hookova?",
+        "a": "Hookovi se pozivaju samo na najvišem nivou komponente ili sopstvenog hooka, nikad u if-u, petlji ili posle ranog return-a, i samo iz React funkcija. React prepoznaje hook po redosledu poziva, pa redosled mora biti isti pri svakom iscrtavanju."
+      },
+      {
+        "q": "Čemu služi cleanup funkcija u useEffect?",
+        "a": "Vraća se iz efekta i React je poziva pre sledećeg pokretanja efekta i pri uklanjanju komponente. Tu se odjavljuju pretplate, brišu tajmeri i prekidaju zahtevi (AbortController), da ne bi curela memorija ili stizali odgovori za komponentu koje više nema."
+      },
+      {
+        "q": "Šta je „stale closure” u hookovima?",
+        "a": "Efekat ili callback uhvati vrednost stanja iz iscrtavanja u kome je napravljen. Ako se ne doda u niz zavisnosti, i dalje vidi staru vrednost. Rešenje: tačne zavisnosti, funkcijski oblik setState (`setBroj(b => b + 1)`) ili useRef za vrednost koja ne treba da izaziva iscrtavanje."
+      }
+    ],
+    "test": [
+      {
+        "text": "Koliko puta se izvršava efekat sa praznim nizom zavisnosti `useEffect(fn, [])`?",
+        "code": null,
+        "options": [
+          "Pri svakom iscrtavanju",
+          "Jednom posle prvog iscrtavanja (u dev režimu sa StrictMode dvaput, namerno)",
+          "Nikad",
+          "Svake sekunde"
+        ],
+        "correct": 1,
+        "why": "StrictMode u razvoju montira, demontira i ponovo montira komponentu da bi otkrio efekte bez ispravnog cleanup-a. U produkciji se izvršava jednom."
+      },
+      {
+        "text": "Šta ispisuje dugme posle jednog klika?",
+        "code": "const [b, setB] = useState(0);\nconst klik = () => { setB(b + 1); setB(b + 1); };",
+        "options": [
+          "2",
+          "1",
+          "0",
+          "Greška"
+        ],
+        "correct": 1,
+        "why": "Oba poziva vide isto `b` (0) iz tog iscrtavanja. `setB(x => x + 1)` dvaput bi dalo 2."
+      },
+      {
+        "text": "Koji hook čuva vrednost između iscrtavanja, a njena izmena NE izaziva novo iscrtavanje?",
+        "code": null,
+        "options": [
+          "useState",
+          "useRef",
+          "useMemo",
+          "useEffect"
+        ],
+        "correct": 1,
+        "why": "`ref.current` je obična promenljiva koja preživi iscrtavanja. Koristi se za DOM elemente, tajmere i prethodne vrednosti."
+      },
+      {
+        "text": "Zašto je ovaj kod greška?",
+        "code": "if (korisnik) {\n  const [ime, setIme] = useState(korisnik.ime);\n}",
+        "options": [
+          "useState ne prima početnu vrednost",
+          "Hook u uslovu menja redosled hookova između iscrtavanja",
+          "korisnik mora biti stanje",
+          "Nije greška"
+        ],
+        "correct": 1,
+        "why": "React vezuje stanje za redosled poziva hookova. Ako se poziv nekad preskoči, sve kasnije stanje se pomeri."
+      },
+      {
+        "text": "Kada useMemo ima smisla?",
+        "code": null,
+        "options": [
+          "Uvek, za svaku vrednost",
+          "Za skupo izračunavanje ili da referenca objekta ostane ista između iscrtavanja",
+          "Za čuvanje stanja forme",
+          "Za pozive API-ja"
+        ],
+        "correct": 1,
+        "why": "useMemo ima svoju cenu. Koristi se kad je izračunavanje skupo ili kad stabilna referenca sprečava suvišna iscrtavanja dece (uz memo)."
+      }
+    ],
     "sources": []
   },
   {
@@ -1259,8 +2961,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Koja je razlika između serverskog i klijentskog stanja?",
+        "a": "Serversko stanje (podaci iz baze) pripada serveru: može da zastari, deli se između korisnika i treba ga keširati i osvežavati. Klijentsko stanje (otvoren meni, unos u formu) živi samo u pregledaču. Za serversko je bolja biblioteka (TanStack Query) nego useState + useEffect."
+      },
+      {
+        "q": "Šta TanStack Query rešava u odnosu na fetch u useEffect?",
+        "a": "Keširanje po ključu, deduplikaciju istih zahteva, stanja učitavanja i greške, ponovne pokušaje, osvežavanje u pozadini, invalidaciju posle izmene i trku odgovora (stariji odgovor ne pregazi noviji). Ručno sve to je mnogo koda i grešaka."
+      },
+      {
+        "q": "Kako posle izmene (POST) osvežiš listu na ekranu?",
+        "a": "U onSuccess mutacije pozoveš `queryClient.invalidateQueries({ queryKey: [\"porudzbine\"] })`. Query se označi kao zastareo i ponovo učita. Alternativa za trenutni prikaz je optimističko ažuriranje keša, uz vraćanje na staro ako server odbije."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta treba da sadrži queryKey za porudžbine jednog kupca?",
+        "code": null,
+        "options": [
+          "Samo `[\"porudzbine\"]`",
+          "I parametar, npr. `[\"porudzbine\", kupacId]`",
+          "URL kao string",
+          "Nasumičan broj da se keš ne meša"
+        ],
+        "correct": 1,
+        "why": "Ključ identifikuje podatke u kešu. Bez kupacId svi kupci bi delili isti keš i videli tuđe porudžbine."
+      },
+      {
+        "text": "Šta znači `staleTime: 30_000`?",
+        "code": null,
+        "options": [
+          "Zahtev ima timeout od 30 s",
+          "30 s posle učitavanja podaci se smatraju svežim i neće se automatski ponovo učitati",
+          "Keš se briše posle 30 s",
+          "Zahtev se ponavlja svakih 30 s"
+        ],
+        "correct": 1,
+        "why": "Dok su podaci sveži, novi korisnik istog ključa dobija keš bez mreže. Brisanje iz keša određuje gcTime."
+      },
+      {
+        "text": "Kako posle uspešne mutacije osvežiti prikazanu listu?",
+        "code": null,
+        "options": [
+          "window.location.reload()",
+          "queryClient.invalidateQueries sa ključem liste",
+          "Ponovo montirati celu aplikaciju",
+          "Ništa, osvežava se sama"
+        ],
+        "correct": 1,
+        "why": "Invalidacija označi podatke zastarelim, pa ih aktivni query odmah ponovo učita."
+      },
+      {
+        "text": "Koji problem ima fetch u useEffect bez dodatne logike, kad korisnik brzo menja filter?",
+        "code": null,
+        "options": [
+          "Nijedan",
+          "Spor stariji odgovor može da stigne posle novijeg i prikaže pogrešne podatke",
+          "Zahtev se nikad ne šalje",
+          "React baca grešku"
+        ],
+        "correct": 1,
+        "why": "Trka odgovora. Rešava se AbortController-om ili zastavicom u cleanup-u, a TanStack Query je rešava sam."
+      },
+      {
+        "text": "Gde se čuva otvorenost padajućeg menija?",
+        "code": null,
+        "options": [
+          "U TanStack Query kešu",
+          "U lokalnom stanju komponente (useState)",
+          "U bazi preko API-ja",
+          "U kolačiću"
+        ],
+        "correct": 1,
+        "why": "To je čisto klijentsko stanje koje niko drugi ne treba. Query je za podatke sa servera."
+      }
+    ],
     "sources": []
   },
   {
@@ -1273,8 +3049,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Kako radi rutiranje u SPA aplikaciji?",
+        "a": "Server uvek vrati isti index.html, a ruter u pregledaču čita putanju (History API) i prikazuje odgovarajuću komponentu. Klik na Link menja URL bez novog učitavanja stranice. Zato server mora da za nepoznate putanje vrati index.html, inače refresh na `/porudzbine/5` daje 404."
+      },
+      {
+        "q": "Zašto Link, a ne `<a href>`?",
+        "a": "`<a href>` učitava celu stranicu ponovo: gubi se stanje i keš, i ponovo se preuzima JS. Link menja URL kroz ruter, a React samo zameni prikaz. Za spoljne linkove ostaje običan `<a>`."
+      },
+      {
+        "q": "Šta su ugnežđene rute?",
+        "a": "Roditeljska ruta crta zajednički okvir (meni, zaglavlje) i `<Outlet />` na mestu gde ide dete. Deca menjaju samo svoj deo, a okvir ostaje montiran sa svojim stanjem."
+      }
+    ],
+    "test": [
+      {
+        "text": "Refresh na `/porudzbine/5` u produkciji vraća 404 iz nginx-a. Šta fali?",
+        "code": null,
+        "options": [
+          "Ruta u React Router-u",
+          "Fallback na index.html (`try_files $uri /index.html`)",
+          "HTTPS sertifikat",
+          "Ključ u listi"
+        ],
+        "correct": 1,
+        "why": "nginx traži fajl `/porudzbine/5` i ne nalazi ga. Treba da vrati index.html, pa da ruter u pregledaču prikaže stranicu."
+      },
+      {
+        "text": "Kako se u React Router-u čita `5` iz rute `/porudzbine/:id`?",
+        "code": null,
+        "options": [
+          "`window.location.id`",
+          "`const { id } = useParams();`",
+          "`props.id`",
+          "`useQuery(\"id\")`"
+        ],
+        "correct": 1,
+        "why": "useParams vraća parametre putanje kao stringove. Query string (`?strana=2`) se čita sa useSearchParams."
+      },
+      {
+        "text": "Šta je mana `<a href=\"/mapa\">` unutar SPA aplikacije?",
+        "code": null,
+        "options": [
+          "Ne radi u Chrome-u",
+          "Učitava celu aplikaciju ponovo i gubi stanje u memoriji",
+          "Ne podržava stilove",
+          "Ne menja URL"
+        ],
+        "correct": 1,
+        "why": "Link radi navigaciju na klijentu, bez novog zahteva za HTML i JS."
+      },
+      {
+        "text": "Čemu služi `<Outlet />`?",
+        "code": null,
+        "options": [
+          "Za izlaz iz aplikacije",
+          "Mesto gde roditeljska ruta prikazuje aktivnu dete rutu",
+          "Za preusmeravanje na login",
+          "Za učitavanje podataka"
+        ],
+        "correct": 1,
+        "why": "Tako zajednički okvir (meni, zaglavlje) ostaje, a menja se samo sadržaj."
+      },
+      {
+        "text": "Gde je pravo mesto za stanje „trenutna strana tabele” koje treba da preživi refresh i da se može podeliti linkom?",
+        "code": null,
+        "options": [
+          "useState",
+          "U URL-u (query string, npr. `?strana=3`)",
+          "localStorage",
+          "Globalna promenljiva"
+        ],
+        "correct": 1,
+        "why": "URL je deljivo i trajno stanje: korisnik može da pošalje link, a dugme „nazad” radi kako očekuje."
+      }
+    ],
     "sources": []
   },
   {
@@ -1287,8 +3137,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Da li je validacija na klijentu dovoljna?",
+        "a": "Ne. Klijentska validacija je za brzu povratnu informaciju korisniku. Svako može da zaobiđe frontend i pošalje zahtev direktno, pa server uvek ponovo proverava. Idealno su pravila ista (npr. ista ograničenja dužine), a server je izvor istine."
+      },
+      {
+        "q": "Šta čini formu pristupačnom?",
+        "a": "Svako polje ima `<label>` povezan sa njim (htmlFor/id), greške su tekstom uz polje i povezane sa `aria-describedby`, fokus ide na prvu grešku posle slanja, a forma radi tastaturom (Enter šalje). Boja nije jedini nosilac informacije o grešci."
+      },
+      {
+        "q": "Kako prikazuješ datume i iznose za različite jezike?",
+        "a": "Preko Intl API-ja: `Intl.NumberFormat(\"sr-Latn-RS\", { style: \"currency\", currency: \"RSD\" })` i `Intl.DateTimeFormat`. Tekstovi idu u fajlove prevoda (npr. i18next), a ne u kod. Datumi se čuvaju i šalju u UTC, a lokalno se samo prikazuju."
+      }
+    ],
+    "test": [
+      {
+        "text": "Zašto server mora da validira podatke iako ih frontend već proverava?",
+        "code": null,
+        "options": [
+          "Ne mora",
+          "Zahtev može da stigne i mimo frontenda (curl, Postman, napadač)",
+          "Frontend validacija ne radi u Safariju",
+          "Zbog performansi"
+        ],
+        "correct": 1,
+        "why": "Klijent je pod kontrolom korisnika. Sve što je bitno za bezbednost i ispravnost podataka proverava server."
+      },
+      {
+        "text": "Kako se `<label>` povezuje sa poljem?",
+        "code": null,
+        "options": [
+          "Mora biti odmah iznad polja",
+          "`htmlFor` na labeli jednak `id` polja (ili polje unutar labele)",
+          "Istim CSS klasama",
+          "Preko `title` atributa"
+        ],
+        "correct": 1,
+        "why": "Klik na labelu fokusira polje, a čitač ekrana čita labelu kad je polje u fokusu."
+      },
+      {
+        "text": "Šta sprečava `event.preventDefault()` u onSubmit forme?",
+        "code": null,
+        "options": [
+          "Validaciju",
+          "Podrazumevano slanje forme i ponovno učitavanje stranice",
+          "Slanje fetch zahteva",
+          "Unos u polja"
+        ],
+        "correct": 1,
+        "why": "Bez toga pregledač pošalje formu klasično i učita novu stranicu, pa se SPA stanje izgubi."
+      },
+      {
+        "text": "Kako ispravno prikazati 1234.5 kao iznos u dinarima za srpski jezik?",
+        "code": null,
+        "options": [
+          "`iznos + \" RSD\"`",
+          "`new Intl.NumberFormat(\"sr-Latn-RS\", { style: \"currency\", currency: \"RSD\" }).format(iznos)`",
+          "`iznos.toFixed(2)`",
+          "`String(iznos).replace(\".\", \",\")`"
+        ],
+        "correct": 1,
+        "why": "Intl zna separatore hiljada, decimalni zarez i položaj valute za dati jezik."
+      },
+      {
+        "text": "U kom obliku je najbolje slati datum i vreme između frontenda i API-ja?",
+        "code": null,
+        "options": [
+          "Kao tekst „22.11.2026. 14:30”",
+          "ISO 8601 u UTC (npr. `2026-11-22T13:30:00Z`)",
+          "Kao broj dana od 1900.",
+          "Bez vremenske zone, lokalno vreme"
+        ],
+        "correct": 1,
+        "why": "ISO 8601 sa zonom je nedvosmislen. Lokalni prikaz se radi tek u interfejsu."
+      }
+    ],
     "sources": []
   },
   {
@@ -1301,8 +3225,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Gde treba da živi stanje u React aplikaciji?",
+        "a": "Što bliže mestu gde se koristi (colocation). Ako ga koristi više komponenti, podigni ga do najbližeg zajedničkog roditelja. Serverski podaci idu u TanStack Query, deljeno stanje kroz URL ili context, a globalni store (Zustand, Redux) tek kad je zaista potreban."
+      },
+      {
+        "q": "Koja je mana Context-a za stanje koje se često menja?",
+        "a": "Kad se vrednost context-a promeni, iscrtavaju se SVE komponente koje ga koriste, čak i ako im treba samo deo vrednosti. Za teme i prijavljenog korisnika to je u redu; za brzo promenljivo stanje bolji su manji context-i ili store sa selektorima."
+      },
+      {
+        "q": "Kako smanjuješ veličinu JS bundle-a?",
+        "a": "Code splitting po rutama (React.lazy + Suspense), uklanjanje nekorišćenih biblioteka, uvoz samo potrebnih delova (tree shaking), analiza bundle-a i odlaganje teških komponenti (grafici, editori) dok ne zatrebaju."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta je „prop drilling”?",
+        "code": null,
+        "options": [
+          "Brisanje props-a koje se ne koriste",
+          "Prosleđivanje props-a kroz više slojeva komponenti koje ih same ne koriste",
+          "Validacija props-a",
+          "Pretvaranje props-a u stanje"
+        ],
+        "correct": 1,
+        "why": "Rešava se kompozicijom (children), context-om ili podizanjem komponente, a ne odmah globalnim store-om."
+      },
+      {
+        "text": "Šta radi `const Mapa = React.lazy(() => import(\"./MapPage\"));`?",
+        "code": null,
+        "options": [
+          "Učitava MapPage odmah pri startu",
+          "Izdvaja MapPage u poseban fajl koji se preuzima tek kad se prvi put prikaže",
+          "Kešira MapPage u localStorage",
+          "Iscrtava MapPage na serveru"
+        ],
+        "correct": 1,
+        "why": "Uz `<Suspense fallback={...}>` početni bundle je manji, a stranica se učitava kad zatreba."
+      },
+      {
+        "text": "Prijavljen korisnik treba skoro svim komponentama. Šta je razuman izbor?",
+        "code": null,
+        "options": [
+          "Prosleđivati ga props-ima kroz sve slojeve",
+          "Context (ili query keš) sa korisnikom",
+          "Globalna promenljiva `window.korisnik`",
+          "Čitati ga iz localStorage u svakoj komponenti"
+        ],
+        "correct": 1,
+        "why": "Retko se menja, a treba mnogima: tipičan slučaj za context."
+      },
+      {
+        "text": "Šta je tree shaking?",
+        "code": null,
+        "options": [
+          "Brisanje node_modules",
+          "Uklanjanje koda koji se nigde ne uvozi iz finalnog bundle-a",
+          "Sortiranje komponenti po imenu",
+          "Testiranje stabla komponenti"
+        ],
+        "correct": 1,
+        "why": "Radi sa ES modulima: bundler vidi šta je uvezeno i izbacuje ostalo. Zato je bolje `import { debounce } from ...` nego uvoz cele biblioteke."
+      },
+      {
+        "text": "Kako organizovati foldere u većoj React aplikaciji?",
+        "code": null,
+        "options": [
+          "Sve komponente u jednom folderu",
+          "Po funkcionalnosti (feature): stranica, njene komponente, hookovi i API pozivi zajedno",
+          "Po tipu fajla, uvek (svi hookovi u /hooks)",
+          "Svaka komponenta u svom repozitorijumu"
+        ],
+        "correct": 1,
+        "why": "Kod koji se menja zajedno stoji zajedno. Zajedničke komponente (dugme, modal) idu u poseban deljeni folder."
+      }
+    ],
     "sources": []
   },
   {
@@ -1315,8 +3313,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Šta radi Vite u razvoju, a šta pri build-u?",
+        "a": "U razvoju servira izvorne fajlove kao ES module, pa start i HMR traju trenutno, bez pakovanja cele aplikacije. Pri build-u pakuje kod u optimizovane bundle-ove: minifikacija, tree shaking, podela na delove, heš u imenima fajlova za keširanje."
+      },
+      {
+        "q": "Zašto se u Testing Library-ju traži element po ulozi (getByRole)?",
+        "a": "Test tako koristi aplikaciju kao korisnik i čitač ekrana: „dugme Sačuvaj”, „polje Email”. Ne zavisi od CSS klasa i strukture DOM-a, pa ne puca pri refaktorisanju, a usput proverava pristupačnost."
+      },
+      {
+        "q": "Da li je `VITE_API_KEY` u .env fajlu tajna?",
+        "a": "Nije. Sve promenljive sa prefiksom VITE_ se ugrađuju u JS bundle i vidi ih svako ko otvori aplikaciju. Tajne ostaju na serveru; frontend zove svoj backend, a backend koristi ključ."
+      }
+    ],
+    "test": [
+      {
+        "text": "Ko vidi vrednost `import.meta.env.VITE_MAPS_KEY` u produkciji?",
+        "code": null,
+        "options": [
+          "Samo server",
+          "Svako ko preuzme JS aplikacije",
+          "Samo administratori",
+          "Niko, Vite je šifruje"
+        ],
+        "correct": 1,
+        "why": "Vite je ugrađuje u bundle kao običan tekst. Takav ključ mora biti javan i ograničen (npr. po domenu)."
+      },
+      {
+        "text": "Koji upit je najbolji za pronalaženje dugmeta u testu?",
+        "code": null,
+        "options": [
+          "`container.querySelector(\".btn-primary\")`",
+          "`screen.getByRole(\"button\", { name: \"Sačuvaj\" })`",
+          "`screen.getByTestId(\"dugme-1\")`",
+          "`document.getElementsByTagName(\"button\")[0]`"
+        ],
+        "correct": 1,
+        "why": "getByRole prati kako korisnik vidi stranicu. data-testid je izlaz u nuždi kad element nema ulogu ni tekst."
+      },
+      {
+        "text": "Zašto Vite u razvoju startuje brzo i kod velike aplikacije?",
+        "code": null,
+        "options": [
+          "Ne proverava greške",
+          "Ne pakuje celu aplikaciju unapred, nego servira module na zahtev pregledača",
+          "Koristi keš iz produkcije",
+          "Preskače TypeScript fajlove"
+        ],
+        "correct": 1,
+        "why": "Pregledač sam traži module koje uvozi. Pakovanje se radi tek za produkciju."
+      },
+      {
+        "text": "Šta testira E2E (end-to-end) test, npr. u Playwright-u?",
+        "code": null,
+        "options": [
+          "Jednu funkciju izolovano",
+          "Ceo tok kroz pravi pregledač: frontend, API i bazu zajedno",
+          "Samo CSS",
+          "Samo TypeScript tipove"
+        ],
+        "correct": 1,
+        "why": "E2E je najbliži korisniku, ali najsporiji i najkrhkiji, pa se piše za ključne tokove (prijava, kupovina)."
+      },
+      {
+        "text": "Zašto build dodaje heš u ime fajla (`index-a1b2c3.js`)?",
+        "code": null,
+        "options": [
+          "Zbog bezbednosti",
+          "Da pregledač može dugo da kešira fajl, a nova verzija dobije novo ime",
+          "Da se fajl ne bi mogao preuzeti",
+          "Zbog kompresije"
+        ],
+        "correct": 1,
+        "why": "Ime se menja samo kad se sadržaj promeni. Zato se može postaviti dugo keširanje bez straha od stare verzije."
+      }
+    ],
     "sources": []
   },
   {
@@ -1343,8 +3415,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Kako bi objasnio React nekome ko zna samo HTML i JS?",
+        "a": "Interfejs opisuješ kao funkciju stanja: komponenta prima podatke (props, stanje) i vraća šta treba prikazati. Kad se stanje promeni, React ponovo pozove komponentu i sam izmeni samo potrebne delove DOM-a. Ne pišeš „promeni ovaj element”, nego „ovako izgleda za ovo stanje”."
+      },
+      {
+        "q": "Koje greške najčešće vidiš u React kodu?",
+        "a": "Menjanje stanja direktno, indeks kao key, useEffect za stvari koje mogu da se izračunaju tokom iscrtavanja, fetch bez rukovanja trkom i greškom, pogrešne zavisnosti efekta, previše globalnog stanja i div umesto dugmeta."
+      },
+      {
+        "q": "Kada ti NE treba useEffect?",
+        "a": "Kad se vrednost može izračunati iz props-a i stanja tokom iscrtavanja (filtrirana lista, zbir), i kad reaguješ na akciju korisnika (to ide u event handler). Efekat je za sinhronizaciju sa spoljnim sistemom: pretplata, tajmer, DOM API, mreža bez biblioteke."
+      }
+    ],
+    "test": [
+      {
+        "text": "Kako izračunati filtriranu listu iz `stavke` i `filter` (oba su stanje)?",
+        "code": null,
+        "options": [
+          "useEffect koji postavlja novo stanje `filtrirane`",
+          "Izračunati direktno tokom iscrtavanja (po potrebi uz useMemo)",
+          "Čuvati u localStorage",
+          "Poslati zahtev serveru pri svakoj promeni"
+        ],
+        "correct": 1,
+        "why": "Izvedena vrednost ne treba svoje stanje. useEffect + setState pravi dodatno iscrtavanje i rizik od neusklađenosti."
+      },
+      {
+        "text": "Kako dete komponenta javlja roditelju da je korisnik izabrao stavku?",
+        "code": null,
+        "options": [
+          "Menja props roditelja",
+          "Poziva funkciju koju je dobila kroz props (npr. `onIzbor(id)`)",
+          "Postavlja globalnu promenljivu",
+          "Šalje DOM događaj ručno"
+        ],
+        "correct": 1,
+        "why": "Podaci idu nadole kroz props, a događaji naviše kroz callback-e."
+      },
+      {
+        "text": "Šta TanStack Query radi bolje od useState + useEffect za podatke sa API-ja?",
+        "code": null,
+        "options": [
+          "Ništa, isto je",
+          "Keš, deduplikaciju, ponovne pokušaje, stanje učitavanja i invalidaciju posle izmena",
+          "Iscrtava brže",
+          "Zamenjuje backend"
+        ],
+        "correct": 1,
+        "why": "To je biblioteka za serversko stanje: rešava probleme koje ručni fetch ima (trka, zastarelost, duplikati)."
+      },
+      {
+        "text": "Šta je tačno za Strict Mode u razvoju?",
+        "code": null,
+        "options": [
+          "Usporava produkcijski build",
+          "Namerno dvaput poziva neke funkcije i efekte da bi otkrio nečiste komponente i efekte bez cleanup-a",
+          "Zabranjuje useEffect",
+          "Isključuje TypeScript proveru"
+        ],
+        "correct": 1,
+        "why": "Ponašanje važi samo u razvoju. Ako ti efekat „puca” u Strict Mode-u, verovatno mu fali cleanup."
+      },
+      {
+        "text": "Kako sprečiti da `<Lista stavke={...} />` iscrtava sve stavke kad se promeni nevezano stanje roditelja?",
+        "code": null,
+        "options": [
+          "Nikako",
+          "Umotati stavku u memo i obezbediti stabilne props-e (useCallback/useMemo gde treba)",
+          "Prebaciti sve u context",
+          "Koristiti class komponente"
+        ],
+        "correct": 1,
+        "why": "memo preskače iscrtavanje kad su props isti po referenci. Prvo izmeri (React DevTools Profiler), pa optimizuj."
+      }
+    ],
     "sources": []
   },
   {
@@ -1357,8 +3503,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Šta znače dozvole `rwxr-xr-x` (755)?",
+        "a": "Tri grupe po tri: vlasnik, grupa, ostali. r=4, w=2, x=1. 755 znači da vlasnik čita, piše i izvršava (7), a grupa i ostali čitaju i izvršavaju (5). Tipično za skripte i foldere; fajlovi sa tajnama dobijaju 600 (samo vlasnik)."
+      },
+      {
+        "q": "Kako nalaziš proces koji zauzima port i gasiš ga?",
+        "a": "`lsof -i :8080` ili `ss -ltnp | grep 8080` pokaže PID. `kill PID` šalje SIGTERM (molba da se ugasi uredno); ako ne posluša, `kill -9 PID` šalje SIGKILL koji se ne može ignorisati."
+      },
+      {
+        "q": "Šta radi `2>&1`?",
+        "a": "Preusmerava standardni izlaz za greške (2) tamo gde ide standardni izlaz (1). `komanda > log.txt 2>&1` upisuje i normalan izlaz i greške u isti fajl."
+      }
+    ],
+    "test": [
+      {
+        "text": "Koje dozvole treba fajl `.env` sa lozinkama na serveru?",
+        "code": null,
+        "options": [
+          "777",
+          "755",
+          "600",
+          "644"
+        ],
+        "correct": 2,
+        "why": "600 znači da samo vlasnik čita i piše. 644 i 755 dozvoljavaju čitanje svima na sistemu."
+      },
+      {
+        "text": "Koja je razlika između `kill PID` i `kill -9 PID`?",
+        "code": null,
+        "options": [
+          "Nema razlike",
+          "Prvi šalje SIGTERM koji proces može uredno da obradi, drugi SIGKILL koji ga odmah ubija",
+          "`-9` gasi 9 procesa",
+          "Prvi radi samo za root-a"
+        ],
+        "correct": 1,
+        "why": "SIGTERM daje procesu priliku da zatvori konekcije i sačuva stanje. SIGKILL je poslednje sredstvo."
+      },
+      {
+        "text": "Šta radi `cat app.log | grep ERROR | wc -l`?",
+        "code": null,
+        "options": [
+          "Briše redove sa ERROR",
+          "Broji redove u logu koji sadrže ERROR",
+          "Ispisuje prvih 10 grešaka",
+          "Pravi novi fajl sa greškama"
+        ],
+        "correct": 1,
+        "why": "Pipe `|` šalje izlaz jedne komande na ulaz sledeće: cat ispiše fajl, grep zadrži redove sa ERROR, wc -l ih prebroji."
+      },
+      {
+        "text": "Kako pratiš log u realnom vremenu dok se upisuje?",
+        "code": null,
+        "options": [
+          "`cat app.log`",
+          "`tail -f app.log`",
+          "`head app.log`",
+          "`less -n app.log`"
+        ],
+        "correct": 1,
+        "why": "tail -f ostaje otvoren i ispisuje nove redove kako stižu. Za Docker isto radi `docker logs -f`."
+      },
+      {
+        "text": "Šta znači `>` u odnosu na `>>` u komandi `echo tekst > fajl`?",
+        "code": null,
+        "options": [
+          "`>` pregazi fajl, `>>` dopisuje na kraj",
+          "`>>` pregazi fajl, `>` dopisuje",
+          "Isto je",
+          "`>` čita iz fajla"
+        ],
+        "correct": 0,
+        "why": "Greškom upotrebljen `>` briše postojeći sadržaj, pa se za logove koristi `>>`."
+      }
+    ],
     "sources": []
   },
   {
@@ -1371,8 +3591,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Koja je razlika između TCP-a i UDP-a?",
+        "a": "TCP uspostavlja vezu i garantuje da podaci stignu, bez gubitaka i po redu (ponovno slanje, potvrde); koriste ga HTTP, baze, SSH. UDP šalje pakete bez veze i garancija, ali brže i sa manje kašnjenja; koriste ga DNS, video pozivi, igre."
+      },
+      {
+        "q": "Šta je razlika između `localhost` i `0.0.0.0` kad aplikacija sluša?",
+        "a": "Aplikacija na 127.0.0.1 (localhost) prima veze samo sa iste mašine. Na 0.0.0.0 sluša na svim mrežnim interfejsima, pa je dostupna i spolja. Zato aplikacija u Docker kontejneru mora da sluša na 0.0.0.0, inače je ne vidi ni mapirani port."
+      },
+      {
+        "q": "Koji DNS zapisi su najčešći?",
+        "a": "A povezuje ime sa IPv4 adresom, AAAA sa IPv6, CNAME je alias na drugo ime, MX određuje server za poštu, TXT nosi tekst (provere domena, SPF). TTL određuje koliko dugo se odgovor kešira."
+      }
+    ],
+    "test": [
+      {
+        "text": "Koji protokol garantuje da podaci stignu po redu i bez gubitka?",
+        "code": null,
+        "options": [
+          "TCP",
+          "UDP",
+          "ICMP",
+          "DNS"
+        ],
+        "correct": 0,
+        "why": "TCP numeriše segmente, potvrđuje prijem i ponovo šalje izgubljene. UDP to ne radi."
+      },
+      {
+        "text": "API u kontejneru sluša na `127.0.0.1:8080`, port je mapiran (`-p 8080:8080`), ali spolja ne radi. Zašto?",
+        "code": null,
+        "options": [
+          "Docker ne podržava port 8080",
+          "Aplikacija prima veze samo iz samog kontejnera; treba da sluša na `0.0.0.0`",
+          "Treba koristiti UDP",
+          "Fali HTTPS"
+        ],
+        "correct": 1,
+        "why": "Mapiran saobraćaj stiže na mrežni interfejs kontejnera, a ne na njegov loopback. ASP.NET Core u kontejneru zato sluša na `http://+:8080`."
+      },
+      {
+        "text": "Koji DNS zapis pravi alias `www.shop.rs` na `shop.rs`?",
+        "code": null,
+        "options": [
+          "A",
+          "MX",
+          "CNAME",
+          "TXT"
+        ],
+        "correct": 2,
+        "why": "CNAME kaže „ovo ime je isto što i ono ime”. A zapis vodi direktno na IP adresu."
+      },
+      {
+        "text": "Zašto promena DNS zapisa ne važi svuda odmah?",
+        "code": null,
+        "options": [
+          "DNS se menja samo noću",
+          "Resolveri keširaju stare odgovore dok ne istekne TTL",
+          "Treba restartovati server",
+          "Pregledač ne podržava nove zapise"
+        ],
+        "correct": 1,
+        "why": "Pre selidbe servera dobro je smanjiti TTL, da se promena brzo proširi."
+      },
+      {
+        "text": "Šta je NAT na kućnom ruteru?",
+        "code": null,
+        "options": [
+          "Šifrovanje saobraćaja",
+          "Više uređaja sa privatnim adresama izlazi na internet preko jedne javne IP adrese",
+          "Brži DNS",
+          "Zaštita od virusa"
+        ],
+        "correct": 1,
+        "why": "Ruter prepisuje adrese i portove. Zato spolja ne možeš direktno do računara u kućnoj mreži bez prosleđivanja porta."
+      }
+    ],
     "sources": []
   },
   {
@@ -1385,8 +3679,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Koja je razlika između merge-a i rebase-a?",
+        "a": "Merge spaja grane i pravi merge commit; istorija ostaje kakva je bila, sa granama. Rebase premešta tvoje commit-ove na vrh druge grane, pa je istorija linearna, ali se commit-ovi prepisuju (novi heševi). Pravilo: ne rebase-uj grane koje su drugi već povukli."
+      },
+      {
+        "q": "Kako poništavaš commit koji je već na deljenoj grani?",
+        "a": "`git revert <commit>` pravi novi commit koji poništava izmene; istorija se ne prepisuje, pa je bezbedno za deljene grane. `git reset` pomera granu unazad i menja istoriju; koristi se samo lokalno, pre push-a."
+      },
+      {
+        "q": "Kako bi opisao dobar commit i pull request?",
+        "a": "Commit radi jednu logičku stvar i ima poruku koja kaže šta i zašto (npr. Conventional Commits: `fix: ...`). PR je mali, ima opis problema i rešenja, kako je testirano i šta reviewer treba da pogleda. Mali PR-ovi se brže i kvalitetnije pregledaju."
+      }
+    ],
+    "test": [
+      {
+        "text": "Kako bezbedno poništiti commit koji je već push-ovan na main?",
+        "code": null,
+        "options": [
+          "`git reset --hard HEAD~1` pa `git push --force`",
+          "`git revert <commit>` pa push",
+          "Obrisati granu main",
+          "`git checkout <commit>`"
+        ],
+        "correct": 1,
+        "why": "revert dodaje novi commit i ne menja tuđu istoriju. Force push na deljenu granu briše posao drugih."
+      },
+      {
+        "text": "Šta je glavna razlika između merge-a i rebase-a?",
+        "code": null,
+        "options": [
+          "Rebase briše izmene",
+          "Rebase prepisuje commit-ove na vrh druge grane i daje linearnu istoriju, merge čuva istoriju i dodaje merge commit",
+          "Merge radi samo lokalno",
+          "Nema razlike"
+        ],
+        "correct": 1,
+        "why": "Oba spajaju izmene. Razlika je u obliku istorije i u tome da rebase menja heševe commit-ova."
+      },
+      {
+        "text": "Dodao si `appsettings.Secret.json` u .gitignore, ali Git ga i dalje prati. Zašto?",
+        "code": null,
+        "options": [
+          ".gitignore radi samo za foldere",
+          "Fajl je već commit-ovan; .gitignore važi samo za fajlove koji se još ne prate",
+          "Treba restartovati Git",
+          "Ime fajla ima tačku"
+        ],
+        "correct": 1,
+        "why": "Treba `git rm --cached fajl` i commit. Ako je u fajlu bila tajna, ona je već u istoriji: promeni je."
+      },
+      {
+        "text": "Šta radi `git cherry-pick <commit>`?",
+        "code": null,
+        "options": [
+          "Briše commit",
+          "Primenjuje izmene tog jednog commit-a na trenutnu granu",
+          "Bira najbolju granu",
+          "Spaja sve grane"
+        ],
+        "correct": 1,
+        "why": "Koristi se npr. da se jedna ispravka prenese na granu izdanja bez ostalih izmena."
+      },
+      {
+        "text": "Šta znači „detached HEAD”?",
+        "code": null,
+        "options": [
+          "Repozitorijum je oštećen",
+          "Nalaziš se na konkretnom commit-u, a ne na grani, pa novi commit-ovi ne pripadaju nijednoj grani",
+          "Glavna grana je obrisana",
+          "Nema interneta"
+        ],
+        "correct": 1,
+        "why": "Ako tu nešto commit-uješ, napravi granu (`git switch -c nova`) da se commit-ovi ne izgube."
+      }
+    ],
     "sources": []
   },
   {
@@ -1399,8 +3767,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Koja je razlika između image-a i kontejnera?",
+        "a": "Image je nepromenljiv šablon: slojevi sa fajlovima i podešavanjima pokretanja. Kontejner je pokrenuta instanca image-a sa sopstvenim slojem za pisanje. Iz jednog image-a možeš pokrenuti više kontejnera; brisanjem kontejnera nestaje sve što je upisano u njega, osim u volumenima."
+      },
+      {
+        "q": "Zašto je bitan redosled naredbi u Dockerfile-u?",
+        "a": "Svaka naredba pravi sloj, a Docker kešira slojeve dok se ulaz ne promeni. Zato se prvo kopiraju fajlovi zavisnosti (.csproj, package.json) i radi restore, pa tek onda ostatak koda. Izmena koda tada ne pokreće ponovno preuzimanje paketa."
+      },
+      {
+        "q": "Šta je multi-stage build?",
+        "a": "Dockerfile sa više FROM faza: u prvoj, sa SDK-om, gradiš aplikaciju; u poslednjoj, sa malim runtime image-om, kopiraš samo rezultat. Finalni image je manji, brže se preuzima i nema alata za build (manja površina napada)."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta se dešava sa podacima upisanim u kontejner kad ga obrišeš (`docker rm`)?",
+        "code": null,
+        "options": [
+          "Ostaju u image-u",
+          "Nestaju, osim onoga što je bilo u volumenu",
+          "Automatski se čuvaju u backup",
+          "Prelaze u sledeći kontejner"
+        ],
+        "correct": 1,
+        "why": "Sloj za pisanje pripada kontejneru. Baza zato uvek ide na volumen."
+      },
+      {
+        "text": "Koji redosled u Dockerfile-u bolje koristi keš?",
+        "code": null,
+        "options": [
+          "`COPY . .` pa `RUN dotnet restore`",
+          "`COPY *.csproj .` pa `RUN dotnet restore`, pa `COPY . .`",
+          "Redosled ne utiče na keš",
+          "`RUN dotnet restore` pre bilo kog COPY"
+        ],
+        "correct": 1,
+        "why": "Restore se ponavlja samo kad se promeni .csproj. Izmena .cs fajla ruši keš tek od drugog COPY-ja."
+      },
+      {
+        "text": "Šta radi `EXPOSE 8080` u Dockerfile-u?",
+        "code": null,
+        "options": [
+          "Objavljuje port na računaru domaćinu",
+          "Samo dokumentuje da kontejner sluša na 8080; objavljivanje radi `-p` ili `ports:`",
+          "Otvara port u firewall-u",
+          "Menja port aplikacije"
+        ],
+        "correct": 1,
+        "why": "EXPOSE je metapodatak. Bez `-p 8080:8080` port nije dostupan sa domaćina."
+      },
+      {
+        "text": "Zašto finalni image za .NET aplikaciju ne sadrži SDK?",
+        "code": null,
+        "options": [
+          "SDK ne radi u Linuxu",
+          "Manji je, brže se preuzima i nema alata koje napadač može da iskoristi",
+          "SDK je plaćen",
+          "Runtime image ne može da pokrene .dll"
+        ],
+        "correct": 1,
+        "why": "SDK treba samo za build. Multi-stage build kopira objavljenu aplikaciju u aspnet image."
+      },
+      {
+        "text": "Kako proveriš šta radi kontejner koji se stalno ruši?",
+        "code": null,
+        "options": [
+          "`docker build`",
+          "`docker logs <kontejner>` (i `docker ps -a` za izlazni kod)",
+          "`docker rmi`",
+          "`docker push`"
+        ],
+        "correct": 1,
+        "why": "Logovi pokazuju izuzetak pri startu. `docker ps -a` pokazuje i ugašene kontejnere sa izlaznim kodom."
+      }
+    ],
     "sources": []
   },
   {
@@ -1413,8 +3855,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Kako se servisi u Docker Compose-u međusobno pronalaze?",
+        "a": "Compose pravi mrežu za projekat, a svaki servis je dostupan drugima po imenu servisa preko ugrađenog DNS-a. API se povezuje na bazu sa `Host=db`, ne sa localhost: localhost u kontejneru je sam taj kontejner."
+      },
+      {
+        "q": "Da li `depends_on` čeka da baza bude spremna?",
+        "a": "Samo `depends_on: [db]` čeka da kontejner baze bude POKRENUT, ne da prima veze. Za spremnost treba healthcheck na bazi i `depends_on: db: condition: service_healthy`, a aplikacija i dalje treba da ponovi pokušaj povezivanja."
+      },
+      {
+        "q": "Koja je razlika između imenovanog volumena i bind mount-a?",
+        "a": "Imenovani volumen (`pgdata:/var/lib/postgresql/data`) je prostor kojim upravlja Docker, dobar za podatke baze. Bind mount (`./packs:/packs`) mapira folder sa domaćina, dobar za konfiguraciju i kod u razvoju; vidiš i menjaš fajlove direktno."
+      }
+    ],
+    "test": [
+      {
+        "text": "Kako API u Compose-u adresira bazu iz servisa `db`?",
+        "code": null,
+        "options": [
+          "`localhost:5432`",
+          "`db:5432`",
+          "IP adresa domaćina",
+          "`127.0.0.1:5432`"
+        ],
+        "correct": 1,
+        "why": "Ime servisa je DNS ime u mreži projekta. localhost u API kontejneru je sam API kontejner."
+      },
+      {
+        "text": "Šta garantuje `depends_on: [db]` bez uslova?",
+        "code": null,
+        "options": [
+          "Da baza prima veze",
+          "Samo da se kontejner baze pokrene pre API-ja",
+          "Da su migracije primenjene",
+          "Ništa"
+        ],
+        "correct": 1,
+        "why": "Za stvarnu spremnost treba healthcheck i `condition: service_healthy`, plus ponovni pokušaj u aplikaciji."
+      },
+      {
+        "text": "Šta radi `docker compose down -v`?",
+        "code": null,
+        "options": [
+          "Gasi kontejnere, podaci ostaju",
+          "Gasi i briše kontejnere, mreže i imenovane volumene, pa se podaci baze brišu",
+          "Samo restartuje servise",
+          "Ažurira image-e"
+        ],
+        "correct": 1,
+        "why": "`-v` briše volumene. Bez njega podaci baze prežive gašenje."
+      },
+      {
+        "text": "Gde stavljaš lozinku baze za Compose da ne bude u Git-u?",
+        "code": null,
+        "options": [
+          "Direktno u docker-compose.yml",
+          "U `.env` fajl (u .gitignore) i koristiš `${POSTGRES_PASSWORD}`",
+          "U Dockerfile",
+          "U ime servisa"
+        ],
+        "correct": 1,
+        "why": "Compose sam čita .env iz foldera projekta. U repozitorijum ide samo `.env.example` bez pravih vrednosti."
+      },
+      {
+        "text": "Čemu služi drugi compose fajl (npr. `docker-compose.dev.yml`) uz `-f`?",
+        "code": null,
+        "options": [
+          "Zamenjuje prvi fajl u potpunosti",
+          "Dopunjuje ili menja podešavanja osnovnog fajla za određeno okruženje",
+          "Pokreće drugi projekat",
+          "Služi samo za dokumentaciju"
+        ],
+        "correct": 1,
+        "why": "Npr. osnovni fajl ne izlaže port baze, a dev dodatak ga izlaže na localhost. Fajlovi se spajaju redom kojim su navedeni."
+      }
+    ],
     "sources": []
   },
   {
@@ -1427,8 +3943,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Kako radi HTTPS ukratko?",
+        "a": "Server ima sertifikat koji je potpisao sertifikacioni autoritet (CA) kome pregledač veruje. U TLS rukovanju pregledač proveri sertifikat i ime domena, pa se strane dogovore o ključu sesije. Ostatak saobraćaja je šifrovan simetrično, pa niko između ne vidi ni ne menja sadržaj."
+      },
+      {
+        "q": "Šta je Let's Encrypt i kako se obnavlja sertifikat?",
+        "a": "Besplatan CA koji izdaje sertifikate na 90 dana, uz automatsku proveru da kontrolišeš domen (ACME protokol). Caddy i certbot sertifikate traže i obnavljaju sami; bez automatizacije sertifikat istekne i sajt prestane da radi."
+      },
+      {
+        "q": "Šta podesiš na novom serveru pre nego što pustiš aplikaciju?",
+        "a": "SSH samo ključem (bez lozinke i root prijave), firewall koji pušta samo 22, 80 i 443, automatska bezbednosna ažuriranja, korisnik bez root prava za aplikaciju, HTTPS sa preusmerenjem sa HTTP-a, i backup koji si probao da vratiš."
+      }
+    ],
+    "test": [
+      {
+        "text": "Koliko traje Let's Encrypt sertifikat?",
+        "code": null,
+        "options": [
+          "10 godina",
+          "1 godinu",
+          "90 dana, uz automatsku obnovu",
+          "Dok se ne restartuje server"
+        ],
+        "correct": 2,
+        "why": "Kratko trajanje tera automatizaciju. Caddy i certbot obnavljaju sertifikat pre isteka."
+      },
+      {
+        "text": "Koje portove firewall tipično pušta na web serveru?",
+        "code": null,
+        "options": [
+          "Sve",
+          "22 (SSH), 80 (HTTP) i 443 (HTTPS)",
+          "Samo 5432",
+          "Nijedan"
+        ],
+        "correct": 1,
+        "why": "Port baze nikad ne treba izložiti internetu. HTTP (80) ostaje zbog preusmerenja i ACME provere."
+      },
+      {
+        "text": "Šta radi HSTS zaglavlje?",
+        "code": null,
+        "options": [
+          "Ubrzava stranicu",
+          "Kaže pregledaču da sajt ubuduće otvara samo preko HTTPS-a",
+          "Šifruje bazu",
+          "Blokira robote"
+        ],
+        "correct": 1,
+        "why": "Posle prve HTTPS posete pregledač sam menja http:// u https://, pa napadač ne može da „spusti” vezu na HTTP."
+      },
+      {
+        "text": "Kako je najbezbednije prijavljivanje na server preko SSH-a?",
+        "code": null,
+        "options": [
+          "Root sa lozinkom",
+          "Korisnik sa SSH ključem, prijava lozinkom isključena",
+          "Lozinka od 6 cifara",
+          "Bez prijave, otvoren port"
+        ],
+        "correct": 1,
+        "why": "Ključ se ne može pogoditi grubom silom kao lozinka. Root prijava se isključuje, a sudo se koristi po potrebi."
+      },
+      {
+        "text": "Gde se najčešće završava HTTPS kad je aplikacija iza reverse proxy-ja?",
+        "code": null,
+        "options": [
+          "U bazi",
+          "Na reverse proxy-ju (nginx, Caddy), a do aplikacije ide HTTP unutar privatne mreže",
+          "U pregledaču",
+          "U DNS-u"
+        ],
+        "correct": 1,
+        "why": "To je TLS termination. Aplikacija tada treba ForwardedHeaders middleware da zna da je originalni zahtev bio HTTPS."
+      }
+    ],
     "sources": []
   },
   {
@@ -1441,8 +4031,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Koja je razlika između CI i CD?",
+        "a": "CI (Continuous Integration): svaki push automatski se build-uje i testira, pa se greške vide odmah, a main je uvek zelen. CD (Continuous Delivery/Deployment): prošao build se automatski pakuje i isporučuje na okruženje; kod Delivery puštanje u produkciju je jedan klik, kod Deployment ide samo."
+      },
+      {
+        "q": "Kako vraćaš loše izdanje (rollback)?",
+        "a": "Ako je svako izdanje image sa tagom verzije ili commit heša, rollback je ponovno pokretanje prethodnog image-a. Migracije baze treba pisati unazad kompatibilno (prvo dodaj kolonu, kasnije ukloni staru), da stara verzija koda radi i sa novom šemom."
+      },
+      {
+        "q": "Gde CI čuva tajne (lozinke, ključeve)?",
+        "a": "U tajnama CI sistema (GitHub Actions secrets, environment secrets), koje se ubacuju kao promenljive okruženja i maskiraju u logovima. Nikad u YAML fajlu ili repozitorijumu."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta je cilj Continuous Integration-a?",
+        "code": null,
+        "options": [
+          "Ručno testiranje pre izdanja",
+          "Svaka izmena se automatski build-uje i testira, pa se problemi otkriju odmah",
+          "Puštanje u produkciju jednom mesečno",
+          "Pisanje dokumentacije"
+        ],
+        "correct": 1,
+        "why": "Što ranije pukne, to je jeftinije popraviti. Zato CI radi na svakom push-u i pull request-u."
+      },
+      {
+        "text": "Zašto se Docker image označava commit hešom ili verzijom, a ne samo `latest`?",
+        "code": null,
+        "options": [
+          "latest je zabranjen",
+          "Tačno se zna šta radi u produkciji, a rollback je pokretanje prethodnog taga",
+          "Zbog veličine image-a",
+          "Tako je brži build"
+        ],
+        "correct": 1,
+        "why": "latest se menja ispod tebe. Nepromenljiv tag daje ponovljivost i lak povratak."
+      },
+      {
+        "text": "Gde držiš lozinku za deploy u GitHub Actions-u?",
+        "code": null,
+        "options": [
+          "U workflow YAML fajlu",
+          "U repository/environment secrets, a u workflow-u je čitaš kao `${{ secrets.IME }}`",
+          "U README-ju",
+          "U imenu grane"
+        ],
+        "correct": 1,
+        "why": "Secrets su šifrovani i maskirani u logovima. Sve u YAML-u je vidljivo svima sa pristupom repozitorijumu."
+      },
+      {
+        "text": "Šta je blue-green deployment?",
+        "code": null,
+        "options": [
+          "Dve teme interfejsa",
+          "Nova verzija se podigne pored stare, pa se saobraćaj prebaci kad je spremna; povratak je prebacivanje nazad",
+          "Deploy samo vikendom",
+          "Testiranje u dva pregledača"
+        ],
+        "correct": 1,
+        "why": "Nema prekida rada, a rollback je trenutan. Cena je duplo resursa tokom prelaza."
+      },
+      {
+        "text": "Kojim redom ide tipičan pipeline?",
+        "code": null,
+        "options": [
+          "Deploy, test, build",
+          "Restore i build, testovi, pakovanje (image), deploy",
+          "Test, deploy, build",
+          "Samo deploy"
+        ],
+        "correct": 1,
+        "why": "Svaki korak se oslanja na prethodni. Ako testovi padnu, nema pakovanja ni deploy-a."
+      }
+    ],
     "sources": []
   },
   {
@@ -1455,8 +4119,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Šta su strukturisani logovi i zašto su bolji?",
+        "a": "Log je zapis sa poljima, a ne samo tekst: `log.LogInformation(\"Porudžbina {OrderId} plaćena\", id)` čuva OrderId kao polje. U alatu za logove (Seq, Loki, Application Insights) onda filtriraš po polju umesto da pretražuješ tekst."
+      },
+      {
+        "q": "Koja je razlika između liveness i readiness provere?",
+        "a": "Liveness odgovara „da li je proces živ” (ako ne, restartuj ga). Readiness odgovara „da li može da prima saobraćaj” (baza dostupna, startup završen); ako ne, load balancer mu privremeno ne šalje zahteve, ali ga ne restartuje."
+      },
+      {
+        "q": "Kako znaš da backup radi?",
+        "a": "Tek kad ga vratiš. Backup se automatski pravi i čuva van servera, a povremeno se vraća na odvojenu bazu i proverava. Backup koji nikad nije vraćen je samo nada."
+      }
+    ],
+    "test": [
+      {
+        "text": "Koji zapis loga je bolji za pretragu u produkciji?",
+        "code": null,
+        "options": [
+          "`log.LogInformation(\"Porudžbina \" + id + \" plaćena\");`",
+          "`log.LogInformation(\"Porudžbina {OrderId} plaćena\", id);`",
+          "`Console.WriteLine(id);`",
+          "Ne logovati ništa"
+        ],
+        "correct": 1,
+        "why": "Šablon sa imenovanim mestom čuva OrderId kao polje, pa možeš da filtriraš sve logove jedne porudžbine. Spajanje stringova gubi strukturu."
+      },
+      {
+        "text": "Readiness provera API-ja padne jer baza ne odgovara. Šta treba da se desi?",
+        "code": null,
+        "options": [
+          "Kontejner se odmah restartuje",
+          "Load balancer privremeno prestane da mu šalje zahteve",
+          "Brišu se podaci",
+          "Ništa"
+        ],
+        "correct": 1,
+        "why": "Restart ne bi popravio bazu. Readiness skida instancu iz saobraćaja dok se uslov ne vrati."
+      },
+      {
+        "text": "Šta je pravi dokaz da backup baze radi?",
+        "code": null,
+        "options": [
+          "Postoji fajl backup-a",
+          "Uspešno vraćanje backup-a na test bazu",
+          "Backup je veliki",
+          "Skripta nije prijavila grešku"
+        ],
+        "correct": 1,
+        "why": "Backup može biti prazan, oštećen ili nepotpun. Samo vraćanje pokazuje da je upotrebljiv."
+      },
+      {
+        "text": "Šta treba da izazove noćni alarm (page)?",
+        "code": null,
+        "options": [
+          "Svaki zapis sa nivoom Warning",
+          "Simptom koji pogađa korisnike (npr. mnogo 5xx odgovora ili API ne odgovara)",
+          "Svaki restart kontejnera",
+          "Svaka sporija stranica"
+        ],
+        "correct": 1,
+        "why": "Previše alarma dovodi do toga da se ignorišu. Alarmira se ono što zahteva hitnu reakciju čoveka."
+      },
+      {
+        "text": "Šta od navedenog NE treba upisivati u logove?",
+        "code": null,
+        "options": [
+          "ID zahteva",
+          "Trajanje upita",
+          "Lozinke, tokene i pune brojeve kartica",
+          "Statusni kod odgovora"
+        ],
+        "correct": 2,
+        "why": "Logovi se čuvaju dugo i čita ih više ljudi. Osetljivi podaci u logu su curenje podataka."
+      }
+    ],
     "sources": []
   },
   {
@@ -1483,8 +4221,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Kako bi opisao put koda od commit-a do produkcije?",
+        "a": "Push pokrene CI: build, testovi, pa image sa tagom commit-a ide u registry. Deploy korak na serveru povuče taj image i pokrene ga (npr. docker compose up -d), migracije se primene, health check potvrdi da radi, a reverse proxy sa HTTPS-om šalje saobraćaj. Rollback je pokretanje prethodnog taga."
+      },
+      {
+        "q": "Šta radiš kad se produkcija sruši u 2 noću?",
+        "a": "Prvo vratiš uslugu (rollback ili restart), pa tek onda tražiš uzrok. Pogledaš logove, metrike i šta je poslednje pušteno. Posle napišeš kratak postmortem bez traženja krivca: šta se desilo, zašto, i šta menjaš da se ne ponovi."
+      },
+      {
+        "q": "Koje komande najčešće koristiš pri otklanjanju problema na serveru?",
+        "a": "`docker ps -a`, `docker logs -f`, `docker compose ps`, `df -h` (disk), `free -m` (memorija), `top` ili `htop`, `ss -ltnp` (portovi), `curl -v` (da li odgovara), `journalctl -u servis`."
+      }
+    ],
+    "test": [
+      {
+        "text": "Aplikacija ne odgovara posle deploy-a. Šta je prvi korak?",
+        "code": null,
+        "options": [
+          "Prepisati kod",
+          "Vratiti prethodnu verziju, pa istražiti uzrok",
+          "Obrisati bazu",
+          "Čekati da proradi sama"
+        ],
+        "correct": 1,
+        "why": "Prvo se vraća usluga korisnicima, a uzrok se traži bez pritiska."
+      },
+      {
+        "text": "Server prijavljuje greške pri upisu fajlova. Koja komanda brzo proverava zauzeće diska?",
+        "code": null,
+        "options": [
+          "`free -m`",
+          "`df -h`",
+          "`top`",
+          "`ls -la`"
+        ],
+        "correct": 1,
+        "why": "df pokazuje slobodan prostor po particiji. Česti krivci su logovi i stari Docker image-i (`docker system df`)."
+      },
+      {
+        "text": "Kako proveravaš da li API na serveru odgovara, bez pregledača?",
+        "code": null,
+        "options": [
+          "`ping api`",
+          "`curl -v http://localhost:8080/health`",
+          "`ls /api`",
+          "`git status`"
+        ],
+        "correct": 1,
+        "why": "curl šalje pravi HTTP zahtev i pokazuje status i zaglavlja. ping proverava samo mrežnu dostupnost."
+      },
+      {
+        "text": "Šta je postmortem „bez krivca” (blameless)?",
+        "code": null,
+        "options": [
+          "Izveštaj koji imenuje krivca",
+          "Analiza incidenta koja traži uzroke u sistemu i procesu, ne u ljudima",
+          "Brisanje logova posle incidenta",
+          "Izveštaj koji se ne piše"
+        ],
+        "correct": 1,
+        "why": "Kad ljudi ne strahuju od kazne, iskreno kažu šta se desilo, pa tim stvarno popravi proces."
+      },
+      {
+        "text": "Šta je razlog da se tajne ne stavljaju u Docker image?",
+        "code": null,
+        "options": [
+          "Image bi bio veći",
+          "Image se deli i čuva u registry-ju, pa bi tajna bila dostupna svakome ko ga preuzme",
+          "Docker ne podržava tajne",
+          "Usporava pokretanje"
+        ],
+        "correct": 1,
+        "why": "Tajne se ubacuju pri pokretanju (promenljive okruženja, secrets). Image treba da bude isti za sva okruženja."
+      }
+    ],
     "sources": []
   },
   {
@@ -1497,8 +4309,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Provedi me kroz jednu prodaju, od klika do baze i nazad.",
+        "a": "React forma pošalje POST /api/prodaje (fetch kroz TanStack mutaciju). nginx prosledi zahtev API-ju; middleware odradi izuzetke, autentifikaciju i autorizaciju; model binding i validacija provere DTO. Servis u jednoj transakciji umanji zalihu atomičnim UPDATE-om sa uslovom i upiše prodaju; commit. API vrati 201, a frontend invalidira upite za zalihe i listu prodaja, pa se ekran osveži."
+      },
+      {
+        "q": "Kako sprečiš duplu prodaju kad korisnik dvaput klikne „Prodaj”?",
+        "a": "Na frontendu onemogućiš dugme dok zahtev traje. Na serveru, što je pravo rešenje, klijent šalje idempotency key (npr. GUID po pokušaju), a server ga upisuje sa jedinstvenim indeksom: drugi zahtev sa istim ključem vraća isti rezultat umesto nove prodaje."
+      },
+      {
+        "q": "Gde stavljaš poslovno pravilo „zaliha ne sme ispod nule”?",
+        "a": "U backend: u domenskoj logici i, kao poslednja odbrana, u bazi (CHECK ograničenje ili UPDATE sa uslovom `Kolicina >= @kolicina`). Frontend može da upozori unapred, ali pravilo se sprovodi na serveru."
+      }
+    ],
+    "test": [
+      {
+        "text": "Gde je pravo mesto za transakciju koja umanjuje zalihu i upisuje prodaju?",
+        "code": null,
+        "options": [
+          "U React komponenti",
+          "U nginx-u",
+          "U servisu na backendu, oko oba upisa u bazu",
+          "U dva odvojena HTTP zahteva"
+        ],
+        "correct": 2,
+        "why": "Oba upisa moraju uspeti zajedno. Transakcija pripada sloju koji radi sa bazom, a ne klijentu."
+      },
+      {
+        "text": "Kako atomično umanjiti zalihu bez trke dva zahteva?",
+        "code": null,
+        "options": [
+          "Pročitati količinu, proveriti u C#-u, pa upisati novu",
+          "Jedan UPDATE sa uslovom: `SET Kolicina = Kolicina - @k WHERE Id = @id AND Kolicina >= @k`, pa proveriti broj izmenjenih redova",
+          "Zaključati celu tabelu na minut",
+          "Proveru prepustiti frontendu"
+        ],
+        "correct": 1,
+        "why": "Provera i izmena su jedna naredba u bazi, pa između njih niko ne može da uleti. 0 izmenjenih redova znači da zalihe nema."
+      },
+      {
+        "text": "Šta API vraća kad zaliha nije dovoljna?",
+        "code": null,
+        "options": [
+          "500",
+          "200 sa `success: false`",
+          "409 Conflict (ili 422) sa jasnom porukom",
+          "404"
+        ],
+        "correct": 2,
+        "why": "Zahtev je ispravan, ali ga trenutno stanje ne dozvoljava. 500 je za neočekivane greške servera."
+      },
+      {
+        "text": "Kako ekran zaliha zna da se posle prodaje osveži?",
+        "code": null,
+        "options": [
+          "Server šalje e-mail",
+          "U onSuccess mutacije frontend invalidira upite za zalihe i prodaje",
+          "Korisnik mora ručno da osveži stranicu",
+          "Pregledač to radi sam"
+        ],
+        "correct": 1,
+        "why": "Invalidacija ponovo učita podatke koji su sada zastareli."
+      },
+      {
+        "text": "Šta je najpouzdanija zaštita od duple prodaje pri ponovljenom zahtevu?",
+        "code": null,
+        "options": [
+          "Onemogućeno dugme na frontendu",
+          "Idempotency key koji server pamti uz jedinstven indeks",
+          "Duži timeout",
+          "Captcha"
+        ],
+        "correct": 1,
+        "why": "Onemogućeno dugme pomaže, ali ponovni pokušaj mreže ili drugi tab ga zaobiđu. Server mora da prepozna isti zahtev."
+      }
+    ],
     "sources": []
   },
   {
@@ -1511,8 +4397,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "„Ispričaj mi o projektu na kome si radio.”",
+        "a": "Za oko dva minuta: problem i za koga (kontekst), šta si TI uradio (arhitektura, ključne odluke), jedna konkretna teškoća i kako si je rešio, i rezultat, sa brojem ako ga imaš. Završi time šta bi danas uradio drugačije. Pripremi da ideš u dubinu na svaku odluku."
+      },
+      {
+        "q": "Šta je STAR metoda?",
+        "a": "Struktura odgovora na bihejvioralna pitanja: Situation (kontekst), Task (tvoj zadatak), Action (šta si konkretno uradio), Result (ishod i šta si naučio). Najviše vremena ide na Action, i to u prvom licu."
+      },
+      {
+        "q": "Kako odgovaraš na „Šta bi uradio drugačije?”",
+        "a": "Iskreno i konkretno, uz razlog: npr. „ranije bih uveo integracione testove, jer sam bug sa transakcijama otkrio tek ručno”. To pokazuje da razmišljaš o sopstvenim odlukama, što se ceni više od tvrdnje da je sve bilo savršeno."
+      }
+    ],
+    "test": [
+      {
+        "text": "Na šta ide najviše vremena u STAR odgovoru?",
+        "code": null,
+        "options": [
+          "Situation",
+          "Task",
+          "Action",
+          "Result"
+        ],
+        "correct": 2,
+        "why": "Ispitivač želi da čuje šta si TI uradio i kako si razmišljao. Kontekst treba da bude kratak."
+      },
+      {
+        "text": "Koji opis doprinosa je najjači?",
+        "code": null,
+        "options": [
+          "„Mi smo napravili ceo sistem.”",
+          "„Ja sam uveo optimističku konkurentnost na zalihama, jer su se dešavale duple prodaje; posle toga ih više nije bilo.”",
+          "„Radio sam na backendu.”",
+          "„Koristio sam mnogo tehnologija.”"
+        ],
+        "correct": 1,
+        "why": "Konkretno, prvo lice, problem, odluka i rezultat. „Mi” sakriva tvoj doprinos."
+      },
+      {
+        "text": "Koliko traje dobar prvi odgovor na „ispričaj o projektu”?",
+        "code": null,
+        "options": [
+          "15 sekundi",
+          "Oko dva minuta, pa detalji na pitanja",
+          "15 minuta bez prekida",
+          "Koliko god treba da se kaže sve"
+        ],
+        "correct": 1,
+        "why": "Kratak pregled ostavlja prostor ispitivaču da bira šta ga zanima. Monolog gubi pažnju."
+      },
+      {
+        "text": "Kako odgovaraš na pitanje o odluci koju ne bi ponovio?",
+        "code": null,
+        "options": [
+          "Kažeš da nema takve odluke",
+          "Iskreno navedeš odluku, zašto je bila pogrešna i šta bi danas uradio",
+          "Okriviš kolegu",
+          "Promeniš temu"
+        ],
+        "correct": 1,
+        "why": "Refleksija je znak seniornosti. Niko ne veruje da je projekat bez grešaka."
+      },
+      {
+        "text": "Šta treba da pripremiš za svaku tehnologiju koju navedeš u CV-ju?",
+        "code": null,
+        "options": [
+          "Ništa, dovoljno je navesti",
+          "Primer gde si je koristio i zašto baš nju",
+          "Datum izlaska prve verzije",
+          "Spisak svih njenih funkcija"
+        ],
+        "correct": 1,
+        "why": "Svaka stavka iz CV-ja je pozivnica za pitanje. Bolje je manje stavki koje umeš da braniš."
+      }
+    ],
     "sources": []
   },
   {
@@ -1525,8 +4485,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Kako bi skalirao API koji ne stiže da obradi saobraćaj?",
+        "a": "Prvo meri gde je usko grlo (CPU, baza, spoljni servis). Ako je API, učini ga stateless (sesije i keš van procesa, npr. Redis) i pokreni više instanci iza load balancer-a. Ako je baza: indeksi, keširanje čitanja, read replike, a teške poslove izmesti u red (queue) i pozadinske radnike."
+      },
+      {
+        "q": "Šta je cache-aside i koji je glavni problem keširanja?",
+        "a": "Aplikacija prvo pita keš; ako nema, čita iz baze i upiše u keš sa rokom (TTL). Glavni problem je invalidacija: posle izmene podataka keš mora da se obriše ili ističe, inače korisnici vide zastarele podatke. Zato se kešira ono što se retko menja ili gde je kratka zastarelost prihvatljiva."
+      },
+      {
+        "q": "Zašto i kada uvodiš red poruka (queue)?",
+        "a": "Kad posao ne mora da se završi tokom zahteva (e-mail, izveštaj, obrada slike), ili da se izgladi nagli talas zahteva. API upiše poruku i odmah odgovori, a radnici obrađuju svojim tempom. Cena: obrada je asinhrona, poruke mogu stići više puta, pa treba idempotentnost."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta je uslov da API može da se skalira horizontalno (više instanci)?",
+        "code": null,
+        "options": [
+          "Da ima više jezgara",
+          "Da instance ne čuvaju stanje korisnika u svojoj memoriji (stateless)",
+          "Da koristi gRPC",
+          "Da baza bude na istom serveru"
+        ],
+        "correct": 1,
+        "why": "Ako je sesija u memoriji jedne instance, sledeći zahtev na drugoj je ne vidi. Stanje ide u bazu ili distribuirani keš."
+      },
+      {
+        "text": "Šta je glavni rizik keširanja?",
+        "code": null,
+        "options": [
+          "Previše slobodne memorije",
+          "Zastareli podaci kad se izvor promeni a keš ne",
+          "Sporiji odgovori",
+          "Gubitak podataka u bazi"
+        ],
+        "correct": 1,
+        "why": "Keš je kopija. Bez dobre invalidacije ili TTL-a korisnik vidi staro stanje."
+      },
+      {
+        "text": "Čemu služe read replike baze?",
+        "code": null,
+        "options": [
+          "Za backup umesto snimaka",
+          "Da prime upite za čitanje i rasterete glavnu bazu koja prima upise",
+          "Da ubrzaju upise",
+          "Da zamene indekse"
+        ],
+        "correct": 1,
+        "why": "Upisi idu na primarnu, čitanja mogu na replike. Replike kasne malo za primarnom, pa čitanje odmah posle upisa ide na primarnu."
+      },
+      {
+        "text": "Korisnik zatraži izveštaj koji se pravi 2 minuta. Kako to dizajniraš?",
+        "code": null,
+        "options": [
+          "HTTP zahtev koji čeka 2 minuta",
+          "API upiše posao u red i vrati 202 sa ID-jem; radnik pravi izveštaj, a klijent proverava status ili dobije obaveštenje",
+          "Povećati timeout na 10 minuta",
+          "Praviti izveštaj u pregledaču"
+        ],
+        "correct": 1,
+        "why": "Dugi poslovi ne drže HTTP vezu. 202 Accepted kaže „primljeno, radi se”."
+      },
+      {
+        "text": "Šta je rate limiting?",
+        "code": null,
+        "options": [
+          "Kompresija odgovora",
+          "Ograničenje broja zahteva po klijentu u vremenu, da jedan klijent ne obori servis",
+          "Keširanje u CDN-u",
+          "Sortiranje zahteva po prioritetu"
+        ],
+        "correct": 1,
+        "why": "ASP.NET Core ima ugrađen RateLimiter middleware. Odgovor na prekoračenje je 429 Too Many Requests."
+      }
+    ],
     "sources": []
   },
   {
@@ -1539,8 +4573,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Zašto je opasno dvaput proći isti IEnumerable?",
+        "a": "Ako je IEnumerable LINQ upit ili `yield` metoda, svaki prolaz ga ponovo izvršava: dva SQL upita, dva čitanja fajla, a rezultati mogu da se razlikuju. Ako ti treba više prolaza, materijalizuj jednom sa ToList()."
+      },
+      {
+        "q": "DateTime.Now ili DateTime.UtcNow?",
+        "a": "Za čuvanje i poređenje vremena UTC (ili DateTimeOffset), jer lokalno vreme zavisi od servera i ima letnje računanje vremena (sat se ponavlja ili preskače). Lokalno vreme samo za prikaz korisniku. Za testabilnost se koristi TimeProvider."
+      },
+      {
+        "q": "Šta se dešava kad struct staviš u List i pokušaš da mu promeniš polje?",
+        "a": "Indekser vraća KOPIJU struct-a, pa `lista[0].X = 5` ne prolazi kompajliranje (CS1612), jer bi menjao privremenu kopiju. Struct-ovi treba da budu nepromenljivi (readonly struct), a izmena se radi zamenom cele vrednosti."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta ispisuje kod?",
+        "code": "var akcije = new List<Action>();\nfor (int i = 0; i < 3; i++)\n    akcije.Add(() => Console.Write(i));\nforeach (var a in akcije) a();",
+        "options": [
+          "012",
+          "333",
+          "222",
+          "Greška pri kompajliranju"
+        ],
+        "correct": 1,
+        "why": "U `for` petlji sve lambde hvataju istu promenljivu i, koja je posle petlje 3. (U `foreach` od C# 5 svaka iteracija ima svoju promenljivu, pa bi bilo 012.)"
+      },
+      {
+        "text": "Koliko SQL upita šalje ovaj kod?",
+        "code": "IEnumerable<Kupac> kupci = db.Kupci.Where(k => k.Aktivan);\nvar broj = kupci.Count();\nvar prvi = kupci.First();",
+        "options": [
+          "1",
+          "2",
+          "0",
+          "3"
+        ],
+        "correct": 1,
+        "why": "Svaki prolaz izvršava upit ponovo: jedan za Count, jedan za First. ToList bi dao jedan upit (ali učitao sve redove), pa biraj prema potrebi."
+      },
+      {
+        "text": "Šta ispisuje kod?",
+        "code": "object a = \"hunter\";\nobject b = new string(\"hunter\".ToCharArray());\nConsole.WriteLine(a == b);",
+        "options": [
+          "True",
+          "False",
+          "Greška pri kompajliranju",
+          "NullReferenceException"
+        ],
+        "correct": 1,
+        "why": "Promenljive su tipa object, pa `==` poredi reference, a to su dva različita objekta. `a.Equals(b)` ili poređenje kao string bi dalo True."
+      },
+      {
+        "text": "Zašto se `lista[0].X = 5;` ne kompajlira kad je `lista` tipa `List<Tacka>`, a Tacka je struct?",
+        "code": null,
+        "options": [
+          "List ne podržava struct",
+          "Indekser vraća kopiju struct-a, pa bi izmena bila izgubljena",
+          "Polje X je private",
+          "Mora se koristiti `ref` pri dodavanju"
+        ],
+        "correct": 1,
+        "why": "Kompajler sprečava tihu grešku. Kod niza (`niz[0].X = 5`) radi, jer indeksiranje niza daje referencu na element."
+      },
+      {
+        "text": "Šta je pravi izbor za vreme kada je porudžbina napravljena, ako server može biti u drugoj vremenskoj zoni?",
+        "code": null,
+        "options": [
+          "DateTime.Now",
+          "DateTime.UtcNow ili DateTimeOffset",
+          "string sa lokalnim vremenom",
+          "Broj sekundi od ponoći"
+        ],
+        "correct": 1,
+        "why": "UTC je nedvosmislen i ne skače pri prelasku na letnje vreme. Pretvaranje u lokalno vreme ide tek u prikazu."
+      }
+    ],
     "sources": []
   },
   {
@@ -1553,8 +4661,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Zašto `{broj && <Bedz />}` ponekad prikaže „0”?",
+        "a": "`&&` vraća levu vrednost ako je lažna. Za broj 0 izraz je 0, a React broj 0 prikazuje kao tekst. Ispravno: `{broj > 0 && <Bedz />}` ili ternarni operator."
+      },
+      {
+        "q": "Zašto `setInterval(() => setBroj(broj + 1), 1000)` u efektu sa `[]` ostane na 1?",
+        "a": "Efekat se izvršio jednom i lambda je uhvatila `broj` iz prvog iscrtavanja (0). Svake sekunde postavlja 0 + 1. Rešenje je funkcijski oblik `setBroj(b => b + 1)`, uz cleanup `clearInterval`."
+      },
+      {
+        "q": "Zašto je `0.1 + 0.2 !== 0.3` u JS-u?",
+        "a": "Brojevi su binarni IEEE 754 double, a 0.1 i 0.2 nemaju tačan binarni zapis, pa je zbir 0.30000000000000004. Za novac se računa u najmanjim jedinicama (pare kao celi brojevi) ili se koristi biblioteka za decimale."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta je rezultat `0.1 + 0.2 === 0.3` u JavaScript-u?",
+        "code": null,
+        "options": [
+          "true",
+          "false",
+          "undefined",
+          "Baca grešku"
+        ],
+        "correct": 1,
+        "why": "Zbir je 0.30000000000000004. Isto važi za double u C#-u; zato decimal za novac."
+      },
+      {
+        "text": "Šta su `\"5\" + 1` i `\"5\" - 1`?",
+        "code": null,
+        "options": [
+          "6 i 4",
+          "\"51\" i 4",
+          "\"51\" i \"4\"",
+          "6 i \"51\""
+        ],
+        "correct": 1,
+        "why": "`+` sa stringom spaja tekst, a `-` postoji samo za brojeve, pa pretvara \"5\" u broj."
+      },
+      {
+        "text": "Šta vraća `typeof null`?",
+        "code": null,
+        "options": [
+          "\"null\"",
+          "\"object\"",
+          "\"undefined\"",
+          "Baca grešku"
+        ],
+        "correct": 1,
+        "why": "Poznata istorijska greška jezika koja je ostala zbog kompatibilnosti. Za proveru null koristi `x === null`."
+      },
+      {
+        "text": "Šta prikazuje `{stavke.length && <Lista stavke={stavke} />}` kad je niz prazan?",
+        "code": null,
+        "options": [
+          "Ništa",
+          "0",
+          "Praznu listu",
+          "false"
+        ],
+        "correct": 1,
+        "why": "length je 0, `&&` vraća 0, a React ispiše broj. Ispravno: `stavke.length > 0 && ...`."
+      },
+      {
+        "text": "Brojač sa `useEffect(() => { const id = setInterval(() => setBroj(broj + 1), 1000); return () => clearInterval(id); }, [])` stane na 1. Kako ga popraviti?",
+        "code": null,
+        "options": [
+          "Dodati `broj` u niz zavisnosti i ništa drugo",
+          "Koristiti `setBroj(b => b + 1)`",
+          "Ukloniti cleanup",
+          "Koristiti setTimeout umesto setInterval"
+        ],
+        "correct": 1,
+        "why": "Funkcijski oblik uvek dobija najnovije stanje, pa lambda ne zavisi od uhvaćene vrednosti. Dodavanje zavisnosti bi takođe radilo, ali bi interval pravio iznova svake sekunde."
+      }
+    ],
     "sources": []
   },
   {
@@ -1567,8 +4749,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Koja je razlika između WHERE i HAVING?",
+        "a": "WHERE filtrira redove pre grupisanja i ne može da koristi agregatne funkcije. HAVING filtrira grupe posle GROUP BY i radi nad agregatima: „kupci sa više od 5 porudžbina” je `GROUP BY KupacId HAVING COUNT(*) > 5`."
+      },
+      {
+        "q": "Kako nalaziš poslednju porudžbinu svakog kupca?",
+        "a": "Window funkcijom: `ROW_NUMBER() OVER (PARTITION BY KupacId ORDER BY Datum DESC)` u podupitu ili CTE-u, pa uzmeš redove gde je broj 1. Radi u jednom prolazu i daje ceo red, ne samo datum."
+      },
+      {
+        "q": "Zašto `WHERE Email = NULL` ne vraća ništa?",
+        "a": "NULL znači „nepoznato”, a poređenje sa nepoznatim daje nepoznato (ni true ni false), pa red ne prolazi. Za proveru se koristi `IS NULL` ili `IS NOT NULL`."
+      }
+    ],
+    "test": [
+      {
+        "text": "Kako dobiti kupce sa više od 5 porudžbina?",
+        "code": null,
+        "options": [
+          "`SELECT KupacId FROM Porudzbine WHERE COUNT(*) > 5 GROUP BY KupacId`",
+          "`SELECT KupacId FROM Porudzbine GROUP BY KupacId HAVING COUNT(*) > 5`",
+          "`SELECT KupacId FROM Porudzbine ORDER BY COUNT(*) > 5`",
+          "`SELECT DISTINCT KupacId FROM Porudzbine LIMIT 5`"
+        ],
+        "correct": 1,
+        "why": "Agregat (COUNT) nad grupama ide u HAVING. WHERE se izvršava pre grupisanja."
+      },
+      {
+        "text": "Kolona Telefon ima 3 NULL vrednosti od 10 redova. Šta vraćaju `COUNT(*)` i `COUNT(Telefon)`?",
+        "code": null,
+        "options": [
+          "10 i 10",
+          "10 i 7",
+          "7 i 7",
+          "7 i 10"
+        ],
+        "correct": 1,
+        "why": "COUNT(*) broji redove, COUNT(kolona) samo one gde kolona nije NULL."
+      },
+      {
+        "text": "Šta se desi sa ovim upitom?",
+        "code": "SELECT k.Ime, p.Id\nFROM Kupci k\nLEFT JOIN Porudzbine p ON p.KupacId = k.Id\nWHERE p.Status = 'Plaćena';",
+        "options": [
+          "Vraća sve kupce, i one bez porudžbina",
+          "Kupci bez porudžbina nestaju, jer je za njih p.Status NULL i WHERE ih izbaci (radi kao INNER JOIN)",
+          "Baca grešku",
+          "Vraća samo kupce bez porudžbina"
+        ],
+        "correct": 1,
+        "why": "Uslov nad desnom tabelom treba staviti u ON (`... AND p.Status = 'Plaćena'`) ako želiš da zadržiš sve kupce."
+      },
+      {
+        "text": "Kako proveriti da kolona nema vrednost?",
+        "code": null,
+        "options": [
+          "`WHERE Email = NULL`",
+          "`WHERE Email == NULL`",
+          "`WHERE Email IS NULL`",
+          "`WHERE Email = ''`"
+        ],
+        "correct": 2,
+        "why": "Poređenje sa NULL je uvek nepoznato. Prazan string i NULL su različite stvari."
+      },
+      {
+        "text": "Koja funkcija numeriše redove unutar svake grupe (npr. porudžbine svakog kupca po datumu)?",
+        "code": null,
+        "options": [
+          "GROUP BY sa COUNT",
+          "`ROW_NUMBER() OVER (PARTITION BY KupacId ORDER BY Datum DESC)`",
+          "DISTINCT",
+          "UNION"
+        ],
+        "correct": 1,
+        "why": "Window funkcije računaju preko grupe redova bez spajanja redova u jedan, pa je lako izabrati „prvi u grupi”."
+      }
+    ],
     "sources": []
   },
   {
@@ -1581,8 +4837,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Šta odgovaraš kad ne znaš odgovor?",
+        "a": "Kažeš iskreno da ne znaš, pa pokažeš kako razmišljaš: šta znaš o srodnoj temi, kako bi pretpostavio odgovor i kako bi ga proverio (dokumentacija, mali eksperiment). Izmišljanje se brzo prepozna i ruši poverenje; razmišljanje naglas se ceni."
+      },
+      {
+        "q": "Kako se ponašaš na live coding zadatku?",
+        "a": "Prvo ponoviš zadatak svojim rečima i pitaš za granične slučajeve. Kažeš plan pre kucanja, pa kreneš od jednostavnog rešenja koje radi i tek onda ga poboljšavaš. Razmišljaš naglas, testiraš na primeru i na kraju kažeš složenost i šta bi poboljšao."
+      },
+      {
+        "q": "Koja pitanja postavljaš ispitivaču?",
+        "a": "Kako izgleda tipičan dan i proces (code review, deploy, dežurstva), kako tim donosi tehničke odluke, šta bi bio moj prvi zadatak, kako se meri uspeh u prvih 90 dana, kakav je mentorstvo i učenje. Pitanja pokazuju interes i pomažu tebi da proceniš posao."
+      }
+    ],
+    "test": [
+      {
+        "text": "Ispitivač pita nešto što ne znaš. Šta je najbolje?",
+        "code": null,
+        "options": [
+          "Smisliti uverljiv odgovor",
+          "Reći da ne znaš, pa naglas razmisliti kako bi došao do odgovora",
+          "Preći na drugu temu",
+          "Ćutati dok ne postavi drugo pitanje"
+        ],
+        "correct": 1,
+        "why": "Ispitivač proverava i kako razmišljaš. Iskrenost plus rasuđivanje je jači signal od pogađanja."
+      },
+      {
+        "text": "Šta je prvi korak na live coding zadatku?",
+        "code": null,
+        "options": [
+          "Odmah kucati optimalno rešenje",
+          "Ponoviti zadatak i pitati za ulaze i granične slučajeve",
+          "Tražiti rešenje na internetu",
+          "Pitati koliko vremena ima"
+        ],
+        "correct": 1,
+        "why": "Pogrešno shvaćen zadatak je najskuplja greška. Pitanja pokazuju i zrelost."
+      },
+      {
+        "text": "Zašto se razmišlja naglas tokom zadatka?",
+        "code": null,
+        "options": [
+          "Da prođe vreme",
+          "Ispitivač vidi tok misli i može da pomogne ako zastaneš",
+          "Zbog snimanja",
+          "Nije preporučljivo"
+        ],
+        "correct": 1,
+        "why": "I nepotpuno rešenje sa jasnim rasuđivanjem može da prođe. Tiho kucanje ne pokazuje ništa dok ne završiš."
+      },
+      {
+        "text": "Koje pitanje je dobro postaviti na kraju intervjua?",
+        "code": null,
+        "options": [
+          "„Koliko slobodnih dana imam prve nedelje?”",
+          "„Kako izgleda proces od zadatka do produkcije u vašem timu?”",
+          "„Da li sam prošao?”",
+          "Nijedno, pitanja ostavljaju loš utisak"
+        ],
+        "correct": 1,
+        "why": "Pitanje o procesu pokazuje interes za rad i daje ti informaciju da li ti posao odgovara."
+      },
+      {
+        "text": "Na live coding-u si napisao rešenje koje radi, ali je O(n²). Šta dalje?",
+        "code": null,
+        "options": [
+          "Ništa, radi",
+          "Reći složenost, predložiti bolje rešenje (npr. HashSet za O(n)) i proveriti primerom",
+          "Obrisati i početi ispočetka u tišini",
+          "Reći da optimizacija nije bitna"
+        ],
+        "correct": 1,
+        "why": "Prvo ispravno, pa brzo. Svest o složenosti i ideja za poboljšanje su deo očekivanog odgovora."
+      }
+    ],
     "sources": []
   },
   {
@@ -1595,8 +4925,82 @@
     "lessonMarkdown": "",
     "deeperMarkdown": "",
     "exercise": null,
-    "cards": [],
-    "test": [],
+    "cards": [
+      {
+        "q": "Koja je razlika između latencije i propusnosti?",
+        "a": "Latencija je koliko traje jedan zahtev (npr. 120 ms). Propusnost je koliko zahteva sistem obradi u jedinici vremena (npr. 500 u sekundi). Keš smanjuje latenciju, više instanci povećava propusnost; nije isto i ne poboljšavaju se istim merama."
+      },
+      {
+        "q": "Šta je tehnički dug?",
+        "a": "Kompromis koji ubrzava isporuku danas, a kasnije košta dodatnim radom (nedostatak testova, prečica u dizajnu, zastarela biblioteka). Nije uvek loš ako je svestan i zapisan; problem je kad se „kamata” gomila jer se nikad ne vraća."
+      },
+      {
+        "q": "Šta je ORM i koja je njegova mana?",
+        "a": "Object-Relational Mapper (EF Core) mapira tabele na klase i LINQ na SQL, pa nema ručnog pisanja SQL-a za tipične operacije. Mana: lako je napisati neefikasan upit (N+1, učitavanje previše kolona) bez da vidiš SQL, pa treba gledati generisane upite."
+      }
+    ],
+    "test": [
+      {
+        "text": "Šta je idempotentna operacija?",
+        "code": null,
+        "options": [
+          "Ona koja je uvek brza",
+          "Ona čije ponavljanje ostavlja isto stanje kao jedno izvršavanje",
+          "Ona koja ne menja bazu",
+          "Ona koja se izvršava samo jednom"
+        ],
+        "correct": 1,
+        "why": "PUT i DELETE su idempotentni; „povećaj za 1” nije. Bitno je za retry i poruke koje stižu više puta."
+      },
+      {
+        "text": "Keširanje odgovora sa 300 ms na 20 ms poboljšava pre svega:",
+        "code": null,
+        "options": [
+          "Latenciju",
+          "Propusnost baze podataka u upisu",
+          "Bezbednost",
+          "Veličinu bundle-a"
+        ],
+        "correct": 0,
+        "why": "Kraće vreme jednog zahteva je latencija. Usput može da poveća i propusnost jer baza ima manje posla, ali direktan efekat je na latenciju."
+      },
+      {
+        "text": "Šta je race condition?",
+        "code": null,
+        "options": [
+          "Takmičenje u brzini kodiranja",
+          "Ishod zavisi od nepredvidivog redosleda istovremenih operacija nad istim podacima",
+          "Spor mrežni zahtev",
+          "Greška pri kompajliranju"
+        ],
+        "correct": 1,
+        "why": "Npr. dva zahteva istovremeno prodaju poslednji komad. Rešava se atomičnim operacijama, zaključavanjem ili optimističkom konkurentnošću."
+      },
+      {
+        "text": "Šta je DTO?",
+        "code": null,
+        "options": [
+          "Tabela u bazi",
+          "Objekat za prenos podataka između slojeva ili preko mreže, bez poslovne logike",
+          "Vrsta indeksa",
+          "Test objekat"
+        ],
+        "correct": 1,
+        "why": "DTO je ugovor (npr. API odgovor), odvojen od entiteta baze, da se oba mogu menjati nezavisno."
+      },
+      {
+        "text": "Šta je SPA?",
+        "code": null,
+        "options": [
+          "Aplikacija bez backenda",
+          "Web aplikacija koja učita jednu HTML stranicu, a dalje menja prikaz JavaScript-om i podatke vuče preko API-ja",
+          "Aplikacija koja radi samo offline",
+          "Stranica bez CSS-a"
+        ],
+        "correct": 1,
+        "why": "Single Page Application: navigacija bez ponovnog učitavanja stranice, kao ova aplikacija sa React Router-om."
+      }
+    ],
     "sources": []
   },
   {

@@ -5,8 +5,10 @@ Upotreba:
     python build_content.py <src_folder> <out_folder>
 
 Ulaz:  <src_folder>/region-*.md, poglavlja odvojena linijom "=====".
+       <src_folder>/vodic-*.md, test i pitanja sa intervjua za poglavlja iz PDF vodiča (lekcija je u vodiču).
 Izlaz: <out_folder>/chapters/<id>-<slug>.md   (jedno poglavlje, čitljivo)
        <out_folder>/content.json               (sva poglavlja, struktura za API seed)
+       <out_folder>/guide.json                 (id poglavlja vodiča → test i kartice)
 Skripta pada sa porukom ako poglavlje ne prati format (vidi validate()).
 """
 import json
@@ -87,11 +89,8 @@ def parse_sources(text: str):
     return [{"title": t, "url": u} for t, u in re.findall(r"\[(.+?)\]\((https?://[^)]+)\)", text)]
 
 
-def validate(ch):
-    errs = []
-    for s in REQUIRED_SECTIONS:
-        if s not in ch["_sections"]:
-            errs.append(f"nema sekcije '{s}'")
+def validate_quiz(ch, errs):
+    """Pravila za test i kartice; ista za poglavlja dodataka i za poglavlja vodiča."""
     if len(ch["test"]) != 5:
         errs.append(f"test ima {len(ch['test'])} pitanja, treba 5")
     for q in ch["test"]:
@@ -103,13 +102,21 @@ def validate(ch):
             errs.append(f"pitanje nema objašnjenje: {q['text']}")
     if len(ch["cards"]) < 2:
         errs.append("manje od 2 pitanja sa intervjua")
+    cyr = [c for c in ch["_raw"] if "Ѐ" <= c <= "ӿ"]
+    if cyr:
+        errs.append(f"ćirilična slova u tekstu: {''.join(sorted(set(cyr)))}")
+
+
+def validate(ch):
+    errs = []
+    for s in REQUIRED_SECTIONS:
+        if s not in ch["_sections"]:
+            errs.append(f"nema sekcije '{s}'")
+    validate_quiz(ch, errs)
     if len(ch["lab"]["steps"]) < 3 or not ch["lab"]["done"]:
         errs.append("lab nema bar 3 koraka i 'Gotovo je kad'")
     if not ch["sources"]:
         errs.append("nema izvora")
-    cyr = [c for c in ch["_raw"] if "Ѐ" <= c <= "ӿ"]
-    if cyr:
-        errs.append(f"ćirilična slova u tekstu: {''.join(sorted(set(cyr)))}")
     if errs:
         raise ValueError(f"{ch['id']} {ch['title']}: " + "; ".join(errs))
 
@@ -141,9 +148,29 @@ def main(src: Path, out: Path):
             chapters.append(ch)
     for ch in chapters:
         del ch["_sections"], ch["_raw"]
+
+    # Poglavlja iz PDF vodiča: lekcija ostaje u vodiču, ovde su samo test i pitanja sa intervjua.
+    guide = {}
+    for f in sorted(src.glob("vodic-*.md")):
+        for block in f.read_text(encoding="utf-8").split("=====\n"):
+            if not block.strip():
+                continue
+            meta, body = parse_frontmatter(block)
+            _, sections = split_sections(body)
+            ch = {"id": str(meta["id"]), "test": parse_test(sections.get("Test", "")),
+                  "cards": parse_interview(sections.get("Pitanja sa intervjua", "")), "_raw": block}
+            errs = []
+            validate_quiz(ch, errs)
+            if ch["id"] in guide:
+                errs.append("poglavlje se ponavlja")
+            if errs:
+                raise ValueError(f"vodič, poglavlje {ch['id']} ({f.name}): " + "; ".join(errs))
+            guide[ch["id"]] = {"test": ch["test"], "cards": ch["cards"]}
+    (out / "guide.json").write_text(json.dumps(guide, ensure_ascii=False, indent=2), encoding="utf-8")
     (out / "content.json").write_text(json.dumps({"chapters": chapters}, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"OK: {len(chapters)} poglavlja, {sum(len(c['test']) for c in chapters)} test pitanja, "
-          f"{sum(len(c['cards']) for c in chapters)} kartica")
+          f"{sum(len(c['cards']) for c in chapters)} kartica; vodič: {len(guide)} poglavlja, "
+          f"{sum(len(g['test']) for g in guide.values())} test pitanja")
 
 
 if __name__ == "__main__":

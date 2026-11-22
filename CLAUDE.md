@@ -13,7 +13,7 @@ Projekat je ujedno portfolio, pa kod mora biti čist i lako objašnjiv na interv
 - `api/tests/Hunter.Api.Tests`: integracioni testovi (`WebApplicationFactory<Program>` + Testcontainers PostgreSQL, primer paket kao seed). Traže pokrenut Docker.
 - `web/`: React 19, Vite 8, TypeScript strict, TanStack Query 5, React Router 7, react-markdown. Stil je u `src/styles.css` (CSS promenljive po temi, `[data-theme]`, `[data-glow]`).
 - `packs/<id>/pack.json + chapters.json`: uvoze se pri pokretanju API-ja. `examples/`: primer paket van IT-a.
-- `content/fullstack-dotnet/src/region-*.md` → `tools/build_pack.sh fullstack-dotnet` → `packs/fullstack-dotnet`.
+- `content/fullstack-dotnet/src/region-*.md` (puna poglavlja) i `vodic-*.md` (test i pitanja sa intervjua za poglavlja PDF vodiča) → `tools/build_pack.sh fullstack-dotnet` → `packs/fullstack-dotnet`. Posle izmene sadržaja povećaj `version` u `tools/make_pack.py`, inače API ne uvozi paket ponovo.
 - `docker-compose.yml`: db (postgres:17, bez izloženog porta), api, web (nginx na :8088, proksi `/api` → api:8080).
 
 ## Komande
