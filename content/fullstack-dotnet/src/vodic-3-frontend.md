@@ -1,6 +1,112 @@
 ---
 id: 20
+subtitle: "struktura, DOM, CSS (box model, flex, grid, kaskada), događaji i kako browser crta"
+minutes: 45
 ---
+# 20 HTML, CSS i DOM
+
+Stranicu čine tri jezika: HTML kaže šta je na stranici (struktura i značenje), CSS kako izgleda, a JavaScript šta se dešava kad korisnik nešto uradi. React (pogl. 23) ne zamenjuje nijedan od njih: na kraju sve postaje HTML elementi, CSS pravila i DOM događaji.
+
+## Pojmovi
+
+### HTML i semantika
+
+```html
+<!doctype html>
+<html lang="sr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Biblioteka</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="app.js"></script>   <!-- module je odložen kao defer -->
+  </head>
+  <body>
+    <main>
+      <h1>Knjige</h1>
+      <ul class="list">
+        <li>Hobit <button type="button">Pozajmi</button></li>
+      </ul>
+      <form>
+        <label for="q">Pretraga</label>
+        <input id="q" name="q">
+      </form>
+    </main>
+  </body>
+</html>
+```
+
+- Element ima oznaku (`<button>`), atribute (`type`, `class`, `id`) i sadržaj.
+- **Semantički elementi** (`button`, `a`, `nav`, `main`, `form`, `label`, `table`) kažu šta nešto jeste: čitač ekrana ih najavljuje, tastatura radi sama (Tab, Enter, Space), pretraživači bolje razumeju stranicu.
+- `<div onClick>` izgleda kao dugme, ali nije fokusabilan i čitač ga ne najavljuje. Pravilo: **link vodi negde (`<a href>`), dugme nešto radi (`<button>`)**.
+- `<label for>` povezuje opis sa poljem: klik na labelu fokusira polje, čitač ga čita.
+- `<img alt>`: opis za čitač; dekorativna slika dobija `alt=""`.
+- `lang="sr"` i `viewport` meta: izgovor čitača i ispravan prikaz na telefonu.
+
+### DOM
+
+DOM (Document Object Model) je **stablo objekata** koje browser napravi od HTML-a: `document → html → body → main → ul → li → button`. JavaScript menja stranicu menjajući DOM:
+
+```js
+document.querySelector('h1').textContent = 'Knjige (3)'
+const li = document.createElement('li'); li.textContent = 'Silmarilion'
+document.querySelector('.list').append(li)
+```
+
+`textContent` ubacuje tekst; `innerHTML` parsira HTML i zato je opasan sa korisničkim unosom (XSS, pogl. 15). Svaka izmena DOM-a može da natera browser da ponovo računa raspored i crta; zato React grupiše izmene i menja samo ono što mora.
+
+### CSS
+
+```css
+*, *::before, *::after { box-sizing: border-box; }       /* širina uključuje padding i border */
+.list { display: flex; flex-direction: column; gap: 8px; } /* klasa */
+#q { width: 100%; }                                       /* id */
+button:hover { background: var(--accent); }               /* stanje + CSS promenljiva */
+:root { --accent: #5f7a1f; }                              /* tema = vrednosti promenljivih */
+@media (max-width: 600px) { .list { gap: 4px; } }          /* responsive */
+```
+
+- **Box model**: sadržaj + `padding` (unutra) + `border` + `margin` (spolja). Podrazumevano (`content-box`) padding i border se dodaju na `width`; `border-box` ih uračunava.
+- **Raspored**: `flex` je jednodimenzionalan (red ili kolona: navigacija, dugmad), `grid` dvodimenzionalan (redovi i kolone: raspored stranice, galerija). Često se kombinuju.
+- **Kaskada**: kad se pravila sukobe, redom odlučuju poreklo i `!important`, zatim slojevi (`@layer`), pa **specifičnost** (inline stil > id > klasa/atribut/pseudo-klasa > element), pa redosled (kasnije napisano pobeđuje).
+- **CSS promenljive** (`--accent`) omogućavaju teme: tamni režim menja samo vrednosti (ova aplikacija tako radi sa `[data-theme]`).
+- **Responsive**: isti sadržaj se prilagođava širini (`@media`, fleksibilne jedinice `%`, `rem`, `fr`).
+
+### Događaji
+
+```js
+button.addEventListener('click', (event) => { /* ... */ })
+form.addEventListener('submit', (event) => {
+  event.preventDefault()                     // bez ponovnog učitavanja stranice
+  const data = new FormData(form)            // vrednosti polja po atributu name
+})
+```
+
+Događaj putuje **naviše kroz stablo** (bubbling): klik na dugme je i klik na `li`, `ul`, `body`. Zato radi **event delegation**: jedan osluškivač na roditelju i provera `event.target.closest('button')`, umesto hiljadu osluškivača. `stopPropagation()` zaustavlja penjanje, `preventDefault()` podrazumevanu akciju (slanje forme, praćenje linka).
+
+### Šta browser radi sa stranicom
+
+Preuzme HTML → pravi DOM → preuzme CSS (CSSOM) → izračuna stilove → **layout** (gde je šta i koliko je veliko) → **paint** (crtanje) → composite (slojevi). Običan `<script>` zaustavlja parsiranje HTML-a dok se ne preuzme i izvrši; zato se stavlja na kraj `body` ili dobija `defer` (izvrši se posle parsiranja, redom). `type="module"` je podrazumevano odložen kao `defer`; `async` se izvrši čim stigne, bez garancije redosleda.
+
+## Dublje
+
+**Specifičnost kao tri broja.** Selektor se boduje kao (id, klasa, element): `#naslov` je (1,0,0), `.kartica .naslov` (0,2,0), `ul li a` (0,0,3). Poredi se s leva: jedan id pobeđuje bilo koliko klasa. `:where()` ima specifičnost 0 (dobar za podrazumevane stilove biblioteka), a `:is()` uzima najveću specifičnost iz liste. `@layer` rešava sukob pre specifičnosti: pravilo u kasnijem sloju pobeđuje i specifičnije pravilo iz ranijeg, pa se biblioteke stave u niži sloj umesto da se bore sa `!important`; stilovi van svih slojeva pobeđuju sve slojeve.
+
+**Šta je skupo pri crtanju.** Promena `width`, `top` ili dodavanje elemenata traži ponovni layout (reflow); promena boje samo paint; `transform` i `opacity` se obično rade samo u kompoziciji, na GPU-u. Zato animacije u ovoj aplikaciji koriste `transform`/`opacity`. Druga zamka je čitanje rasporeda posle pisanja u petlji (`el.style.width = …; el.offsetHeight`): browser mora odmah da preračuna, pa nastaje „layout thrashing”; prvo sva čitanja, pa sva pisanja.
+
+**Pristupačnost u praksi.** Prava `<button>`/`<a>`, vidljiv fokus (`:focus-visible`, ne `outline: none` bez zamene), kontrast teksta bar 4,5:1 (WCAG AA), dodirne površine dovoljno velike i ARIA tek kad semantički element ne postoji („no ARIA is better than bad ARIA”). Ova aplikacija ima ta pravila u CLAUDE.md.
+
+## Lab
+
+1. Napiši stranicu iz primera (lista knjiga, forma za pretragu) bez ijednog `<div>`-a koji je klikabilan; proveri da se sve radi samo tastaturom (Tab, Enter, Space).
+2. Dodaj `box-sizing: border-box` i proveri u DevTools (Elements → Computed) kako se menja ukupna širina elementa sa paddingom.
+3. Napravi raspored stranice gridom (zaglavlje, meni, sadržaj) i listu dugmadi flexom; suzi prozor ispod 600px i promeni raspored kroz `@media`.
+4. Napiši dva sukobljena pravila (`#q` i `.polje`) i u DevTools-u vidi koje je precrtano i zašto.
+5. Dodaj jedan `click` osluškivač na `<ul>` (event delegation) koji ispiše koja knjiga je kliknuta; dodaj novu stavku iz JS-a i proveri da i ona radi.
+6. Forma: `submit` sa `preventDefault()` i čitanje vrednosti preko `FormData`.
+
+**Gotovo je kad:** stranica radi samo tastaturom, umeš da objasniš box model i specifičnost na primeru iz DevTools-a, a jedan osluškivač na roditelju obrađuje i kasnije dodate stavke.
+
 ## Pitanja sa intervjua
 
 **P: Zašto je bitan semantički HTML?**
@@ -11,6 +117,12 @@ Događaji se „penju” (bubbling) od elementa do korena. Umesto da staviš osl
 
 **P: Kada koristiš flexbox, a kada grid?**
 Flexbox je jednodimenzionalan: raspoređuje elemente u red ili kolonu (navigacija, dugmad, poravnanje). Grid je dvodimenzionalan: redovi i kolone zajedno (raspored stranice, galerije kartica). Često se kombinuju.
+
+**P: Kako browser od HTML-a dođe do piksela?**
+Parsira HTML u DOM i CSS u CSSOM, izračuna stilove, uradi layout (gde je šta i koliko je veliko), pa paint i kompoziciju slojeva. Običan script blokira parsiranje, zato defer ili type=module. Za animacije se koriste transform i opacity, jer ne traže ponovni layout.
+
+**P: Kako se rešava sukob dva CSS pravila?**
+Kaskada: prvo poreklo i !important, zatim slojevi (@layer), pa specifičnost (inline > id > klasa/atribut/pseudo-klasa > element), pa redosled, kasnije pobeđuje. U praksi se izbegavaju id selektori i !important, a stilovi biblioteka stave u niži sloj.
 
 ## Test
 
@@ -48,10 +160,132 @@ Flexbox je jednodimenzionalan: raspoređuje elemente u red ili kolonu (navigacij
 - [ ] Fiksnu širinu u pikselima
 - [ ] `loading="eager"`
 > alt čita čitač ekrana i prikazuje se ako slika ne učita. Dekorativna slika dobija prazan `alt=""` da je čitač preskoči.
+
+## Izvori
+- [HTML: A good basis for accessibility (MDN)](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Accessibility/HTML)
+- [Introduction to the DOM (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model/Introduction)
+- [The box model (MDN)](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Styling_basics/Box_model)
+- [Specificity (MDN)](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Cascade/Specificity)
+- [@layer (MDN)](https://developer.mozilla.org/en-US/docs/Web/CSS/@layer)
+- [Grid i drugi načini rasporeda (MDN)](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout/Relationship_of_grid_layout_with_other_layout_methods)
+- [Event bubbling (MDN)](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Scripting/Event_bubbling)
+- [<script>: defer, async, type=module (MDN)](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script)
 =====
 ---
 id: 21
+subtitle: "tipovi i poređenje, funkcije i closure, objekti po referenci, moduli, event loop, Promise i async/await"
+minutes: 50
 ---
+# 21 JavaScript
+
+JavaScript je jedini jezik koji browser izvršava. Dinamički je tipiziran (tip ima vrednost, ne promenljiva), funkcije su vrednosti kao i sve ostalo, a sav kod jedne stranice radi u **jednoj niti**. Ovo poglavlje je osnova za TypeScript (pogl. 22) i React (pogl. 23).
+
+## Pojmovi
+
+### Promenljive, tipovi, poređenje
+
+```js
+const naslov = 'Hobit'   // nema nove dodele (objekat i dalje može da se menja)
+let broj = 0             // može nova dodela; var se više ne koristi
+0.1 + 0.2                // 0.30000000000000004: number je binarni double
+'5' == 5                 // true: == pretvara tipove
+'5' === 5                // false: uvek ===
+typeof null              // 'object': poznata istorijska greška jezika
+```
+
+- **Primitivni tipovi**: `string`, `number` (i celi i decimalni), `bigint`, `boolean`, `undefined`, `null`, `symbol`. Sve ostalo je **object**, i nizovi i funkcije.
+- `let` i `const` imaju **blok opseg**; `var` ima opseg funkcije. I `let`/`const` se „podižu”, ali do deklaracije su u **TDZ** (temporal dead zone): pristup baca `ReferenceError`, dok `var` tiho vrati `undefined`.
+- Lažne vrednosti (falsy): `false`, `0`, `''`, `null`, `undefined`, `NaN`. Zato `if (count)` ne razlikuje 0 od „nema”.
+
+### Funkcije i closure
+
+```js
+function zakasnina(dana, poDanu = 20) { return dana * poDanu }
+const dupla = (x) => x * 2                          // arrow funkcija (nema svoj this)
+const dostupne = knjige.filter((k) => k.slobodno > 0) // funkcija kao argument
+
+function brojac() {
+  let n = 0
+  return () => ++n                                  // closure: pamti svoje n
+}
+const sledeci = brojac()
+sledeci(); sledeci()                                // 1, 2
+```
+
+**Closure** je funkcija koja pamti promenljive iz opsega u kome je napravljena, i kad se pozove kasnije, van njega. Na tome počivaju React hookovi (pogl. 24) i zamka „zastarelog” stanja.
+
+### Objekti i nizovi
+
+```js
+const knjiga = { id: 42, naslov: 'Hobit', autor: { ime: 'Tolkin' } }
+const { naslov, id } = knjiga                        // destrukturiranje
+const izmenjena = { ...knjiga, naslov: 'Hobit (2. izd.)' } // spread: NOV plitki objekat
+knjiga.autor?.ime                                    // optional chaining
+const strana = knjiga.strana ?? 0                    // zamena samo za null/undefined (|| bi zamenio i 0)
+const naslovi = knjige.map((k) => k.naslov)
+const ukupno = knjige.reduce((s, k) => s + k.slobodno, 0)
+const hobit = knjige.find((k) => k.id === 42)
+const sortirane = knjige.toSorted((a, b) => a.naslov.localeCompare(b.naslov)) // ne menja original
+```
+
+**Referenca, ne kopija.** `const b = knjiga; b.naslov = 'X'` menja i `knjiga`. Porede se po referenci: `{} === {}` je `false`. Zato se u React-u stanje ne menja na mestu nego se pravi nova vrednost. `sort` i `reverse` menjaju niz; `toSorted`, `toReversed`, `with` vraćaju nov. Spread je plitka kopija; duboka je `structuredClone(obj)`.
+
+### Moduli
+
+```js
+// format.js
+export function formatNumber(n) { /* ... */ }
+// app.js
+import { formatNumber } from './format.js'
+const { Stranica } = await import('./stranica.js')   // dinamički: učitaj tek kad zatreba
+```
+
+ES moduli imaju sopstveni opseg (ništa ne curi u globalni), `import` je statičan i omogućava „tree shaking”, a dinamički `import()` deli bundle na delove (lazy rute, pogl. 28).
+
+### Event loop i asinhronost
+
+JavaScript ima **jednu nit**: dugo računanje zamrzne ceo ekran. Čekanje (mreža, tajmer, klik) radi browser van te niti, a nastavak čeka u redu:
+
+1. Izvrši se sav sinhroni kod (call stack se isprazni).
+2. Izvrše se **svi microtask-ovi** (`Promise.then`, nastavci posle `await`, `queueMicrotask`).
+3. Uzme se **jedan macrotask** (tajmer, događaj, poruka), pa opet svi microtask-ovi; između toga browser može da crta.
+
+```js
+// Promise: vrednost koja će stići kasnije
+fetch('/api/books').then((r) => r.json()).then(prikazi).catch(prikaziGresku)
+
+async function ucitaj() {
+  const odgovor = await fetch('/api/books')
+  if (!odgovor.ok) throw new Error(`HTTP ${odgovor.status}`)   // fetch NE baca za 404/500!
+  return odgovor.json()
+}
+const [knjige, clanovi] = await Promise.all([ucitaj(), ucitajClanove()]) // istovremeno
+```
+
+- `async` funkcija **uvek vraća Promise**; `await` pauzira samo tu funkciju, ne celu nit.
+- `fetch` odbija Promise samo za mrežnu grešku ili prekid; status 404/500 je „uspešan” odgovor sa `ok: false`.
+- `Promise.all` pada na prvu grešku; `Promise.allSettled` čeka sve i vraća ishod svakog.
+- Prekid zahteva: `AbortController` (`fetch(url, { signal })`), isto kao `CancellationToken` u .NET-u (pogl. 7).
+
+## Dublje
+
+**Zašto `Promise.then` ide pre `setTimeout(…, 0)`.** Posle sinhronog koda event loop prvo isprazni ceo red microtask-ova, pa tek onda uzme sledeći macrotask. Posledica: beskonačan lanac microtask-ova može da zamrzne stranicu isto kao petlja, jer browser ne dobije priliku da crta. Za duge proračune: podeli posao (`setTimeout`, `scheduler.yield()` gde postoji) ili ga prebaci u Web Worker.
+
+**`this` i arrow funkcije.** Obična funkcija dobija `this` od načina poziva (`obj.metoda()` → `obj`; ista funkcija prosleđena kao callback gubi `obj`). Arrow funkcija nema svoj `this`, nego ga uzima iz okolnog opsega; zato su callback-ovi u klasama i događajima najčešće arrow. Funkcijske React komponente uopšte ne koriste `this`.
+
+**Poređenje sa C#-om.** `async/await` liči na C#, ali u JS-u nema niti iz pool-a: nastavak uvek ide na istu (jedinu) nit kroz red microtask-ova. Zato u JS-u nema „deadlocka sa `.Result`”, ali ima zamrzavanja ekrana dugim sinhronim kodom. `number` je kao `double` (zato 0,1 + 0,2); za novac se računa u celim parama ili sa decimalnom bibliotekom, a za velike cele brojeve postoji `bigint`.
+
+## Lab
+
+1. U konzoli pregledača (ili `node`) pokreni primere poređenja i `typeof`, i zapiši rezultate koji te iznenade (`typeof null`, `0.1 + 0.2`, `null == undefined`).
+2. Napiši `brojac()` sa closure-om i dva nezavisna brojača; pokaži da ne dele stanje.
+3. Pokreni primer sa `console.log(1)`, `setTimeout(… 2)`, `Promise.resolve().then(… 3)`, `console.log(4)` i objasni redosled 1, 4, 3, 2.
+4. Napiši `ucitaj()` sa proverom `response.ok` i pozovi URL koji vraća 500; pokaži da bez provere `fetch` ne baca grešku.
+5. Učitaj dve stvari sa `Promise.all`, pa jednu namerno obori i uporedi sa `Promise.allSettled`.
+6. Dodaj `AbortController` i prekini zahtev posle 100 ms.
+
+**Gotovo je kad:** umeš da predvidiš redosled ispisa u zadacima sa event loop-om, objasniš closure na sopstvenom primeru i tvoj `fetch` kod ispravno obrađuje 500 i prekid.
+
 ## Pitanja sa intervjua
 
 **P: Šta je closure?**
@@ -62,6 +296,12 @@ JS izvršava kod u jednoj niti. Kad se stek isprazni, prvo se izvrše svi microt
 
 **P: Koja je razlika između `==` i `===`?**
 `===` poredi i tip i vrednost bez konverzije. `==` prvo pretvara tipove po složenim pravilima (`"0" == 0` je true, `null == undefined` je true). U praksi se koristi `===`.
+
+**P: Da li fetch baca grešku kad server vrati 500?**
+Ne. fetch odbija Promise samo za mrežnu grešku ili prekid (AbortController); 404 i 500 su uspešni odgovori sa ok: false, pa se response.ok proverava ručno i baca greška.
+
+**P: Koja je razlika između let, const i var?**
+let i const imaju blok opseg i do deklaracije su u TDZ (pristup baca ReferenceError); const zabranjuje novu dodelu, ne izmenu objekta. var ima opseg funkcije i pre deklaracije tiho vraća undefined, pa se ne koristi.
 
 ## Test
 
@@ -110,10 +350,115 @@ for (var i = 0; i < 3; i++) {
 - [ ] Pravi duboku kopiju svih ugnežđenih objekata
 - [ ] Baca grešku ako `stara` već ima `ime`
 > Kopija je plitka: ugnežđeni objekti se dele. U React-u se tako pravi novo stanje bez menjanja starog.
+
+## Izvori
+- [JavaScript data types and data structures (MDN)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Data_structures)
+- [Equality operators (MDN)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Equality)
+- [Closures (MDN)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Closures)
+- [JavaScript execution model: event loop (MDN)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Execution_model)
+- [Microtasks (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/HTML_DOM_API/Microtask_guide)
+- [Window.fetch() (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch)
 =====
 ---
 id: 22
+subtitle: "tipovi u editoru, ne u izvršavanju: interfejsi, unije, sužavanje, generici, pomoćni tipovi, strict"
+minutes: 45
 ---
+# 22 TypeScript
+
+TypeScript je JavaScript sa tipovima koji postoje **samo pri pisanju i buildu**: kompajler proveri tipove, zatim ih obriše i ostaje običan JS. Greške poput „pogrešno ime polja” i „možda je undefined” vidiš u editoru, a ne kod korisnika. Aktuelna verzija je TypeScript 7 (jul 2026.), kompajler prenet u Go, oko deset puta brži, sa istom proverom tipova kao 6.0.
+
+## Pojmovi
+
+### Opis oblika
+
+```ts
+interface Book {
+  id: number
+  title: string
+  author?: string          // opciono: string | undefined
+  readonly isbn: string    // samo za čitanje (u kompajleru)
+}
+
+type LoanStatus = 'active' | 'returned' | 'overdue'                  // literal unija
+type Result = { ok: true; loan: Loan } | { ok: false; error: string } // discriminated union
+
+function lateFee(days: number, perDay = 20): number { return days * perDay }
+
+async function getJson<T>(url: string): Promise<T> {                  // generik
+  const r = await fetch(url)
+  if (!r.ok) throw new Error(`HTTP ${r.status}`)
+  return r.json() as Promise<T>   // obećanje kompajleru, NE provera
+}
+const books = await getJson<Book[]>('/api/books')
+```
+
+- **Strukturno tipiziranje**: poredi se oblik, ne ime. Objekat sa svim traženim poljima odgovara tipu, iako nigde ne piše `implements` (za razliku od C#-a).
+- `interface` ili `type`: oba opisuju objekte; `type` zna i unije i izvedene tipove, `interface` se može proširivati (`extends`, spajanje deklaracija). U praksi: dosledno jedno.
+
+### Sužavanje tipa (narrowing)
+
+```ts
+function show(r: Result) {
+  if (r.ok) console.log(r.loan.id)   // ovde je r { ok: true; loan }
+  else console.log(r.error)
+}
+
+function duzina(x: string | number) {
+  if (typeof x === 'string') return x.length   // typeof suzi na string
+  return x                                      // ostao je samo number
+}
+
+function isStatus(x: unknown): x is LoanStatus {   // type guard: sopstvena provera
+  return x === 'active' || x === 'returned' || x === 'overdue'
+}
+```
+
+Sužavaju `typeof`, `instanceof`, `in`, poređenje sa literalom, provera `null`/`undefined` i type guard. **Iscrpna provera**: u `default` grani `switch`-a dodela `const never_: never = x` ne prolazi ako je neki slučaj zaboravljen.
+
+### Korisni alati
+
+```ts
+const statuses = ['active', 'returned'] as const      // readonly ['active', 'returned']
+type S = (typeof statuses)[number]                    // 'active' | 'returned'
+type BookPreview = Pick<Book, 'id' | 'title'>         // samo neka polja
+type BookDraft = Partial<Book>                        // sva polja opciona (PATCH)
+type NoIsbn = Omit<Book, 'isbn'>
+type ById = Record<number, Book>
+const cfg = { width: 'wide' } satisfies { width: string } // proveri, ali zadrži precizan tip
+```
+
+- `unknown` umesto `any`: `any` isključuje proveru, `unknown` traži sužavanje pre upotrebe. Za JSON i podatke spolja: `unknown`.
+- **`strict`** uključuje proveru `null`/`undefined`, implicitnog `any` i još desetak provera. Od TypeScript 6.0 je **podrazumevano uključen**; ostavi `"strict": true` eksplicitno u `tsconfig.json`, da se vidi namera.
+- `noUncheckedIndexedAccess`: `niz[i]` je `T | undefined`, jer indeks može da promaši. Nije deo `strict`-a, ali hvata prave greške.
+
+### Tipovi u izvršavanju ne postoje
+
+```ts
+const data: Book = await (await fetch('/api/books/1')).json()   // tip laže ako server pošalje drugo
+```
+
+Za podatke spolja postoje dva puta: verovati ugovoru koji je **generisan** iz API-ja (OpenAPI → tipovi, pa se neslaganje vidi pri buildu) ili ih **proveriti** u izvršavanju bibliotekom za šeme (npr. zod), pa iz šeme izvesti tip. U ovoj aplikaciji je ugovor ručno usklađen: svaka izmena u `Contracts.cs` ide uz istu u `web/src/api.ts`.
+
+## Dublje
+
+**Šta znači „brisanje tipova”.** Node.js od verzija 22.18 i 23.6 sam izvršava `.ts` fajlove tako što obriše tipove (type stripping, stabilno od 24.12), bez provere. Zato podržava samo sintaksu koja se može samo obrisati: `enum`, `namespace` sa kodom i parametarska svojstva konstruktora traže transformaciju i tu ne rade. Opcija `erasableSyntaxOnly` u `tsconfig.json` zabranjuje takvu sintaksu, pa isti kod radi i u Node-u i u bundleru. Umesto `enum`-a: unija literala ili `as const` objekat. Provera tipova i dalje ide kroz `tsc` (u CI-ju `tsc --noEmit`).
+
+**Provera viška polja.** `const t: Tacka = { x: 1, y: 2, boja: 'c' }` je greška (objektni literal sa nepoznatim poljem je verovatno greška u kucanju), a `const p = { x: 1, y: 2, boja: 'c' }; const t: Tacka = p` prolazi: promenljiva sa više polja ima traženi oblik. Ista pravila objašnjavaju zašto `satisfies` hvata grešku u konfiguraciji, a i dalje zadržava precizan tip.
+
+**Kompromisi pri migraciji.** TypeScript 7 uklanja opcije zastarele u 6.0 (npr. `target: es5`, `moduleResolution: node10`); kod koji čisto prolazi 6.0 bez `ignoreDeprecations` prolazi isto i u 7.0. Projekat koji se oslanjao na stari podrazumevani `strict: false` sada mora to da napiše eksplicitno ili da ispravi greške. Za intervju: „TS ne proverava ništa u izvršavanju; zato granice sistema (API, localStorage, poruke) validiram, a unutra verujem tipovima.”
+
+## Lab
+
+1. Napravi folder, `npm i -D typescript`, prazan `tsconfig.json` (`{}`) i fajl sa `function f(x: string | undefined) { return x.length }`; pokreni `npx tsc --noEmit` i vidi da `strict` hvata grešku i bez podešavanja.
+2. Opiši `Result` kao discriminated union i napiši `show(r)` koji u svakoj grani koristi samo polja te grane.
+3. Dodaj `switch` po `LoanStatus` sa iscrpnom proverom (`never`), pa dodaj nov status i vidi gde kompajler pukne.
+4. Napiši `getJson<T>` i pozovi ga sa pogrešnim tipom; pokaži da kompajler ne vidi grešku, pa dodaj proveru u izvršavanju (ručni type guard ili šemu).
+5. Pokreni `.ts` fajl direktno u Node-u (`node app.ts`, Node 22.18+), pa dodaj `enum` i vidi grešku; uključi `erasableSyntaxOnly`.
+6. Iz `Book` napravi `Pick`, `Partial` i `Omit` tipove i upotrebi ih u funkciji za izmenu knjige.
+
+**Gotovo je kad:** umeš da objasniš zašto TS ne proverava JSON sa servera i kako to rešavaš, a sužavanje i discriminated union koristiš bez `as` kastovanja.
+
 ## Pitanja sa intervjua
 
 **P: Koja je razlika između `any` i `unknown`?**
@@ -124,6 +469,12 @@ TypeScript poredi oblik, ne ime tipa: objekat koji ima sva tražena polja odgova
 
 **P: Da li TypeScript tipovi postoje u izvršavanju?**
 Ne. Kompajler ih briše, ostaje čist JS. Zato TS ne proverava JSON koji stigne sa API-ja: ako server vrati nešto drugo, tip laže. Za proveru u izvršavanju koristi se validacija (npr. zod) ili jasan ugovor sa API-jem.
+
+**P: Šta se promenilo u TypeScript-u 6 i 7?**
+TS 6.0 je uključio strict kao podrazumevan i zastareo stare opcije (target es5, moduleResolution node10); TS 7.0 (jul 2026.) je kompajler prenet u Go, oko deset puta brži, sa istom proverom tipova, a zastarele opcije su uklonjene.
+
+**P: Zašto izbegavaš enum u novom TypeScript kodu?**
+enum nije samo tip nego pravi kod pri prevođenju, pa ne radi u alatima koji samo brišu tipove (Node type stripping, erasableSyntaxOnly). Unija string literala ili as const objekat daje istu sigurnost bez generisanog koda.
 
 ## Test
 
@@ -172,10 +523,104 @@ const t: Tacka = p;
 - [ ] Ne, jer p ima višak polja
 - [ ] Samo uz `as Tacka`
 > Provera viška polja važi samo za objektni literal dodeljen direktno. Promenljiva sa više polja je kompatibilna jer ima traženi oblik.
+
+## Izvori
+- [Narrowing (TypeScript Handbook)](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
+- [Utility types (TypeScript Handbook)](https://www.typescriptlang.org/docs/handbook/utility-types.html)
+- [Type compatibility (TypeScript Handbook)](https://www.typescriptlang.org/docs/handbook/type-compatibility.html)
+- [Announcing TypeScript 6.0 (strict podrazumevan)](https://devblogs.microsoft.com/typescript/announcing-typescript-6-0/)
+- [Announcing TypeScript 7.0](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)
+- [Node.js: Modules: TypeScript (type stripping)](https://nodejs.org/api/typescript.html)
 =====
 ---
 id: 23
+subtitle: "UI = f(stanje): komponente, JSX, props, stanje, render i commit, liste i key, kontrolisana polja"
+minutes: 50
 ---
+# 23 React osnove
+
+React je biblioteka za korisnički interfejs u kojoj opisuješ **kako ekran treba da izgleda za dato stanje**, a React sam menja DOM kad se stanje promeni: UI = f(stanje). Ne pišeš „dodaj red u tabelu”, nego „tabela prikazuje ove knjige”. Aktuelna verzija je React 19 (19.3).
+
+## Pojmovi
+
+### Komponenta i JSX
+
+```tsx
+function BookCard({ book, onLend }: { book: Book; onLend: (id: number) => void }) {
+  return (
+    <article className="card">
+      <h3>{book.title}</h3>                         {/* {} ubacuje JS izraz */}
+      {book.available === 0 && <p>Nema slobodnih</p>} {/* uslovni prikaz */}
+      <button type="button" disabled={book.available === 0} onClick={() => onLend(book.id)}>
+        Pozajmi
+      </button>
+    </article>
+  )
+}
+```
+
+- Komponenta je **funkcija koja vraća JSX**; ime počinje velikim slovom.
+- JSX se prevodi u pozive funkcija koje prave opis interfejsa. Razlike od HTML-a: `className`, `htmlFor`, `onClick`, jedan koreni element (ili fragment `<>…</>`).
+- React **escapuje tekst**: naslov `<script>…` se prikaže kao tekst (zaštita od XSS). Rupe ostaju `dangerouslySetInnerHTML` i korisnički URL u `href` (React 19 blokira `javascript:` URL, ali proveri i ostale šeme).
+- Zamka uslovnog prikaza: `{count && <p/>}` za `count = 0` ispiše „0”; piši `{count > 0 && …}`.
+
+### Props: podaci naniže, događaji naviše
+
+**Jednosmerni tok**: roditelj drži stanje i šalje ga deci kroz props (samo za čitanje). Dete ne menja props, nego pozove funkciju koju je dobilo (`onLend(id)`), a roditelj promeni stanje. Kad dve komponente dele stanje, ono ide u njihovog najbližeg zajedničkog roditelja („lifting state up”). `children` je prop sa sadržajem između oznaka (`<Window>…</Window>`).
+
+### Stanje i ciklus rendera
+
+```tsx
+function Counter() {
+  const [count, setCount] = useState(0)
+  return <button type="button" onClick={() => setCount((c) => c + 1)}>Klikova: {count}</button>
+}
+```
+
+Događaj → `setState` → **render** (React ponovo pozove funkciju komponente) → poređenje novog i starog stabla elemenata → **commit** (menja se samo razlika u pravom DOM-u).
+
+- **Render mora biti čist**: bez poziva API-ja i menjanja spoljnih promenljivih, jer ga React može pozvati više puta. `StrictMode` u razvoju namerno renderuje dvaput (i dvaput pokreće efekte) da takve greške izađu na videlo.
+- Stanje se **ne menja na mestu**: `setBooks([...books, nova])`, ne `books.push(nova)`. React poredi `Object.is(staro, novo)`; ista referenca znači „ništa se nije promenilo”.
+- **Funkcijski update** kad nova vrednost zavisi od stare: `setCount((c) => c + 1)`. Vrednost `count` u jednom renderu je konstanta (snimak); tri puta `setCount(count + 1)` daje +1, a tri puta `setCount(c => c + 1)` daje +3.
+- **Izvedeno stanje se ne čuva**: `const available = books.filter(…)` se računa u renderu, ne ide u `useState`.
+- Render izazivaju: promena sopstvenog stanja, render roditelja i promena konteksta koji komponenta koristi.
+
+### Liste i key
+
+```tsx
+<ul>{books.map((b) => <BookCard key={b.id} book={b} onLend={lend} />)}</ul>
+```
+
+`key` govori React-u koji element je koji između dva rendera. Stabilan ID čuva stanje i DOM pravog reda; indeks niza kao key „seli” stanje na pogrešnu stavku kad se lista sortira ili se iz nje briše. Promena `key`-a namerno pravi novu instancu komponente (resetuje joj stanje).
+
+### Kontrolisano polje
+
+```tsx
+const [query, setQuery] = useState('')
+<input value={query} onChange={(e) => setQuery(e.target.value)} />
+```
+
+Vrednost je u React stanju, pa je stanje jedini izvor istine (lako validirati, očistiti, menjati programski). **Nekontrolisano** polje čuva vrednost u DOM-u i čita se po potrebi (`ref`, `FormData`); React 19 forme sa `action` (pogl. 27) rade baš tako.
+
+## Dublje
+
+**Zašto React ne menja DOM odmah.** Svaki `setState` u istom događaju se grupiše (batching, od React 18 i u Promise-ima i tajmerima), pa sledi jedan render i jedan commit. Poređenje stabala (reconciliation) radi po pretpostavkama: drugi tip elementa na istom mestu znači novo podstablo, a deca liste se upare po `key`-u. Zato je `key` deo identiteta, a ne ukras.
+
+**React 19 u praksi.** `ref` je običan prop (bez `forwardRef`), `<title>` i `<meta>` iz komponente idu u `<head>`, Actions (`useActionState`, `useOptimistic`, `<form action>`) i `use()` za čitanje Promise-a i konteksta. React 19.2 je dodao `<Activity>` (sakrij deo ekrana uz očuvano stanje) i `useEffectEvent`. React Compiler 1.0 (oktobar 2025.) sam memoizuje komponente pri buildu, pa ručni `useMemo`/`useCallback` postaje ređi (pogl. 24, 28).
+
+**Šta reći na intervjuu o virtuelnom DOM-u.** Nije poenta da je „virtuelni DOM brži od DOM-a” (dodatni posao ne može biti brži od direktne izmene), nego da deklarativni opis plus poređenje daje dovoljno brze izmene bez ručnog praćenja šta se promenilo. Za stvarna uska grla postoje memoizacija, virtualizacija dugih lista i deljenje stanja.
+
+## Lab
+
+1. Napravi projekat (`npm create vite@latest`, šablon react-ts) i komponentu `BookCard` sa props-ima `book` i `onLend`.
+2. U `BooksPage` drži listu knjiga u stanju; „Pozajmi” smanjuje `available` pravljenjem novog niza (`map` + spread), ne izmenom.
+3. Napiši namerno `books.push(...)` + `setBooks(books)`, uveri se da se ekran ne osvežava, pa ispravi.
+4. Dodaj sortiranje i u svaku karticu `<input>` za belešku; prikaži razliku između `key={index}` i `key={b.id}` posle sortiranja.
+5. Dodaj pretragu kao kontrolisano polje i filtriranu listu kao izvedenu vrednost (bez drugog `useState`-a).
+6. U `StrictMode` dodaj `console.log` u telo komponente i objasni zašto se ispisuje dvaput.
+
+**Gotovo je kad:** podaci teku naniže, događaji naviše, nijedno stanje se ne menja na mestu, a umeš da pokažeš grešku sa `key={index}` i objasniš je.
+
 ## Pitanja sa intervjua
 
 **P: Kada se React komponenta ponovo iscrtava (re-render)?**
@@ -186,6 +631,12 @@ React poredi staro i novo stanje po referenci. Ako izmeniš isti niz, referenca 
 
 **P: Čemu služi `key` u listi?**
 key govori React-u koja stavka je koja između dva iscrtavanja, pa može da sačuva stanje i DOM tačne stavke pri dodavanju, brisanju ili promeni redosleda. Treba stabilan, jedinstven ID; indeks niza je loš izbor kad se lista menja.
+
+**P: Zašto se komponenta u razvoju renderuje dvaput?**
+StrictMode u razvoju namerno poziva render (i efekte) dvaput, da izađu na videlo nečiste komponente i efekti bez čišćenja. U produkciji toga nema; ako dupli render nešto kvari, render ima sporedni efekat.
+
+**P: Šta je novo u React-u 19 što koristiš?**
+ref kao običan prop umesto forwardRef, Actions sa useActionState i useOptimistic, use() za Promise i kontekst, title i meta iz komponente, a od 19.2 Activity i useEffectEvent; React Compiler 1.0 sam memoizuje pri buildu.
 
 ## Test
 
@@ -227,6 +678,16 @@ const dodaj = () => { stavke.push("nova"); setStavke(stavke); };
 - [ ] DOM čvorove
 - [ ] Promise sa HTML-om
 > JSX se prevodi u pozive koji prave opis interfejsa. React od tog opisa pravi i ažurira stvarni DOM.
+
+## Izvori
+- [React 19 (react.dev blog)](https://react.dev/blog/2024/12/05/react-19)
+- [React 19.2 (react.dev blog)](https://react.dev/blog/2025/10/01/react-19-2)
+- [React Compiler v1.0 (react.dev blog)](https://react.dev/blog/2025/10/07/react-compiler-1)
+- [Render and Commit (react.dev)](https://react.dev/learn/render-and-commit)
+- [Updating Arrays in State (react.dev)](https://react.dev/learn/updating-arrays-in-state)
+- [Rendering Lists: key (react.dev)](https://react.dev/learn/rendering-lists)
+- [Sharing State Between Components (react.dev)](https://react.dev/learn/sharing-state-between-components)
+- [StrictMode (react.dev)](https://react.dev/reference/react/StrictMode)
 =====
 ---
 id: 24

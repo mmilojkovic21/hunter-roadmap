@@ -146,7 +146,9 @@ provereno u najnovijim zvaničnim izvorima; greške nađene usput ispravljaju se
 - ✅ Deo II napredni: 13–17 (paket 1.2.6; u vodiču: Repeatable Read u Postgresu sprečava fantome, PKCE po RFC 9700)
 - ✅ Deo II: 18, 19 (paket 1.2.7; pogl. 18 provereno na kodu i testovima Zaliha, uz eksperiment bez `FOR UPDATE`;
   u vodiču pogl. 19: prioritet konfiguracije sa argumentima komandne linije, spojeno dvostruko „Rate limiting?”)
-- ⬜ Deo III: 20–23 · 24–27 · 28, 29 · 30, 31
+- ✅ Deo III temelji: 20–23 (paket 1.2.8; najnovije: React 19.3, TypeScript 7.0 (Go, jul 2026.), Node 24 sa type stripping-om;
+  u vodiču: primitivni tipovi JS-a, TDZ za let/const, `strict` podrazumevan od TS 6.0, kaskada sa @layer)
+- ⬜ Deo III: 24–27 · 28, 29 · 30, 31
 - ⬜ Deo IV: 32–34 · 35–37 · 38, 39 · 40, 41
 - ⬜ Deo V i VI: 42, 43 · 44–47 · 48, 49
 - ⬜ `vodic-1-osnove-backend.md` … `vodic-5-intervju.md` (pitanja i kartice)

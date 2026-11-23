@@ -37,7 +37,7 @@ pack = {
                    "i 31 poglavlje dodataka.",
     "language": "sr-Latn",
     # Nova verzija: API pri startu ponovo uvozi paket samo kad se verzija promeni (PackImporter.SeedFromFolderAsync).
-    "version": "1.2.7",
+    "version": "1.2.8",
     "author": "Miljan",
     "passPct": manifest["passPct"],
     "xp": manifest["xp"],
