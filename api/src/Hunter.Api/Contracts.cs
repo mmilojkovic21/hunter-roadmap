@@ -54,7 +54,7 @@ public sealed record LevelView(string Name, IReadOnlyList<ChapterRef> Chapters);
 /// <param name="Boss">Stanje boss testa regiona (zaključan dok sva poglavlja nisu očišćena).</param>
 /// <param name="BossQuestions">Koliko pitanja će boss imati (najviše 25; manji region daje sva svoja).</param>
 public sealed record RegionView(string Code, string Title, string Stat, string StatColor, int Percent, IReadOnlyList<LevelView> Levels,
-    BossState Boss, int BossQuestions);
+    BossState Boss, int BossQuestions, string Rank);
 
 /// <param name="BossPassPct">Prolaz za boss test (BossRules.PassPct).</param>
 /// <param name="BossXp">Nagrada za prvi poraženi boss regiona (iz paketa).</param>
@@ -67,7 +67,7 @@ public sealed record ChapterView(
     string? Intro, string? LessonMarkdown, string? DeeperMarkdown, ExerciseDef? Exercise,
     IReadOnlyList<CardDef> Cards, IReadOnlyList<PublicQuestion> Test, IReadOnlyList<SourceDef> Sources,
     IReadOnlyList<Step> Steps, IReadOnlyList<Step> Completed, ChapterStatus Status, int? BestPercent,
-    int PassPct, string RegionTitle, string Level, string? PrevId, string? NextId);
+    int PassPct, string RegionTitle, string Level, string? PrevId, string? NextId, IReadOnlyList<int> StepXp);
 
 /// <param name="QuestCompleted">Ovaj korak je završio dnevni zadatak (okidač za poruku sistema na klijentu).</param>
 public sealed record XpResult(int XpAwarded, LevelInfo Level, bool LevelUp, bool QuestCompleted);

@@ -120,6 +120,8 @@ Dogovorene odluke: Sistem 2.0 izgled prvi (stranice Prijava/Registracija i arena
    - ✅ Korak 2, Status: prozori „STATUS” (`StatusWindow`) i „DNEVNI ZADATAK” (`QuestWindow`, upozorenje o kazni u njemu) u `StatusPage.tsx`.
      Odbrojavanje: `lib/countUp.ts` (čista funkcija, testovi) + `useCountUp`; početna vrednost je ono što je korisnik poslednji put
      video (`useSeenNumbers`, localStorage `hunter.seen.<paket>`), pa se posle završenog koraka XP odbroji od stare vrednosti.
+   - ✅ Korak 3a, Mapa: `MapPage.tsx` sa prozorima MAPA VEŠTINA (gate-ovi), GATE (pločice, Boss gate) i DETALJI (`?c=` bira poglavlje).
+     API: `RegionView.Rank` (RankRules nad poglavljima regiona), `ChapterView.StepXp` (XP po koraku). Dugmad `.btn` u stilu sistema. E2E `mapa.e2e.ts`.
    - **Ostali ekrani po kanvasu (red „Sistem 2.0 — ostali ekrani i novi prozori”):**
      - „10 · Mapa veština”: regioni kao gate-ovi (dugmad sa rangom u rombu i % očišćeno), poglavlja kao pločice sa stanjem
        ✓ očišćeno / ▸ u toku / ○ novo, Boss gate panel na dnu regiona, desno prozor „DETALJI” sa koracima i XP-om.

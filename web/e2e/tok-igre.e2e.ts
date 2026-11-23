@@ -63,7 +63,7 @@ test.describe.serial("tok igre", () => {
     await page.goto("/");
     await expect(page.getByLabel("Rang E")).toBeVisible();
     await page.goto("/map");
-    await expect(page.getByRole("heading", { name: "Full Stack .NET inženjer" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Mapa veština" })).toBeVisible();
 
     const map = await (await request.get("/api/map")).json();
     const region0 = map.regions.find((r: { code: string }) => r.code === "0");

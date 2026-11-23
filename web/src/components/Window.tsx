@@ -7,8 +7,10 @@ import { useId, type ReactNode } from "react";
  * prozora po ekranu, jer je backdrop-filter skup za iscrtavanje.
  * Naslov je pravi naslov (h1/h2), pa se po njemu imenuje sekcija i čitač ekrana ga najavljuje.
  */
-export function Window({ title, level = 2, glass = false, className, children }: {
+export function Window({ title, level = 2, glass = false, badge = "!", className, children }: {
   title: string;
+  /** Znak u naslovnoj traci: „!” za obaveštenja i zadatke, „i” za prozore sa podacima. */
+  badge?: string;
   level?: 1 | 2;
   glass?: boolean;
   className?: string;
@@ -19,7 +21,7 @@ export function Window({ title, level = 2, glass = false, className, children }:
   return (
     <section aria-labelledby={id} className={["win", glass && "win-glass", className].filter(Boolean).join(" ")}>
       <div className="win-head">
-        <span className="win-badge" aria-hidden="true">!</span>
+        <span className="win-badge" aria-hidden="true">{badge}</span>
         <Heading id={id} className="win-title">{title}</Heading>
       </div>
       <div className="win-body">{children}</div>

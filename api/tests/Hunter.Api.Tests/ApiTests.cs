@@ -119,6 +119,18 @@ public sealed class ApiTests(HunterApiFactory factory) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Map_and_chapter_show_region_rank_and_xp_per_step()
+    {
+        var map = await _client.GetFromJsonAsync<MapView>("/api/map", Json);
+        var firstId = map!.Regions[0].Levels[0].Chapters[0].Id;
+        var chapter = await _client.GetFromJsonAsync<ChapterView>($"/api/chapters/{firstId}", Json);
+
+        Assert.All(map.Regions, r => Assert.Equal("E", r.Rank));  // ništa još nije očišćeno
+        Assert.Equal(chapter!.Steps.Count, chapter.StepXp.Count);
+        Assert.Equal(50, chapter.StepXp[chapter.Steps.ToList().IndexOf(Step.Lesson)]);
+    }
+
+    [Fact]
     public async Task Test_step_cannot_be_completed_manually()
     {
         var response = await _client.PostAsync($"/api/chapters/{Chapter}/steps/Test", null);

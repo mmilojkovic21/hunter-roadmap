@@ -28,7 +28,7 @@ export type BossState = "Locked" | "Ready" | "Cleared";
 export interface LevelView { name: string; chapters: ChapterRef[] }
 export interface RegionView {
   code: string; title: string; stat: string; statColor: string; percent: number; levels: LevelView[];
-  boss: BossState; bossQuestions: number;
+  boss: BossState; bossQuestions: number; rank: string;
 }
 export interface MapView { packId: string; packTitle: string; regions: RegionView[]; bossPassPct: number; bossXp: number }
 export interface PublicQuestion { text: string; code: string | null; options: string[] }
@@ -39,6 +39,8 @@ export interface ChapterView {
   test: PublicQuestion[]; sources: { title: string; url: string }[];
   steps: Step[]; completed: Step[]; status: ChapterStatus; bestPercent: number | null; passPct: number;
   regionTitle: string; level: string; prevId: string | null; nextId: string | null;
+  /** XP po koraku, istim redom kao `steps`. */
+  stepXp: number[];
 }
 export interface XpResult { xpAwarded: number; level: LevelInfo; levelUp: boolean; questCompleted: boolean }
 export interface QuestionResult { index: number; chosen: number; correct: number; isCorrect: boolean; why: string }

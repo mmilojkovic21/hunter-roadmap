@@ -295,7 +295,8 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
             var pct = all.Count == 0 ? 0 : (int)Math.Floor(all.Count(c => c.Status == ChapterStatus.Done) * 100.0 / all.Count);
             var boss = BossRules.State(all.Select(c => c.Status).ToList(), cleared.Contains(r.Code));
             var questions = Math.Min(QuestionPool(RegionPlaces(ctx, r.Code)).Count, BossRules.MaxQuestions);
-            return new RegionView(r.Code, r.Title, r.Stat, colors.GetValueOrDefault(r.Stat, "#4DA3FF"), pct, levels, boss, questions);
+            return new RegionView(r.Code, r.Title, r.Stat, colors.GetValueOrDefault(r.Stat, "#4DA3FF"), pct, levels, boss, questions,
+                RankRules.FromCompletion(pct));  // rang regiona: isto pravilo kao rang Huntera, nad poglavljima regiona
         }).ToList();
 
         return new MapView(ctx.Entity.Id, ctx.Entity.Title, regions, BossRules.PassPct, ctx.Loaded.Pack.Xp.Boss);
@@ -398,7 +399,8 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
             c.Sources ?? [], steps, steps.Where(done.Contains).ToList(), ChapterRules.Status(steps, done), best,
             ctx.Loaded.Pack.PassPct, p.Region.Title, p.Level,
             p.Order > 0 ? ordered[p.Order - 1].Chapter.Id : null,
-            p.Order < ordered.Count - 1 ? ordered[p.Order + 1].Chapter.Id : null);
+            p.Order < ordered.Count - 1 ? ordered[p.Order + 1].Chapter.Id : null,
+            steps.Select(st => ChapterRules.XpFor(st, ctx.Loaded.Pack.Xp)).ToList());  // XP po koraku, istim redom kao Steps
     }
 
     // ---------- napredak ----------
