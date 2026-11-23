@@ -1,16 +1,120 @@
 ---
 id: 10
+subtitle: "pipeline, redosled, sopstveni middleware, Use/Run/Map, filteri, endpoint filteri"
+minutes: 45
 ---
+# 10 Middleware i filteri
+
+Middleware je deo koda kroz koji prolazi **svaki** zahtev. Middleware-i su poređani u lanac (pipeline): svaki može da uradi nešto pre sledećeg, pozove sledeći (`await next(context)`), pa uradi nešto posle, ili da prekine lanac i odmah vrati odgovor (short-circuit).
+
+## Pojmovi
+
+### Pipeline kao luk
+
+```
+zahtev → UseExceptionHandler → UseStaticFiles → UseAuthentication → UseAuthorization → endpoint
+odgovor ←        ←                    ←                  ←                    ←
+```
+
+Zahtev ide spolja ka unutra, odgovor nazad istim putem. **Redosled je bitan:** autorizacija bez prethodne autentifikacije ne zna ko je korisnik, a exception handler hvata samo izuzetke iz onoga što je posle njega. Preporučeni redosled iz dokumentacije (za uobičajenu aplikaciju):
+
+```csharp
+app.UseExceptionHandler();      // prvi: obuhvata sve ispod
+app.UseHsts();                  // van Development
+app.UseHttpsRedirection();
+app.UseRouting();               // ako se ne pozove, ugrađen je na početku
+app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();           // posle autentifikacije ako limit zavisi od korisnika
+app.MapControllers();           // endpointi na kraju
+```
+
+### Sopstveni middleware
+
+```csharp
+public class TimingMiddleware(RequestDelegate next, ILogger<TimingMiddleware> logger)
+{
+    public async Task InvokeAsync(HttpContext context)
+    {
+        var start = Stopwatch.GetTimestamp();
+        await next(context);                               // sledeći u lancu
+        logger.LogInformation("{Path} {Status} took {Ms:0.0} ms",
+            context.Request.Path, context.Response.StatusCode, Stopwatch.GetElapsedTime(start).TotalMilliseconds);
+    }
+}
+app.UseMiddleware<TimingMiddleware>();
+// u logu: "/rok 200 took 18.4 ms", "/limit 200 took 0.2 ms"
+```
+
+Middleware klasa ovog oblika se napravi **jednom** (kao singleton), pa scoped servisi (DbContext) ne idu u njen konstruktor, nego kao **parametri `InvokeAsync`**, koje ASP.NET popuni za svaki zahtev.
+
+| Metoda | Šta radi |
+|---|---|
+| `app.Use(...)` | dodaje middleware koji može da pozove sledeći |
+| `app.Run(...)` | terminalni: nikad ne poziva sledeći, sve posle njega se ne izvršava |
+| `app.Map("/putanja", ...)` | grana pipeline po putanji; `MapGet/MapPost` mapiraju endpoint |
+
+### Filteri: oko akcije, ne oko zahteva
+
+Filteri rade samo oko akcija kontrolera i znaju MVC kontekst (koja akcija, argumenti posle model binding-a, rezultat). Redosled: **Authorization → Resource → (model binding) → Action → akcija → Exception → Result**.
+
+| | Middleware | Filter |
+|---|---|---|
+| Važi za | sve zahteve (i statičke fajlove) | akcije kontrolera (ili endpointe, uz endpoint filter) |
+| Zna za | `HttpContext` | akciju, argumente, `ModelState`, rezultat |
+| Primeri | logovanje, greške, autentifikacija, CORS | validacija, antiforgery, keš odgovora akcije |
+
+**Endpoint filteri** su isto za minimal API:
+
+```csharp
+app.MapPost("/api/books/{bookId:int}/loans", (int bookId, CreateLoanRequest r) => ...)
+   .AddEndpointFilter(async (ctx, next) =>
+   {
+       var bookId = ctx.GetArgument<int>(0);                      // argument posle binding-a
+       return bookId <= 0
+           ? TypedResults.Problem(title: "book.invalid_id", statusCode: 400)
+           : await next(ctx);
+   });
+```
+
+## Dublje
+
+**Globalna obrada grešaka.** `AddProblemDetails()` + `UseExceptionHandler()` pretvaraju neuhvaćen izuzetak u `500 application/problem+json` sa `traceId`, bez poruke i stack trace-a izuzetka (detalji idu u log). Za prevođenje poznatih izuzetaka u druge kodove (npr. `DbUpdateConcurrencyException` u 409) implementira se `IExceptionHandler` i registruje sa `AddExceptionHandler<T>()`; handleri se pozivaju redom dok jedan ne vrati `true`.
+
+**Terminalni middleware i `Response.HasStarted`.** Posle `await next(context)` odgovor je možda već poslat; menjanje zaglavlja tada baca izuzetak. Zaglavlja koja treba dodati svakom odgovoru postavljaju se kroz `context.Response.OnStarting(...)` ili pre poziva `next`.
+
+**Middleware koji zavisi od endpointa.** Posle `UseRouting` middleware može da pročita izabrani endpoint i njegove metapodatke: `context.GetEndpoint()?.Metadata.GetMetadata<IAllowAnonymous>()`. Tako rade autorizacija, CORS i rate limiter: ponašanje zavisi od atributa na endpointu.
+
+**Kad šta.** Ono što važi za svaki zahtev i ne zavisi od akcije (merenje, korelacioni ID, zaglavlja) je middleware. Ono što zavisi od argumenata ili rezultata konkretne akcije je filter. Poslovno pravilo nije ni jedno ni drugo: ide u servis ili domen (pogl. 13).
+
+## Lab
+
+1. Napiši `TimingMiddleware` koji loguje putanju, status i trajanje, i registruj ga posle `UseExceptionHandler`.
+2. Napiši middleware koji svakom odgovoru dodaje zaglavlje `X-Request-Id` (novi GUID ili vrednost iz dolaznog zaglavlja), preko `Response.OnStarting`.
+3. Zameni redosled `UseAuthentication` i `UseAuthorization` u aplikaciji sa `[Authorize]` endpointom i zapiši šta se desi sa prijavljenim korisnikom; vrati redosled.
+4. Napravi endpoint koji baca izuzetak i proveri da odgovor ima `status: 500`, `traceId` i nema poruku izuzetka; zatim dodaj `IExceptionHandler` koji `KeyNotFoundException` pretvara u 404.
+5. Dodaj endpoint filter koji odbija `bookId <= 0` sa 400 ProblemDetails.
+6. Napiši `app.Run(...)` ispred `MapGet` i proveri da se endpoint više nikad ne izvršava.
+
+**Gotovo je kad:** svaki zahtev ima `X-Request-Id` i log sa trajanjem, greška vraća ProblemDetails bez detalja, a umeš da objasniš zašto je redosled iz koraka 3 bitan.
+
 ## Pitanja sa intervjua
 
 **P: Šta je middleware i zašto je redosled bitan?**
-Middleware je komponenta u pipeline-u koja dobije zahtev, može nešto da uradi, pa pozove sledeću (`next`) ili sama vrati odgovor. Redosled registracije je redosled izvršavanja: npr. UseAuthentication mora pre UseAuthorization, a obrada izuzetaka na sam početak da bi uhvatila greške iz svega posle nje.
+Middleware je komponenta u pipeline-u koja dobije zahtev, može nešto da uradi, pa pozove sledeću (`next`) ili sama vrati odgovor. Redosled registracije je redosled izvršavanja: npr. UseAuthentication mora pre UseAuthorization, a UseExceptionHandler na početak da bi hvatao greške iz svega posle.
 
 **P: Koja je razlika između middleware-a i filtera?**
-Middleware radi za svaki zahtev, na nivou HTTP-a, i ne zna za akciju ili model. Filteri (action, exception, resource) rade samo oko MVC akcija ili endpointa i vide argumente akcije i rezultat. Za logovanje svih zahteva middleware, za validaciju modela jedne grupe akcija filter.
+Middleware radi za svaki zahtev, na nivou HTTP-a, i ne zna za akciju ili model. Filteri (action, exception, resource) rade samo oko MVC akcija ili endpointa i vide argumente akcije i rezultat. Za logovanje svih zahteva middleware, za validaciju argumenata konkretnih akcija filter.
 
 **P: Šta znači „short-circuit” u pipeline-u?**
 Middleware vrati odgovor bez pozivanja `next`, pa ostatak pipeline-a ne radi. Tako radi npr. middleware za statičke fajlove kad nađe fajl, ili provera API ključa koja odmah vrati 401.
+
+**P: Use, Run i Map?**
+Use dodaje middleware koji može da pozove sledeći; Run je terminalni i završava lanac; Map grana pipeline po putanji, a MapGet/MapPost mapiraju endpoint.
+
+**P: Kako bi globalno obradio greške u API-ju?**
+`AddProblemDetails` i `UseExceptionHandler` na početku pipeline-a: svaka neuhvaćena greška postaje 500 ProblemDetails sa traceId, a detalji idu u log. Poznate greške (konflikt verzije, nepostojeći resurs) prevodi `IExceptionHandler` u odgovarajući kod.
 
 ## Test
 
@@ -48,20 +152,120 @@ Middleware vrati odgovor bez pozivanja `next`, pa ostatak pipeline-a ne radi. Ta
 - [ ] Run se izvršava pre Use
 - [ ] Use je samo za statičke fajlove
 > Run završava pipeline. Sve registrovano posle njega se ne izvršava.
+
+## Izvori
+- [Microsoft Learn: middleware i redosled](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/)
+- [Microsoft Learn: filteri u MVC-u](https://learn.microsoft.com/en-us/aspnet/core/mvc/controllers/filters)
+- [Microsoft Learn: endpoint filteri](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/min-api-filters)
+- [Microsoft Learn: obrada grešaka (IExceptionHandler)](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling)
 =====
 ---
 id: 11
+subtitle: "kontroleri i minimal API, rutiranje, model binding, validacija, DTO, ProblemDetails, OpenAPI"
+minutes: 55
 ---
+# 11 Web API
+
+Kontroler (ili minimal API handler) je **tanak sloj**: HTTP zahtev pretvori u poziv servisa, a rezultat u HTTP odgovor. Poslovne logike u njemu nema. Ovo poglavlje je ugovor API-ja: kako se dolazi do akcije, kako se proverava ulaz i kako izgledaju greške.
+
+## Pojmovi
+
+```csharp
+public record CreateLoanRequest(
+    [Required(ErrorMessage = "validation.required")] Guid? MemberId,
+    [Range(1, 60, ErrorMessage = "validation.out_of_range")] int Days = 14);
+
+[ApiController]                                   // automatska validacija → 400
+[Authorize]
+public class LoansController(LoanService loans) : ControllerBase
+{
+    [HttpPost("api/books/{bookId:guid}/loans")]
+    [ProducesResponseType<LoanDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create(Guid bookId, CreateLoanRequest request, CancellationToken ct)
+    {
+        var result = await loans.LendAsync(bookId, request.MemberId!.Value, request.Days, ct);
+        if (result.NotFound) return NotFound();
+        if (!result.Succeeded) return Problem(statusCode: 400, title: result.ErrorCode);
+        return CreatedAtAction(nameof(Get), new { id = result.Loan!.Id }, result.Loan);
+    }
+}
+```
+
+### Rutiranje i model binding
+
+- **Attribute routing:** ruta je na akciji. `{bookId:guid}` je **ograničenje**: `/api/books/abc/loans` ne pogodi akciju, pa je 404.
+- **Model binding** puni parametre: `bookId` iz rute, `request` iz JSON tela (složeni tipovi uz `[ApiController]`), `[FromQuery] int page` iz upita, `CancellationToken` sam.
+- **Validacija:** atributi (`[Required]`, `[MaxLength]`, `[Range]`) se proveravaju pre akcije; uz `[ApiController]` neispravan model odmah vraća 400 sa listom grešaka. Pravila koja traže bazu („član već ima 5 pozajmica”) proverava servis.
+- **DTO:** API vraća i prima posebne tipove, ne entitete iz baze. Izlaz ne otkriva interna polja, a ulaz sprečava **overposting** (klijent postavi polje koje ne sme, npr. `IsAdmin`).
+
+### Minimal API
+
+```csharp
+builder.Services.AddValidation();            // .NET 10: ista DataAnnotations validacija i za minimal API
+
+app.MapPost("/api/books/{bookId:int}/loans", async (int bookId, CreateLoanRequest r, LoanService s, CancellationToken ct) =>
+    await s.LendAsync(bookId, r, ct) is { } loan
+        ? TypedResults.Created($"/api/loans/{loan.Id}", loan)
+        : TypedResults.NotFound());
+```
+
+Bez tela, sa praznim `MemberId` i `days: 90`, odgovor je 400 sa `errors: { "MemberId": [...], "Days": [...] }`. Kontroleri i minimal API koriste isti pipeline, DI i binding; razlika je organizacija koda (filteri, konvencije, grupisanje sa `MapGroup`).
+
+### Greške: ProblemDetails
+
+ProblemDetails (RFC 9457) je standardni JSON za greške (`application/problem+json`): `type`, `title`, `status`, `detail`, za validaciju `errors`, a ASP.NET Core dodaje `traceId`. Dobra praksa je da API vraća **kodove** umesto prevedenih poruka; klijent ih prevodi na jezik korisnika.
+
+```json
+{ "status": 400, "title": "One or more validation errors occurred.",
+  "errors": { "MemberId": ["validation.required"] }, "traceId": "00-4bf9…" }
+```
+
+### OpenAPI
+
+OpenAPI je mašinski čitljiv opis API-ja: rute, parametri, tipovi i statusni kodovi. `AddOpenApi()` + `MapOpenApi()` ga generišu u vreme izvršavanja na `/openapi/v1.json`; od .NET 10 je to OpenAPI 3.1 (od .NET 11 i 3.2). Interaktivni UI (Swagger UI, Scalar) više nije u šablonu i dodaje se posebno. Iz dokumenta se prave dokumentacija i **generisani klijenti** za frontend (pogl. 28).
+
+## Dublje
+
+**Kodovi greške u celoj aplikaciji.** `AddProblemDetails(o => o.CustomizeProblemDetails = ...)` dodaje zajednička polja (npr. `code`) svakom ProblemDetails odgovoru, a `ConfigureApiBehaviorOptions(o => o.InvalidModelStateResponseFactory = ...)` menja oblik automatskog 400 kod kontrolera. Tako i validacija, i 404, i neočekivani 500 imaju isti oblik koji frontend zna da prevede.
+
+**Verzionisanje bez lomljenja.** Dodavanje polja u odgovor i opcionog polja u zahtev ne lomi klijente; uklanjanje, preimenovanje i promena značenja lome. Takve izmene idu u novu verziju (`/v2/...` ili zaglavlje, npr. biblioteka `Asp.Versioning`), uz rok za gašenje stare.
+
+**Paginacija u odgovoru.** Lista vraća stranu i ukupan broj (`{ items, totalCount, page, pageSize }`) ili, za keyset paginaciju, kursor sledeće strane (`nextCursor`). Maksimalan `pageSize` se ograniči na serveru, inače `?pageSize=1000000` zaobiđe paginaciju.
+
+**`TypedResults` umesto `Results`.** `TypedResults.Created(...)` vraća konkretan tip, pa OpenAPI sam zna statusne kodove i tipove odgovora, a handler se lakše testira bez HTTP-a (proveri se vraćeni objekat).
+
+## Lab
+
+1. Napravi kontroler `LoansController` sa `[ApiController]` i akcijom `POST api/books/{bookId:int}/loans` koja prima `CreateLoanRequest` sa `[Required]` i `[Range]`.
+2. Pošalji prazno telo, telo sa `days: 90` i `bookId` koji nije broj; zapiši statusne kodove i `errors` iz odgovora.
+3. Napravi isti endpoint kao minimal API sa `AddValidation()` i `TypedResults`, i uporedi odgovore.
+4. Dodaj `AddProblemDetails` i u `CustomizeProblemDetails` upiši polje `code` (npr. `"validation.failed"` za 400, `"not_found"` za 404).
+5. Uključi `AddOpenApi()`/`MapOpenApi()`, otvori `/openapi/v1.json` i proveri da su opisani kodovi 201, 400 i 404.
+6. Napravi ulazni DTO bez polja `IsAdmin` i pokaži da poslato `"isAdmin": true` nema efekta (overposting).
+
+**Gotovo je kad:** svaka greška ima isti ProblemDetails oblik sa kodom i `traceId`, a OpenAPI dokument tačno opisuje endpoint.
+
 ## Pitanja sa intervjua
 
 **P: Zašto API vraća DTO, a ne entitet iz baze?**
-Entitet je model baze: može da ima polja koja klijent ne sme da vidi (lozinka, interni status) ili cikluse koji ruše serijalizaciju. DTO je ugovor sa klijentom koji se menja nezavisno od baze. Na ulazu DTO sprečava overposting: klijent ne može da postavi polje koje nije u DTO-u (npr. `IsAdmin`).
+Entitet je model baze: može da ima polja koja klijent ne sme da vidi (lozinka, interni status) ili cikluse koji ruše serijalizaciju. DTO je ugovor sa klijentom koji se menja nezavisno od baze. Na ulazu DTO sprečava overposting.
 
 **P: Kako radiš paginaciju u API-ju?**
-Najjednostavnije offset/limit (`?page=2&pageSize=20`, u SQL-u OFFSET/FETCH) uz ukupan broj. Za velike i promenljive skupove bolja je keyset (cursor) paginacija: „daj 20 posle ID-ja 4580”, jer ne preskače redove i radi brzo i duboko u listi.
+Najjednostavnije offset/limit (`?page=2&pageSize=20`, u SQL-u OFFSET/FETCH) uz ukupan broj. Za velike i promenljive skupove bolja je keyset (cursor) paginacija: „daj 20 posle ID-ja 4580”, jer ne preskače redove i radi brzo i na dalekim stranama.
 
 **P: Šta je ProblemDetails?**
 Standardni JSON format greške (RFC 9457, ranije 7807): `type`, `title`, `status`, `detail`, a za validaciju i `errors`. ASP.NET Core ga koristi za greške modela i AddProblemDetails, pa klijent uvek dobija isti oblik greške.
+
+**P: Šta radi [ApiController]?**
+Automatski 400 za neispravan model, vezivanje složenih tipova iz tela, obavezno attribute routing i ProblemDetails za greške.
+
+**P: Kako verzionišeš API?**
+Dok god samo dodaješ polja, verzija ostaje ista. Izmena koja lomi klijente (uklanjanje, preimenovanje, promena značenja) ide u novu verziju (`/v2` ili zaglavlje), a stara se gasi posle najavljenog roka.
+
+**P: Kontroleri ili minimal API?**
+Oba su punopravna i koriste isti pipeline. Minimal API je kraći i od .NET 10 ima ugrađenu validaciju; kontroleri daju filtere i konvencije koje veliki timovi poznaju. Veći API-ji koriste kontrolere ili grupe minimal endpointa (`MapGroup`).
 
 ## Test
 
@@ -99,10 +303,143 @@ Standardni JSON format greške (RFC 9457, ranije 7807): `type`, `title`, `status
 - [ ] Nikad ne menjati API
 - [ ] Svaki klijent dobija svoj API
 > Dodavanje novog polja obično ne kvari klijente; uklanjanje ili promena značenja kvari. Takve izmene idu u novu verziju dok stari klijenti ne pređu.
+
+## Izvori
+- [Microsoft Learn: web API sa kontrolerima](https://learn.microsoft.com/en-us/aspnet/core/web-api/)
+- [Microsoft Learn: model binding](https://learn.microsoft.com/en-us/aspnet/core/mvc/models/model-binding)
+- [Microsoft Learn: šta je novo u ASP.NET Core 10 (validacija, OpenAPI 3.1)](https://learn.microsoft.com/en-us/aspnet/core/release-notes/aspnetcore-10.0)
+- [Microsoft Learn: OpenAPI u ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/aspnetcore-openapi)
+- [RFC 9457: Problem Details](https://www.rfc-editor.org/rfc/rfc9457.html)
 =====
 ---
 id: 12
+subtitle: "tabele i ključevi, SQL, JOIN, EF Core, change tracker, N+1, migracije"
+minutes: 60
 ---
+# 12 SQL i EF Core
+
+Podaci aplikacije žive u relacionoj bazi: tabele, redovi i veze. EF Core je most između C# objekata i tih tabela: LINQ prevodi u SQL, a izmene objekata u INSERT, UPDATE i DELETE. Da bi se EF koristio dobro, treba znati i SQL koji on šalje.
+
+## Pojmovi
+
+### Relaciona baza
+
+Podaci su u **tabelama** (redovi i kolone). Svaki red ima **primarni ključ** (PK) koji ga jednoznačno određuje. Veza između tabela je **strani ključ** (FK): kolona koja čuva PK reda iz druge tabele i koju baza proverava (ne može pozajmica nepostojeće knjige).
+
+```
+Books(Id PK, Title, AvailableCopies)    Loans(Id PK, BookId FK, MemberId FK, LoanedAt, ReturnedAt NULL)    Members(Id PK, Name, Email UNIQUE)
+```
+
+Knjiga ima mnogo pozajmica (1:N), član mnogo pozajmica (1:N), pa su knjige i članovi u vezi N:N preko `Loans`. **Normalizacija:** svaki podatak na jednom mestu (ime člana samo u `Members`), da se ne bi razilazio.
+
+```sql
+SELECT "Title", "AvailableCopies" FROM "Books" WHERE "AvailableCopies" > 0 ORDER BY "Title";
+INSERT INTO "Loans" ("BookId", "MemberId", "LoanedAt") VALUES (@book, @member, now());
+UPDATE "Books" SET "AvailableCopies" = "AvailableCopies" - 1 WHERE "Id" = @book;
+
+-- JOIN spaja po vezi; GROUP BY grupiše; HAVING filtrira grupe
+SELECT m."Name", COUNT(*) AS active
+FROM "Loans" l JOIN "Members" m ON m."Id" = l."MemberId"
+WHERE l."ReturnedAt" IS NULL
+GROUP BY m."Name" HAVING COUNT(*) >= 3;
+```
+
+**INNER JOIN** vraća samo redove koji imaju par, **LEFT JOIN** sve sa leve strane (desne kolone NULL kad para nema). **WHERE** filtrira pre grupisanja, **HAVING** posle (više u pogl. 47).
+
+### EF Core
+
+```csharp
+public class LibraryDb(DbContextOptions<LibraryDb> options) : DbContext(options)
+{
+    public DbSet<Book> Books => Set<Book>();
+    public DbSet<Loan> Loans => Set<Loan>();
+    protected override void OnModelCreating(ModelBuilder b)
+    {
+        b.Entity<Book>().Property(x => x.Title).HasMaxLength(200);
+        b.Entity<Member>().HasIndex(m => m.Email).IsUnique();
+    }
+}
+
+var book = await db.Books.SingleAsync(b => b.Id == bookId, ct);
+book.Lend();                                         // menja objekat u memoriji
+db.Loans.Add(new Loan { BookId = book.Id, MemberId = memberId, LoanedAt = now });
+await db.SaveChangesAsync(ct);                       // UPDATE + INSERT u jednoj transakciji
+```
+
+**Change tracker:** `DbContext` pamti učitane objekte i njihovo stanje (Added, Unchanged, Modified, Deleted); `SaveChangesAsync` iz toga pravi SQL i izvrši ga u **jednoj transakciji** (Modified → UPDATE samo promenjenih kolona).
+
+### Od LINQ-a do SQL-a
+
+```csharp
+db.Books.AsNoTracking()
+  .Where(b => b.AvailableCopies > 0 && b.Title.ToLower().Contains(term))
+  .OrderBy(b => b.Title).Skip((page - 1) * pageSize).Take(pageSize)
+  .Select(b => new BookDto(b.Id, b.Title, b.AvailableCopies))
+  .ToListAsync(ct);
+```
+
+```sql
+-- SQL koji EF Core 10 + Npgsql pošalje (term = "hob", strana 3 po 20)
+-- @term_contains='%hob%', @p='40' (preskoči), @p2='20' (uzmi)
+SELECT b."Id", b."Title", b."AvailableCopies" FROM "Books" AS b
+WHERE b."AvailableCopies" > 0 AND lower(b."Title") LIKE @term_contains
+ORDER BY b."Title" LIMIT @p2 OFFSET @p
+```
+
+Vrednosti idu kao **parametri**, nikad kao deo SQL teksta. SQL bilo kog upita vidiš sa `query.ToQueryString()` ili u logu kategorije `Microsoft.EntityFrameworkCore.Database.Command`.
+
+| Tehnika | Šta daje (izmereno na 40 pozajmica) |
+|---|---|
+| petlja koja za svaku pozajmicu traži knjigu | **N+1: 41 upit** |
+| `Include(l => l.Book)` | 1 upit (JOIN), celi entiteti |
+| `Select(l => new { l.Id, Naslov = l.Book!.Title })` | 1 upit, samo dve kolone |
+| `AsNoTracking()` | change tracker ne pamti učitano (manje memorije, brže) |
+| `ExecuteUpdateAsync` / `ExecuteDeleteAsync` | 16 redova izmenjeno **jednim** UPDATE-om, bez učitavanja |
+
+**Sirov SQL bezbedno:** `db.Books.FromSql($"SELECT * FROM \"Books\" WHERE \"Title\" = {naslov}")` pretvara interpolaciju u parametar, pa ni `naslov = "x'; DROP TABLE \"Books\"; --"` ne radi ništa osim što ne nađe knjigu. Opasno je samo ručno spajanje stringa sa `FromSqlRaw`.
+
+**Učitavanje veza:** eager (`Include` odmah), explicit (kasnije, na zahtev), lazy (automatski pri pristupu svojstvu; lako pravi N+1, zato se retko uključuje).
+
+### Migracije
+
+Migracija je C# fajl koji opisuje promenu šeme (`Up` i `Down`), napravljen iz razlike modela u kodu i poslednjeg snimka (snapshot). Ide kroz code review kao i ostali kod.
+
+```
+dotnet ef migrations add AddLoanDueDate       # nova migracija iz razlike
+dotnet ef database update                     # primeni na bazu
+dotnet ef migrations script --idempotent      # SQL skripta za produkciju
+```
+
+## Dublje
+
+**EF Core 10 novine koje se vide u upitima.** `LeftJoin` i `RightJoin` su sada pravi LINQ operatori (.NET 10), umesto kombinacije `GroupJoin` + `SelectMany` + `DefaultIfEmpty`:
+
+```csharp
+var nikadPozajmljene = await db.Books
+    .LeftJoin(db.Loans, b => b.Id, l => l.BookId, (b, l) => new { b.Title, LoanId = (int?)l!.Id })
+    .Where(x => x.LoanId == null).CountAsync();          // LEFT JOIN ... WHERE l."Id" IS NULL
+```
+
+Global query filteri mogu biti **imenovani** (više filtera po entitetu, npr. „obrisano” i „firma”), pa se pojedinačno isključuju (`IgnoreQueryFilters(["SoftDelete"])`). Complex types mogu da se mapiraju u JSON kolonu.
+
+**Cartesian explosion.** `Include` dve kolekcije (stavke i slike porudžbine) množi redove: 10 stavki × 10 slika = 100 redova za jednu porudžbinu. `AsSplitQuery()` ih učita u odvojenim upitima (pogl. 45).
+
+**Migracije u produkciji.** `Database.MigrateAsync()` pri startu je jednostavno za jednu instancu. Sa više instanci migracije postaju poseban korak isporuke (SQL skripta ili `efbundle`), a izmene šeme moraju biti kompatibilne sa starom i novom verzijom koda istovremeno (expand/contract, pogl. 38).
+
+**Transakcija preko više `SaveChanges`.** Jedan `SaveChanges` je jedna transakcija. Kad posao traži više koraka (zaključaj red, pa upiši), koristi se `await using var tx = await db.Database.BeginTransactionAsync(ct)` i `CommitAsync` na kraju (pogl. 14).
+
+## Lab
+
+1. Pokreni Postgres (`docker run -d -e POSTGRES_PASSWORD=x -p 55432:5432 postgres:17`), napravi model `Book`, `Member`, `Loan` i `LibraryDb` sa jedinstvenim indeksom na `Email`, i prvu migraciju (`dotnet ef migrations add Initial`, `dotnet ef database update`).
+2. Ubaci 50 knjiga, 3 člana i 40 pozajmica; napiši SQL upit (u `psql`) koji broji aktivne pozajmice po članu sa `GROUP BY` i `HAVING`.
+3. Napiši `DbCommandInterceptor` koji broji upite (ili uključi log `Database.Command`) i izmeri: petlju (N+1), `Include` i projekciju u DTO.
+4. Ispiši `ToQueryString()` za pretragu po naslovu sa paginacijom i pronađi parametre u SQL-u.
+5. Izmeni sve knjige bez slobodnih primeraka sa `ExecuteUpdateAsync` i proveri broj upita; zatim isto sa učitavanjem i `SaveChanges` i uporedi.
+6. Pokušaj SQL injection kroz `FromSql` (interpolacija) i kroz `FromSqlRaw` sa spojenim stringom (na bazi za vežbu!) i objasni razliku.
+7. Dodaj kolonu `DueDate` u `Loan`, napravi migraciju, pročitaj generisani `Up`/`Down` i izvezi `migrations script --idempotent`.
+
+**Gotovo je kad:** imaš tabelu sa brojem upita za tri pristupa (41, 1, 1), migraciju sa skriptom za produkciju i umeš da pokažeš parametre u SQL-u koji EF šalje.
+
 ## Pitanja sa intervjua
 
 **P: Šta je N+1 problem i kako ga rešavaš u EF Core-u?**
@@ -112,7 +449,16 @@ Učitaš N porudžbina jednim upitom, pa u petlji za svaku pristupiš stavkama i
 Upit bez praćenja promena: EF ne pravi snimke entiteta u change tracker-u, pa je brži i troši manje memorije. Koristiš ga za upite samo za čitanje (liste, izveštaji). Ako planiraš izmenu i SaveChanges, treba ti praćenje.
 
 **P: Kako radiš sa migracijama u timu i produkciji?**
-Migracija je fajl u repozitorijumu koji opisuje promenu šeme; pravi se sa `dotnet ef migrations add` i ide kroz code review. U produkciji se primenjuje kontrolisano: SQL skripta (`migrations script --idempotent`), korak u CI/CD-u ili MigrateAsync pri startu za jednostavne aplikacije.
+Migracija je fajl u repozitorijumu koji opisuje promenu šeme; pravi se sa `dotnet ef migrations add` i ide kroz code review. U produkciji se primenjuje kontrolisano: SQL skripta (`migrations script --idempotent`), korak u pipeline-u ili pri startu aplikacije kad radi jedna instanca, uz backup pre rizičnih izmena.
+
+**P: PK, FK i unique indeks?**
+PK jednoznačno određuje red; FK pokazuje na red druge tabele i baza ne dozvoljava vezu ka nepostojećem redu; unique indeks zabranjuje duplikate (email) i ubrzava pretragu po toj koloni.
+
+**P: Kako EF štiti od SQL injection-a?**
+Vrednosti iz LINQ-a i iz interpolacije u `FromSql` šalje kao parametre, odvojeno od SQL teksta. Ranjivo je samo ručno spajanje stringova u `FromSqlRaw` ili `ExecuteSqlRaw`.
+
+**P: Include ili Select?**
+Select (projekcija u DTO) za prikaz: samo potrebne kolone i bez praćenja. Include kad učitavaš entitet da bi ga menjao i sačuvao.
 
 ## Test
 
@@ -155,6 +501,15 @@ foreach (var p in porudzbine)
 - [ ] Sabija tabelu
 - [ ] Paralelizuje upit na više jezgara
 > Bez indeksa je full table scan, O(n). Indeks je kao registar u knjizi: brzo nađe red. Cena: sporiji INSERT/UPDATE i više prostora.
+
+## Izvori
+- [Microsoft Learn: EF Core](https://learn.microsoft.com/en-us/ef/core/)
+- [Microsoft Learn: učitavanje povezanih podataka](https://learn.microsoft.com/en-us/ef/core/querying/related-data/)
+- [Microsoft Learn: sirov SQL i parametri](https://learn.microsoft.com/en-us/ef/core/querying/sql-queries)
+- [Microsoft Learn: ExecuteUpdate i ExecuteDelete](https://learn.microsoft.com/en-us/ef/core/saving/execute-insert-update-delete)
+- [Microsoft Learn: migracije](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/)
+- [Microsoft Learn: šta je novo u EF Core 10](https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew)
+- [PostgreSQL: SELECT i JOIN](https://www.postgresql.org/docs/current/queries-table-expressions.html)
 =====
 ---
 id: 13

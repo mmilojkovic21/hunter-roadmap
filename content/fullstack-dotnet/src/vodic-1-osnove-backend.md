@@ -1203,17 +1203,139 @@ Thread je nit operativnog sistema. Task je posao koji će se završiti i koji mo
 =====
 ---
 id: 8
+subtitle: "host, Program.cs, Kestrel, konfiguracija, options, okruženja, logovanje, TimeProvider"
+minutes: 50
 ---
+# 8 ASP.NET Core
+
+ASP.NET Core je .NET framework za web: API-je, sajtove i real-time. Aplikacija je obična konzolna aplikacija koja u sebi pokreće web server. Sve počinje u `Program.cs`, koji ima dva dela: **registraciju servisa** (šta postoji) i **pipeline** (kako se obrađuje svaki zahtev).
+
+## Pojmovi
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);   // konfiguracija, logovanje, DI kontejner
+
+// 1. SERVISI (Dependency Injection, pogl. 9)
+builder.Services.AddDbContext<LibraryDb>(o => o.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+builder.Services.AddScoped<LoanService>();
+builder.Services.AddProblemDetails();
+builder.Services.AddOpenApi();
+
+var app = builder.Build();                          // od ovde se servisi više ne dodaju
+
+// 2. PIPELINE (middleware, pogl. 10): redosled je bitan
+app.UseExceptionHandler();
+app.UseAuthentication();
+app.UseAuthorization();
+if (app.Environment.IsDevelopment()) app.MapOpenApi();
+app.MapGet("/health", () => "OK");
+app.Run();                                          // pokreće Kestrel i čeka zahteve
+```
+
+### Kestrel i hosting
+
+**Kestrel** je ugrađeni, višeplatformski web server. Brz je, ali se u produkciji obično stavlja iza **reverse proxy-ja** (Nginx, Caddy, IIS, ingress u Kubernetesu) koji radi HTTPS, kompresiju i bezbednosna zaglavlja (pogl. 37). **Generic Host** oko aplikacije pokreće i pozadinske servise (`IHostedService`, `BackgroundService`) i uredno ih gasi.
+
+### Konfiguracija
+
+Podešavanja se slažu iz više izvora, a **kasniji izvor pobeđuje**:
+
+| Redom | Izvor | Napomena |
+|---|---|---|
+| 1 | `appsettings.json` | osnova, u Gitu, bez tajni |
+| 2 | `appsettings.{Environment}.json` | npr. `appsettings.Development.json` |
+| 3 | user secrets | samo u Development, van foldera projekta |
+| 4 | promenljive okruženja | `ConnectionStrings__Default=…`; `__` zamenjuje `:` |
+| 5 | argumenti komandne linije | `--Library:MaxLoans=3` |
+
+**Okruženje** se čita iz `ASPNETCORE_ENVIRONMENT` (ili `DOTNET_ENVIRONMENT`); bez nje je **Production**. U razvoju ga postavlja `launchSettings.json`. Razlike po okruženju: detaljne greške i OpenAPI dokument samo u razvoju, HSTS samo u produkciji.
+
+### Options pattern
+
+```csharp
+// appsettings.json: { "Library": { "MaxLoans": 5, "LoanDays": 14 } }
+public class LibraryOptions
+{
+    [Range(1, 20)] public int MaxLoans { get; set; }
+    [Range(1, 60)] public int LoanDays { get; set; }
+}
+
+builder.Services.AddOptions<LibraryOptions>()
+    .BindConfiguration("Library")
+    .ValidateDataAnnotations()
+    .ValidateOnStart();          // pogrešna vrednost obori aplikaciju PRI STARTU (fail fast)
+
+public class LoanService(IOptions<LibraryOptions> options) { /* options.Value.MaxLoans */ }
+```
+
+`IOptions<T>` se pročita jednom (singleton), `IOptionsSnapshot<T>` jednom po zahtevu (scoped), `IOptionsMonitor<T>` prati izmene fajla uživo. Sa `MaxLoans: 0` aplikacija ne startuje: `OptionsValidationException: … 'MaxLoans' … must be between 1 and 20`. Bolje da padne pri deployu nego da radi pogrešno.
+
+### Logovanje
+
+```csharp
+public class LoanService(ILogger<LoanService> logger)
+{
+    public void Lend(int memberId, int bookId) =>
+        logger.LogInformation("Member {MemberId} borrowed {BookId}", memberId, bookId);
+}
+```
+
+**Strukturisano logovanje:** vrednosti ostaju posebna polja (`MemberId`), pa alati filtriraju po njima; zato se ne piše `$"Member {memberId}"`. Nivoi: Trace, Debug, Information, Warning, Error, Critical; minimalni nivo po kategoriji se podešava u `Logging:LogLevel`.
+
+### Sat kao zavisnost
+
+Kod koji direktno čita `DateTimeOffset.UtcNow` ne može da se testira („šta ako je pozajmica istekla juče?”). Ubacuje se `TimeProvider`: `TimeProvider.System` u aplikaciji, lažni sat u testu (`FakeTimeProvider`):
+
+```csharp
+builder.Services.AddSingleton(TimeProvider.System);
+public class LoanService(TimeProvider time, IOptions<LibraryOptions> o)
+{
+    public DateTimeOffset DueDate() => time.GetUtcNow().AddDays(o.Value.LoanDays);
+}
+```
+
+## Dublje
+
+**Zamka sa `.Date`.** `time.GetUtcNow().Date` vraća `DateTime` bez informacije o zoni; kad se on ponovo pretvori u `DateTimeOffset`, dobije pomak lokalne zone servera (npr. +01:00), pa „ponoć UTC” postane ponoć po Beogradu. Za datume računaj nad `DateTimeOffset` (`AddDays`) ili koristi `DateOnly` kad je bitan samo datum.
+
+**`dotnet run` i launchSettings.json.** `dotnet run` primenjuje prvi profil iz `Properties/launchSettings.json`, a njegove promenljive (npr. `ASPNETCORE_ENVIRONMENT=Development`) gaze one postavljene u terminalu. Ko lokalno proverava ponašanje u Production okruženju, pokreće sa `--no-launch-profile` (ili `dotnet bin/.../App.dll`); inače misli da testira produkciju, a radi u razvoju.
+
+**Graceful shutdown.** Na SIGTERM (Docker, Kubernetes) host prestaje da prima nove zahteve, čeka da se započeti završe i gasi `BackgroundService`-e preko `CancellationToken`-a. Vreme čekanja je `HostOptions.ShutdownTimeout`; pozadinski posao koji ignoriše token biće prekinut na pola.
+
+**Konfiguracija bez restarta.** JSON izvori se podrazumevano učitavaju sa `reloadOnChange`, pa `IOptionsMonitor` vidi izmenu fajla. U kontejneru se konfiguracija obično menja novim deployom (promenljive okruženja), pa je predvidljivije da se vrednosti čitaju jednom.
+
+**Gde ide konfiguracija, a gde tajne.** Ne-tajna podešavanja (limiti, adrese) u `appsettings.json`; tajne nikad u Git: lokalno user secrets, u produkciji promenljive okruženja ili sef (Key Vault, region C1), koji je samo još jedan izvor u istom nizu.
+
+## Lab
+
+1. Napravi `dotnet new web -n Biblioteka` i dodaj u `appsettings.json` sekciju `Library` sa `MaxLoans` i `LoanDays`.
+2. Napravi `LibraryOptions` sa `[Range]` atributima i registruj ih sa `BindConfiguration`, `ValidateDataAnnotations` i `ValidateOnStart`; endpoint `GET /limit` neka vraća `IOptions<LibraryOptions>.Value`.
+3. Postavi `MaxLoans` na 0 i pokreni aplikaciju: zapiši poruku `OptionsValidationException`. Vrati vrednost.
+4. Pokreni sa promenljivom okruženja `Library__MaxLoans=3` i proveri da `/limit` vraća 3; zatim isto sa argumentom `--Library:MaxLoans=2`.
+5. Dodaj `TimeProvider.System` i servis koji računa rok vraćanja; endpoint `GET /rok` neka vrati datum.
+6. Postavi `Logging:LogLevel` tako da se tvoja kategorija loguje na Information, a ostalo na Warning, i dodaj strukturisan log u servis.
+
+**Gotovo je kad:** pogrešna konfiguracija obori aplikaciju pri startu, promenljiva okruženja pobeđuje JSON, a rok vraćanja dolazi iz `TimeProvider`-a.
+
 ## Pitanja sa intervjua
 
 **P: Kojim redom ASP.NET Core čita konfiguraciju?**
-Podrazumevano: appsettings.json, pa appsettings.{Environment}.json, pa user secrets (u Development), pa promenljive okruženja, pa argumenti komandne linije. Kasniji izvor pregazi raniji. Zato u Dockeru vrednosti postavljaš kroz promenljive okruženja (npr. `ConnectionStrings__Db`).
+Podrazumevano: appsettings.json, pa appsettings.{Environment}.json, pa user secrets (u Development), pa promenljive okruženja, pa argumenti komandne linije. Kasniji izvor pregazi raniji. Zato u Dockeru vrednosti postavljaš promenljivim okruženja, bez menjanja fajlova.
 
 **P: Šta je Kestrel?**
 Kestrel je ugrađen, višeplatformski web server u ASP.NET Core-u. Može da radi direktno na internetu, ali se u produkciji često stavlja iza reverse proxy-ja (nginx, IIS, Caddy) koji radi HTTPS, kompresiju i statičke fajlove.
 
 **P: Kada biraš minimal API, a kada kontrolere?**
 Minimal API je manje ceremonije i brži start, dobar za male i srednje servise. Kontroleri daju strukturu, filtere i konvencije koje veliki timovi poznaju. Oba koriste isti pipeline, DI i model binding; nije pitanje performansi nego organizacije koda.
+
+**P: Kako čuvaš tajne?**
+Nikad u Gitu: lokalno user secrets, u produkciji promenljive okruženja ili sef tajni (Key Vault), uz Managed Identity da ni pristup sefu ne traži lozinku.
+
+**P: Šta je options pattern i zašto ValidateOnStart?**
+Sekcija konfiguracije se veže za klasu koja se ubacuje kroz DI (`IOptions<T>`), umesto čitanja stringova po kodu. `ValidateOnStart` proverava vrednosti pri pokretanju, pa pogrešna konfiguracija zaustavi deploy umesto da aplikacija radi pogrešno.
+
+**P: Zašto TimeProvider umesto DateTime.UtcNow?**
+Sat postaje zavisnost koja se u testu zameni lažnim (`FakeTimeProvider`), pa se proverava „istekla pozajmica” bez čekanja i bez zavisnosti od trenutka pokretanja testa.
 
 ## Test
 
@@ -1251,20 +1373,117 @@ Minimal API je manje ceremonije i brži start, dobar za male i srednje servise. 
 - [x] U user secrets (`dotnet user-secrets`) ili u `.env` fajlu koji je u .gitignore
 - [ ] U imenu grane
 > User secrets se čuvaju van foldera projekta i čitaju se samo u Development okruženju. U produkciji idu promenljive okruženja ili sef tajni (Key Vault).
+
+## Izvori
+- [Microsoft Learn: osnove ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/)
+- [Microsoft Learn: konfiguracija](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/)
+- [Microsoft Learn: options pattern i ValidateOnStart](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/options)
+- [Microsoft Learn: okruženja](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/environments)
+- [Microsoft Learn: Kestrel](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel)
+- [Microsoft Learn: TimeProvider](https://learn.microsoft.com/en-us/dotnet/standard/datetime/timeprovider-overview)
 =====
 ---
 id: 9
+subtitle: "registracija, Singleton/Scoped/Transient, captive dependency, keyed servisi, HttpClientFactory"
+minutes: 45
 ---
+# 9 Dependency Injection
+
+Klasa ne pravi svoje zavisnosti (`new EmailNotifier()`), nego ih **traži u konstruktoru**, a **DI kontejner** ih pravi i ubacuje. Klasa tako zavisi od ugovora (interfejsa), a ne od konkretne implementacije, pa joj se u testu lako da lažna, a životni vek i oslobađanje resursa su na jednom mestu.
+
+## Pojmovi
+
+```csharp
+// BEZ DI: čvrsto vezano, test bi slao prave emailove
+public class LoanService { private readonly EmailNotifier _n = new("smtp…"); }
+
+// SA DI: zavisi od ugovora
+public class LoanService(INotifier notifier, LibraryDb db) { }
+
+// Registracija: "kad neko traži X, daj mu Y"
+builder.Services.AddScoped<INotifier, EmailNotifier>();
+builder.Services.AddScoped<LoanService>();
+builder.Services.AddSingleton(TimeProvider.System);
+```
+
+### Životni vek
+
+| Vek | Instanca | Tipično |
+|---|---|---|
+| Singleton | jedna za celu aplikaciju | `TimeProvider`, keš, podešavanja, `IHttpClientFactory` |
+| Scoped | jedna po scope-u; ASP.NET Core pravi scope za svaki HTTP zahtev | `DbContext`, servisi koji ga koriste |
+| Transient | nova svaki put kad se zatraži | lagani servisi bez stanja |
+
+`DbContext` mora biti scoped: nije thread-safe i prati izmene jednog posla. Dva istovremena zahteva nikad ne dele isti `DbContext`.
+
+### Captive dependency
+
+Singleton ne sme da zavisi od scoped servisa: živi zauvek, pa bi zadržao prvi `DbContext` i delio ga između svih zahteva. U Development okruženju ASP.NET Core proverava scope-ove i aplikacija pri prvoj upotrebi javi: `Cannot consume scoped service 'LoanService' from singleton 'Zarobljivac'`. Kad singletonu (npr. pozadinskom servisu) ipak treba scoped servis, pravi svoj kratak scope:
+
+```csharp
+public class ReminderWorker(IServiceScopeFactory scopes) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken ct)
+    {
+        using var scope = scopes.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LibraryDb>();   // svež DbContext za ovaj krug
+        // ...
+    }
+}
+```
+
+### Više implementacija
+
+Ako je isti interfejs registrovan dvaput, `INotifier` u konstruktoru dobija **poslednju** registraciju, a `IEnumerable<INotifier>` **sve**, redom registracije (osnova Strategy obrasca, P2). Od .NET 8 postoje i **keyed servisi**: `AddKeyedScoped<INotifier, SmsNotifier>("sms")`, pa `[FromKeyedServices("sms")] INotifier n`.
+
+### IHttpClientFactory
+
+`new HttpClient()` za svaki poziv iscrpi sokete (socket exhaustion), a jedan statički `HttpClient` zauvek ne vidi promene DNS-a. `AddHttpClient` rešava oba: konekcije se ponovo koriste i povremeno obnavljaju, podešavanja su na jednom mestu, a u testu se podmetne lažni handler.
+
+```csharp
+builder.Services.AddHttpClient<CatalogClient>(c =>
+{
+    c.BaseAddress = new Uri("https://katalog.example/");
+    c.Timeout = TimeSpan.FromSeconds(20);
+});
+```
+
+## Dublje
+
+**Validacija pri izgradnji.** U Development okruženju host uključuje `ValidateScopes` (otkriva captive dependency) i `ValidateOnBuild` (proverava da se svaki registrovani servis može napraviti, pa nedostajuća registracija pukne pri startu, a ne pri prvom zahtevu). U produkciji su isključene zbog brzine starta, zato greške treba da ispliva u razvoju i testovima.
+
+**Dispose je posao kontejnera.** Kontejner poziva `Dispose` na servisima koje je on napravio, na kraju njihovog scope-a (scoped i transient na kraju zahteva, singleton pri gašenju). Objekat koji si sam napravio i predao (`AddSingleton(new X())`) kontejner ne oslobađa. Transient `IDisposable` napravljen iz korenskog providera živi do gašenja aplikacije, što je česta neprimetna „curenje memorije” zamka.
+
+**Konstruktor kao spisak zavisnosti.** Klasa sa deset parametara u konstruktoru je signal da radi previše (SRP, pogl. 13), a ne razlog za service locator (`provider.GetService` usred koda), koji sakriva zavisnosti i otežava testiranje.
+
+**Typed client i otpornost.** `AddHttpClient<CatalogClient>()` uz `AddStandardResilienceHandler()` (paket `Microsoft.Extensions.Http.Resilience`) dodaje retry, timeout i circuit breaker oko svakog poziva (pogl. 16), bez koda u samom klijentu.
+
+## Lab
+
+1. Napravi `INotifier` sa `ConsoleNotifier` i `FakeNotifier`, i `LoanService` koji ga dobija kroz konstruktor; registruj `ConsoleNotifier` i pozovi servis iz endpointa.
+2. Napravi servis koji u konstruktoru ispisuje `Guid.NewGuid()`; registruj ga redom kao Transient, Scoped i Singleton, pozovi ga dvaput u istom zahtevu i u dva zahteva, i zapiši koliko instanci nastaje.
+3. Namerno napravi captive dependency (singleton koji traži scoped servis), pokreni u Development i zapiši poruku; popravi preko `IServiceScopeFactory`.
+4. Registruj dve implementacije `INotifier` i u jednom servisu traži `IEnumerable<INotifier>`, u drugom `INotifier`; zapiši šta svaki dobija.
+5. Napravi typed `HttpClient` sa `BaseAddress` i timeout-om i pozovi njime javni API (npr. `https://httpbin.org/get`).
+
+**Gotovo je kad:** tabela iz koraka 2 pokazuje tri različita ponašanja, captive dependency je otkriven pri startu i ispravljen, a nijedna klasa ne pravi svoje zavisnosti sa `new`.
+
 ## Pitanja sa intervjua
 
 **P: Objasni tri životna veka servisa u ASP.NET Core DI-ju.**
-Transient: nova instanca svaki put kad se zatraži. Scoped: jedna instanca po scope-u, a ASP.NET Core pravi scope za svaki HTTP zahtev. Singleton: jedna instanca za ceo život aplikacije. DbContext je Scoped, HttpClient fabrika i keš su obično Singleton.
+Transient: nova instanca svaki put kad se zatraži. Scoped: jedna instanca po scope-u, a ASP.NET Core pravi scope za svaki HTTP zahtev. Singleton: jedna instanca za ceo život aplikacije. DbContext je Scoped, HttpClient fabrika Singleton.
 
 **P: Šta je captive dependency?**
-Kada servis dužeg veka drži servis kraćeg veka, npr. Singleton u konstruktoru primi Scoped DbContext. Scoped objekat tada živi koliko i Singleton i deli se između zahteva i niti. U Development okruženju validacija scope-a baca izuzetak. Rešenje: IServiceScopeFactory i kratak scope po poslu.
+Kada servis dužeg veka drži servis kraćeg veka, npr. Singleton u konstruktoru primi Scoped DbContext. Scoped objekat tada živi koliko i Singleton i deli se između zahteva i niti. U Development okruženju validacija scope-ova to otkriva pri pokretanju.
 
 **P: Zašto je DI koristan, a ne samo „još jedan sloj”?**
 Klasa traži zavisnosti kroz konstruktor umesto da ih pravi, pa ne zna konkretnu implementaciju. Zato se u testu ubaci lažna implementacija, a konfiguracija (koja baza, koji provajder) je na jednom mestu.
+
+**P: Zašto IHttpClientFactory, a ne new HttpClient()?**
+Novi klijent za svaki poziv iscrpljuje sokete, a jedan statički klijent ne prati promene DNS-a. Fabrika ponovo koristi i povremeno obnavlja konekcije, drži podešavanja na jednom mestu i dozvoljava lažni handler u testu.
+
+**P: Kako dobiješ jednu od više implementacija istog interfejsa?**
+`IEnumerable<T>` pa izbor po svojstvu (Strategy), ili keyed servisi (.NET 8+) sa `[FromKeyedServices("ključ")]`.
 
 ## Test
 
@@ -1302,3 +1521,9 @@ Klasa traži zavisnosti kroz konstruktor umesto da ih pravi, pa ne zna konkretnu
 - [ ] EF Core ne podržava Singleton
 - [ ] Da konekcija ostane otvorena zauvek
 > Change tracker prati učitane entitete jednog zahteva. Deljenje između zahteva bi mešalo promene i pravilo greške sa nitima.
+
+## Izvori
+- [Microsoft Learn: DI u ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection)
+- [Microsoft Learn: smernice za DI (dispose, root scope)](https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection-guidelines)
+- [Microsoft Learn: IHttpClientFactory](https://learn.microsoft.com/en-us/dotnet/core/extensions/httpclient-factory)
+- [Microsoft Learn: otpornost HTTP klijenata](https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience)
