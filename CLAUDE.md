@@ -120,12 +120,29 @@ Za poglavlja vodiča lekcija je u PDF-u (nije u repozitorijumu): proveravaju se 
   `MaximumIterationsPerRequest` (40), HNSW indeks u pgvector-u, AGENTS.md, OWASP LLM 2025 stavke, novi linkovi.
 - ✅ Reference na vodič (paket 1.1.4): sve „pogl. N” u regionima 0, C, AI i Pro proverene prema PDF-u vodiča
   („Od nule do posla”, Zalihe-intervju.pdf, 20. 11. 2026, nije u repou) i tačne; dodato 29 novih referenci.
-  Nepreciznosti u samom vodiču (PDF se ne menja odavde, ispraviti u izvoru vodiča):
+  Izvor vodiča: `../zalihe/docs/vodic/intervju.html` (git ga ignoriše, nema istorije: pre izmene kopija);
+  PDF: Chrome headless `--print-to-pdf` u `Zalihe-intervju.pdf` (152 strane). Ispravljeno u izvoru i PDF-u 23. 11. 2026:
   pogl. 44 „HybridCache (.NET 9+)” (radi i na starijim, zaštita od stampede-a samo po instanci);
   pogl. 44 sticky sessions za SignalR trebaju na više servera i uz Redis backplane, osim WebSockets-only + SkipNegotiation
   ili Azure SignalR; pogl. 15 tabela OWASP prati listu 2021 (u 2025 SSRF je u A01, nove su A03 Supply Chain i
   A10 Exceptional Conditions); pogl. 38 akcije `@v4` su zastarele (v7/v6/v7).
 - ⬜ `region-pro.md` (pune lekcije)
+
+## Pune lekcije za poglavlja vodiča (u toku, zahtev 23. 11. 2026)
+
+Svih 49 poglavlja vodiča dobija u aplikaciji punu lekciju, „Dublje”, vežbu, pitanja i izvore, na osnovu vodiča,
+provereno u najnovijim zvaničnim izvorima; greške nađene usput ispravljaju se i u `intervju.html` (pa novi PDF).
+- Format: blok u `vodic-*.md` sa frontmatter-om `id`, `subtitle`, `minutes` i sekcijama kao region
+  (`## Pojmovi`, `## Dublje`, `## Lab`, `## Pitanja sa intervjua`, `## Test`, `## Izvori`). Blok sa `## Pojmovi`
+  je pun i prolazi istu validaciju kao region; bez nje ostaje samo test i pitanja (lekcija u PDF-u).
+  Puno poglavlje nema `externalRef` (to znači „lekcija van aplikacije”). Postojeći test i pitanja se zadržavaju i proveravaju.
+- Postupak po delu: pročitaj poglavlje u PDF-u → proveri tvrdnje (izvor + URL) → kod iz lekcije i vežbe pokreni →
+  napiši blok → proveri linkove → verzija → build, testovi, e2e → commit.
+- ✅ Deo I: 1, 2 (paket 1.2.0)
+- ⬜ Deo II: 3–7 · 8–12 · 13–17 · 18, 19
+- ⬜ Deo III: 20–23 · 24–27 · 28, 29 · 30, 31
+- ⬜ Deo IV: 32–34 · 35–37 · 38, 39 · 40, 41
+- ⬜ Deo V i VI: 42, 43 · 44–47 · 48, 49
 - ⬜ `vodic-1-osnove-backend.md` … `vodic-5-intervju.md` (pitanja i kartice)
 - ⬜ dopune: uporediti sadržaj sa onim što se traži od full stack .NET inženjera i predložiti nova poglavlja
 

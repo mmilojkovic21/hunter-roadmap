@@ -149,23 +149,41 @@ def main(src: Path, out: Path):
     for ch in chapters:
         del ch["_sections"], ch["_raw"]
 
-    # Poglavlja iz PDF vodiča: lekcija ostaje u vodiču, ovde su samo test i pitanja sa intervjua.
+    # Poglavlja iz PDF vodiča. Blok sa sekcijom "Pojmovi" je pun (lekcija, vežba, izvori) i prolazi
+    # istu proveru kao regioni; blok bez nje ima samo test i pitanja, a lekcija ostaje u PDF-u.
     guide = {}
     for f in sorted(src.glob("vodic-*.md")):
         for block in f.read_text(encoding="utf-8").split("=====\n"):
             if not block.strip():
                 continue
             meta, body = parse_frontmatter(block)
-            _, sections = split_sections(body)
-            ch = {"id": str(meta["id"]), "test": parse_test(sections.get("Test", "")),
+            intro, sections = split_sections(body)
+            ch = {"id": str(meta["id"]), "title": meta.get("title", f"vodič {meta['id']}"),
+                  "test": parse_test(sections.get("Test", "")),
                   "cards": parse_interview(sections.get("Pitanja sa intervjua", "")), "_raw": block}
-            errs = []
-            validate_quiz(ch, errs)
-            if ch["id"] in guide:
-                errs.append("poglavlje se ponavlja")
-            if errs:
-                raise ValueError(f"vodič, poglavlje {ch['id']} ({f.name}): " + "; ".join(errs))
-            guide[ch["id"]] = {"test": ch["test"], "cards": ch["cards"]}
+            full = "Pojmovi" in sections
+            if full:
+                ch.update({
+                    "subtitle": meta.get("subtitle", ""), "minutes": meta.get("minutes", 30),
+                    "intro": "\n".join(l for l in intro.splitlines() if not l.startswith("# ")).strip(),
+                    "lessonMarkdown": sections["Pojmovi"], "deeperMarkdown": sections.get("Dublje", ""),
+                    "lab": parse_lab(sections.get("Lab", "")), "sources": parse_sources(sections.get("Izvori", "")),
+                    "_sections": sections,
+                })
+            try:
+                if full:
+                    validate(ch)
+                else:
+                    errs = []
+                    validate_quiz(ch, errs)
+                    if errs:
+                        raise ValueError("; ".join(errs))
+                if ch["id"] in guide:
+                    raise ValueError("poglavlje se ponavlja")
+            except ValueError as e:
+                raise ValueError(f"vodič, poglavlje {ch['id']} ({f.name}): {e}") from None
+            keys = ["test", "cards"] + (["subtitle", "minutes", "intro", "lessonMarkdown", "deeperMarkdown", "lab", "sources"] if full else [])
+            guide[ch["id"]] = {k: ch[k] for k in keys}
     (out / "guide.json").write_text(json.dumps(guide, ensure_ascii=False, indent=2), encoding="utf-8")
     (out / "content.json").write_text(json.dumps({"chapters": chapters}, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"OK: {len(chapters)} poglavlja, {sum(len(c['test']) for c in chapters)} test pitanja, "

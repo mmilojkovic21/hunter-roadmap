@@ -1,6 +1,71 @@
 ---
 id: 1
+subtitle: "klijent, server, baza, DNS, port, SPA, monolit"
+minutes: 45
 ---
+# 1 Kako radi web aplikacija
+
+Web aplikacija ima tri osnovna dela: **klijent** (browser ili mobilna aplikacija) koji prikazuje i šalje podatke, **server** koji odlučuje šta sme i šta se dešava, i **bazu** koja trajno čuva podatke. Klijent i server pričaju preko mreže, protokolom HTTP. Sve ostalo u ovom putu (React, ASP.NET Core, Docker) su alati za jedan od ta tri dela.
+
+## Pojmovi
+
+| Deo | Gde radi | Posao | Da li mu se veruje |
+|---|---|---|---|
+| Klijent (frontend) | u browseru korisnika | prikaz, unos, interakcija | ne: korisnik može da izmeni JavaScript ili da pošalje zahtev mimo aplikacije |
+| Server (backend) | na serveru | pravila, provere, bezbednost, integracije | da: jedini izvor istine |
+| Baza | na serveru (obično posebnom) | trajno čuvanje, ograničenja (jedinstven email, strani ključevi) | da, ali joj pristupa samo server |
+
+### Put jednog zahteva
+
+1. **DNS:** browser pita koja je IP adresa za `biblioteka.rs` (odgovor se kešira koliko kaže TTL zapisa).
+2. **TCP veza** na port 443 (HTTPS) ili 80 (HTTP). IP adresa označava računar, port program na njemu.
+3. **TLS rukovanje:** server pokaže sertifikat, strane dogovore ključ, pa je sve dalje šifrovano (vodič, pogl. 33).
+4. **HTTP zahtev:** metoda, putanja, zaglavlja, telo (pogl. 2).
+5. **Server** proveri ko je korisnik i šta sme, pita bazu (SQL) i vrati odgovor: HTML ili JSON.
+6. **Browser** parsira HTML, dohvati CSS, JS i slike dodatnim zahtevima i nacrta stranicu (pogl. 20).
+
+**Klijentu se nikad ne veruje.** Validacija u formi je udobnost za korisnika; pravila („ima li slobodnih primeraka”, „sme li ovaj korisnik da briše”) uvek proverava server, jer zahtev može da stigne i iz `curl`-a.
+
+### Dve vrste web aplikacija
+
+| | Server pravi stranice (SSR) | SPA (Single Page Application) |
+|---|---|---|
+| Šta server vraća | gotov HTML za svaki klik | jednom HTML i JavaScript, posle samo podatke (JSON) |
+| Primeri | Razor Pages, MVC, Next.js | React + Vite, Zalihe, ova aplikacija |
+| Dobro | brz prvi prikaz, SEO | brzi prelazi, isti API koristi i mobilna aplikacija |
+| Cena | svaki klik je novi zahtev za stranicu | veći prvi JS, SEO traži dodatni posao |
+
+### Monolit i mikroservisi
+
+| | Monolit (modularni) | Mikroservisi |
+|---|---|---|
+| Šta je | jedna aplikacija i jedna baza, kod podeljen u module/slojeve | više malih aplikacija, svaka sa svojom bazom, pričaju preko mreže |
+| Transakcija | jedna, u bazi | distribuirana (saga, outbox), mrežne greške su normalne |
+| Deploy | jedan | nezavisan po servisu, ali složeniji (orkestracija, praćenje) |
+| Kad | mali i srednji tim, nov proizvod | veliki timovi koji moraju da isporučuju i skaliraju nezavisno |
+
+Za mali tim je pravi izbor **modularni monolit**: jedan proces, ali kod jasno podeljen, pa se deo kasnije može izdvojiti.
+
+## Dublje
+
+**DNS korak po korak.** Browser prvo gleda svoj keš, pa keš operativnog sistema, pa pita resolver (kod provajdera ili javni, npr. 1.1.1.1). Resolver, ako nema odgovor, pita root server, pa server za `.rs`, pa autoritativni server domena. Zato promena DNS zapisa ne važi odmah: stari odgovor živi u keševima dok ne istekne TTL.
+
+**Verzije HTTP-a.** HTTP/1.1 šalje jedan zahtev po vezi u isto vreme, pa browser otvara više veza. HTTP/2 šalje više zahteva istovremeno kroz jednu vezu (multipleksiranje). HTTP/3 ide preko QUIC-a, koji radi nad UDP-om, pa gubitak jednog paketa ne zaustavlja ostale tokove. Za kod aplikacije razlika je skoro nevidljiva: metode, statusi i zaglavlja su isti.
+
+**TLS 1.3** završava rukovanje u jednom povratnom putu (1-RTT), pa je HTTPS danas jedva sporiji od HTTP-a. Zato nema razloga za sajt bez HTTPS-a.
+
+**Gde se gubi vreme.** U alatu Network u browseru svaki zahtev ima vremensku liniju: DNS, uspostavljanje veze, TLS, čekanje na prvi bajt (TTFB, to je vreme servera i baze) i preuzimanje. Kad je stranica spora, prvo pogledaj koji deo je dug: dug TTFB je problem servera, dugo preuzimanje je prevelik odgovor.
+
+## Lab
+
+1. U terminalu pokreni `dig +short example.com` (ili `nslookup example.com`) i zapiši IP adresu; pokreni ponovo `dig example.com` i pronađi TTL zapisa.
+2. Pokreni `curl -v https://example.com -o /dev/null` i u izlazu pronađi: IP i port, TLS verziju, sertifikat (subject, issuer), zahtev (`> GET / HTTP/2`) i statusni red odgovora.
+3. Otvori bilo koji sajt sa uključenim DevTools → Network, osveži stranicu i za glavni dokument zapiši vremena: DNS, Initial connection, SSL, Waiting for server response (TTFB), Content download.
+4. U istom alatu na jednom POST zahtevu izaberi „Copy as cURL”, izmeni telo i pošalji ga iz terminala: tako izgleda zahtev mimo frontend validacije.
+5. Nacrtaj na papiru put jednog zahteva tvoje aplikacije (browser, DNS, proxy, API, baza) sa brojevima koraka iz lekcije.
+
+**Gotovo je kad:** za jednu stranicu umeš da pokažeš koliko je trajao svaki korak (DNS, veza, TLS, server, preuzimanje) i da objasniš zašto server mora ponovo da proveri sve što frontend već proverava.
+
 ## Pitanja sa intervjua
 
 **P: Šta se dešava od trenutka kad u pregledač ukucaš URL do prikaza stranice?**
@@ -11,6 +76,15 @@ Svaki zahtev je nezavisan; server ne pamti prethodni. Stanje se prenosi u samom 
 
 **P: Čemu služi reverse proxy ispred aplikacije?**
 Prima sav saobraćaj na 80/443, završava HTTPS, prosleđuje zahteve odgovarajućoj aplikaciji, može da servira statičke fajlove, kompresuje, kešira i deli opterećenje. Aplikacija iza njega ne mora da bude direktno izložena internetu.
+
+**P: Zašto se pravila ne proveravaju samo na frontendu?**
+Frontend je kod u rukama korisnika; može se izmeniti ili zaobići (curl, Postman, izmenjen JavaScript). Server je jedini kome se veruje; frontend validacija je samo radi udobnosti i brzog odziva.
+
+**P: Monolit ili mikroservisi?**
+Zavisi od tima i domena. Mali tim: modularni monolit (jedna transakcija, jedan deploy, lako praćenje). Mikroservisi kad timovi moraju da rade, isporučuju i skaliraju nezavisno, uz cenu distribuiranih transakcija, mrežnih grešaka i složenijeg deploya.
+
+**P: SPA ili stranice sa servera?**
+SPA kad je aplikacija iza prijave, sa mnogo interakcije i API-jem koji koristi i mobilna aplikacija. Stranice sa servera (ili Next.js) kad su važni SEO i brz prvi prikaz, npr. javni sajt ili prodavnica.
 
 ## Test
 
@@ -48,10 +122,122 @@ Prima sav saobraćaj na 80/443, završava HTTPS, prosleđuje zahteve odgovaraju�
 - [x] Izvršavanje SQL upita nad bazom
 - [ ] Serviranje statičkih fajlova
 > Reverse proxy (nginx, Caddy) radi na nivou HTTP-a. Upite ka bazi šalje aplikacija, ne proxy.
+
+## Izvori
+- [MDN: kako radi web](https://developer.mozilla.org/en-US/docs/Learn_web_development/Getting_started/Web_standards/How_the_web_works)
+- [MDN: kako browser prikazuje stranicu](https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/How_browsers_work)
+- [MDN: DNS](https://developer.mozilla.org/en-US/docs/Glossary/DNS)
+- [RFC 9114: HTTP/3 preko QUIC-a](https://www.rfc-editor.org/rfc/rfc9114.html)
+- [Chrome DevTools: vremena u Network panelu](https://developer.chrome.com/docs/devtools/network/reference)
+- [Martin Fowler: MonolithFirst](https://martinfowler.com/bliki/MonolithFirst.html)
 =====
 ---
 id: 2
+subtitle: "zahtev, odgovor, metode, statusi, REST, cookie, CORS"
+minutes: 55
 ---
+# 2 HTTP i REST
+
+HTTP je protokol zahtev–odgovor: klijent pošalje zahtev, server vrati odgovor. Svaki zahtev je nezavisan (**stateless**): server ne pamti prethodni, pa sve što treba da „preživi” između zahteva (ko je prijavljen) putuje u svakom zahtevu, kao cookie ili token. REST je stil kojim se nad HTTP-om pravi API.
+
+## Pojmovi
+
+### Anatomija zahteva i odgovora
+
+```
+POST /api/books/42/loans HTTP/2          ← metoda i putanja (resurs)
+Host: biblioteka.rs
+Content-Type: application/json           ← zaglavlja
+Cookie: auth=CfDJ8…
+
+{ "memberId": 7, "days": 14 }            ← telo (JSON)
+```
+
+```
+HTTP/2 201 Created                       ← statusni kod
+Location: /api/loans/1001
+Content-Type: application/json
+
+{ "id": 1001, "bookId": 42, "dueAt": "2026-11-10T00:00:00Z" }
+```
+
+### Metode
+
+| Metoda | Značenje | Bezbedna (ne menja ništa) | Idempotentna |
+|---|---|---|---|
+| GET, HEAD | čitanje | da | da |
+| POST | kreiranje, akcija | ne | ne |
+| PUT | zamena celog resursa | ne | da |
+| PATCH | delimična izmena | ne | nije zagarantovano |
+| DELETE | brisanje | ne | da |
+
+**Idempotentno** znači da isti zahtev poslat više puta ima isti nameravani efekat kao poslat jednom (RFC 9110). To je važno za ponovne pokušaje: GET, PUT i DELETE se smeju ponoviti posle mrežne greške, POST ne, jer bi dvaput napravio pozajmicu.
+
+### Statusni kodovi
+
+| Kod | Značenje | Primer u Biblioteci |
+|---|---|---|
+| 200 / 201 / 204 | uspeh / napravljeno (uz `Location`) / uspeh bez tela | lista knjiga / nova knjiga / izmena |
+| 202 | primljeno, obradiće se kasnije | izveštaj koji se pravi u pozadini |
+| 304 | nije menjano, koristi keš | `If-None-Match` sa ETag-om |
+| 400 | neispravan zahtev (validacija) | prazan naslov |
+| 401 / 403 | nisi prijavljen / prijavljen, ali nemaš pravo | istekao cookie / član briše knjigu |
+| 404 | ne postoji | `/api/books/99` |
+| 405 | metoda nije podržana na toj putanji | DELETE na listu |
+| 409 | sukob sa trenutnim stanjem | nema slobodnih primeraka |
+| 422 | sintaksa ispravna, sadržaj ne može da se obradi | neki API-ji ga koriste umesto 400 za validaciju |
+| 429 | previše zahteva (rate limit), uz `Retry-After` | pogađanje lozinke |
+| 500 / 503 | greška na serveru / servis trenutno nedostupan | izuzetak / baza ne odgovara |
+
+### REST
+
+Resursi su imenice u množini, a metoda kaže šta se radi:
+
+```
+GET    /api/books?page=2&pageSize=50&search=tolkin   lista (paginacija na serveru)
+GET    /api/books/42                                 jedna knjiga
+POST   /api/books                                    nova knjiga
+PUT    /api/books/42                                 izmena
+DELETE /api/books/42                                 brisanje
+POST   /api/books/42/loans                           nova pozajmica te knjige (podresurs)
+```
+
+Liste uvek imaju **paginaciju na serveru**: lista od 100.000 knjiga bez nje obori i server i browser. Glagoli u putanji (`/getBooks`) su znak RPC stila.
+
+### Cookie, sesija, token
+
+- **Cookie** postavlja server (`Set-Cookie`), a browser ga sam šalje uz svaki sledeći zahtev ka istom sajtu. Atributi: `HttpOnly` (JavaScript ga ne vidi), `Secure` (samo HTTPS), `SameSite` (`Strict`, `Lax`, `None`: da li ide uz zahteve sa drugih sajtova). Najviše oko 4 KB po cookie-ju.
+- **Sesija:** cookie nosi samo ID, podaci su na serveru. Ili je cookie sam šifrovan „karton” korisnika (ASP.NET Core cookie autentifikacija), pa server ne čuva ništa.
+- **Bearer token** (npr. JWT): klijent ga šalje ručno u `Authorization: Bearer …`. Pogodan za mobilne aplikacije i server-server pozive (vodič, pogl. 15).
+
+### Poreklo i CORS
+
+**Poreklo** (origin) je šema + domen + port (`https://biblioteka.rs:443`). Browser ne dozvoljava JavaScriptu sa jednog porekla da čita odgovore sa drugog, osim ako server to dozvoli **CORS** zaglavljima (`Access-Control-Allow-Origin`). Za „nejednostavne” zahteve (npr. POST sa JSON-om) browser prvo pošalje **preflight** `OPTIONS` i pita sme li. Ako su frontend i API na istom poreklu (npr. iza istog proxy-ja), CORS nije potreban. CORS štiti korisnika u browseru, ne server: `curl` ga ignoriše.
+
+### JSON i datumi
+
+Objekti `{ }`, nizovi `[ ]`, stringovi, brojevi, `true`/`false`, `null`. Datumi nemaju svoj tip, pa se šalju kao string u ISO 8601 formatu, u UTC: `"2026-11-10T00:00:00Z"`. Greške se vraćaju kao ProblemDetails, `application/problem+json` (RFC 9457, vodič pogl. 11).
+
+## Dublje
+
+**Idempotency key za POST.** Kad klijent mora da ponovi POST (npr. plaćanje posle prekida mreže), šalje jedinstven ključ u zaglavlju (`Idempotency-Key`, IETF nacrt; koristi ga npr. Stripe). Server pamti ključ i rezultat, pa drugi isti zahtev vrati prvi rezultat umesto nove porudžbine.
+
+**SameSite i CSRF.** `Lax` šalje cookie uz navigaciju na tvoj sajt sa drugog sajta (klik na link), ali ne uz POST sa tuđeg sajta. Neki browseri koriste `Lax` kad atribut nije postavljen, ali ne svi, pa se postavlja eksplicitno. To je jedan sloj odbrane od CSRF-a; drugi je antiforgery token (vodič, pogl. 15).
+
+**ETag i 304.** Server uz odgovor pošalje `ETag` (otisak sadržaja). Klijent sledeći put pošalje `If-None-Match`; ako se ništa nije promenilo, server vrati `304 Not Modified` bez tela, pa se štedi prenos (vodič, pogl. 44).
+
+**400 ili 422?** RFC 9110 definiše 422 za sadržaj koji je sintaksno ispravan, ali ne može da se obradi. ASP.NET Core sa `[ApiController]` za validaciju podrazumevano vraća 400 sa ProblemDetails; bitno je da tim izabere jedno i drži se toga.
+
+## Lab
+
+1. Napravi `dotnet new web -n Biblioteka` i u `Program.cs` napiši minimal API sa `GET /api/books` (sa `page` i `pageSize`), `GET /api/books/{id:int}`, `POST /api/books`, `PUT /api/books/{id:int}`, `DELETE /api/books/{id:int}` i `POST /api/books/{id:int}/loans`; knjige čuvaj u `ConcurrentDictionary`, a `builder.Services.AddProblemDetails()` uključi da greške budu ProblemDetails.
+2. Neka POST vraća `Results.Created($"/api/books/{id}", book)`, prazan naslov `Results.ValidationProblem(...)`, nepostojeća knjiga `Results.NotFound()`, pozajmica bez slobodnog primerka i brisanje pozajmljene knjige `Results.Conflict(new { code = "..." })`, a PUT i DELETE `Results.NoContent()`.
+3. Pozovi svaki endpoint sa `curl -i` i zapiši status i zaglavlja: 201 sa `Location`, 400 sa `application/problem+json` i `traceId`, 404, 409, 204.
+4. Pošalji isti PUT dvaput i isti POST pozajmice dvaput: uporedi stanje posle oba (idempotentno i nije).
+5. Pošalji preflight: `curl -i -X OPTIONS http://localhost:<port>/api/books -H "Origin: http://localhost:5173" -H "Access-Control-Request-Method: POST"`. Bez CORS-a odgovor je 405. Dodaj `AddCors` sa `WithOrigins("http://localhost:5173")` i `app.UseCors()`, ponovi: 204 sa `Access-Control-Allow-Origin`, a za drugo poreklo 204 bez tog zaglavlja (browser blokira).
+
+**Gotovo je kad:** svaki endpoint vraća tačan statusni kod iz tabele, umeš da objasniš zašto je PUT idempotentan a POST pozajmice nije, i vidiš razliku u preflight odgovoru za dozvoljeno i strano poreklo.
+
 ## Pitanja sa intervjua
 
 **P: Koja HTTP metoda je idempotentna, a koja nije, i zašto je to bitno?**
@@ -62,6 +248,15 @@ GET, PUT i DELETE su idempotentne: isti zahtev poslat više puta ostavlja isto s
 
 **P: Kako izgleda dobar REST URL za stavke jedne porudžbine?**
 Resursi su imenice u množini, a akcija je HTTP metoda: `GET /orders/42/items`, `POST /orders/42/items`, `DELETE /orders/42/items/7`. Glagoli u putanji (`/getOrderItems`) su znak RPC stila, ne REST-a.
+
+**P: Šta je CORS i da li štiti API?**
+Mehanizam kojim server zaglavljima dozvoljava JavaScriptu sa drugog porekla da čita njegove odgovore; za nejednostavne zahteve browser prvo šalje preflight `OPTIONS`. Štiti korisnika u browseru, ne server: `curl` i drugi serveri ga ignorišu, pa se API štiti prijavom i autorizacijom.
+
+**P: Zašto paginacija mora da bude na serveru?**
+Bez nje server čita i šalje celu tabelu, a browser je crta; sa 100.000 redova pada oboje. Server vraća jednu stranu (`page`, `pageSize`, ukupan broj), a za vrlo duboke strane keyset paginaciju (vodič, pogl. 47).
+
+**P: Kako bezbedno ponoviti POST posle mrežne greške?**
+Klijent šalje jedinstven idempotency key u zaglavlju; server pamti ključ i rezultat, pa ponovljeni zahtev dobije prvi rezultat umesto da napravi novu porudžbinu.
 
 ## Test
 
@@ -99,6 +294,16 @@ Resursi su imenice u množini, a akcija je HTTP metoda: `GET /orders/42/items`, 
 - [x] 409 Conflict
 - [ ] 405 Method Not Allowed
 > 409 znači da zahtev nije u skladu sa trenutnim stanjem resursa. 400 je za neispravan zahtev (pogrešan format, nedostaje polje).
+
+## Izvori
+- [RFC 9110: HTTP semantika (metode, idempotentnost, statusi)](https://www.rfc-editor.org/rfc/rfc9110.html)
+- [RFC 9457: Problem Details](https://www.rfc-editor.org/rfc/rfc9457.html)
+- [MDN: HTTP statusni kodovi](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status)
+- [MDN: CORS i preflight](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS)
+- [MDN: Set-Cookie (HttpOnly, Secure, SameSite)](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie)
+- [Microsoft Learn: odgovori u minimal API-ju](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/responses)
+- [Microsoft Learn: CORS u ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/security/cors)
+- [IETF nacrt: Idempotency-Key zaglavlje](https://datatracker.ietf.org/doc/draft-ietf-httpapi-idempotency-key-header/)
 =====
 ---
 id: 3

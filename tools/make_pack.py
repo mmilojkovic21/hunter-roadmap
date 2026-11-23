@@ -30,12 +30,14 @@ pack = {
     "format": "hunter-pack/1",
     "id": "fullstack-dotnet",
     "title": "Full Stack .NET inženjer",
+    # Opis se računa iz sadržaja, jer poglavlja vodiča postepeno dobijaju punu lekciju u aplikaciji.
     "description": "Od nule do posla: .NET, React, DevOps, cloud, AI i priprema za intervju. "
-                   "49 poglavlja iz PDF vodiča (lekcija u vodiču, test i pitanja sa intervjua ovde) "
-                   "i 31 poglavlje sa punim sadržajem.",
+                   f"49 poglavlja iz vodiča, od toga {sum('lessonMarkdown' in g for g in guide.values())} "
+                   "sa punom lekcijom u aplikaciji (ostala: lekcija u PDF vodiču, test i pitanja ovde), "
+                   "i 31 poglavlje dodataka.",
     "language": "sr-Latn",
     # Nova verzija: API pri startu ponovo uvozi paket samo kad se verzija promeni (PackImporter.SeedFromFolderAsync).
-    "version": "1.1.4",
+    "version": "1.2.0",
     "author": "Miljan",
     "passPct": manifest["passPct"],
     "xp": manifest["xp"],
@@ -50,11 +52,16 @@ for r in manifest["regions"]:
         for c in lvl["chapters"]:
             if c["source"] == "vodic":
                 g = guide.get(c["id"], {"test": [], "cards": []})
+                # Pun blok u vodic-*.md: lekcija je u aplikaciji, pa nema externalRef
+                # (externalRef znači „lekcija je van aplikacije”, tako ga prikazuje i mapa i poglavlje).
+                full = "lessonMarkdown" in g
                 chapters.append({
-                    "id": c["id"], "title": c["title"], "subtitle": "", "minutes": 30,
-                    "externalRef": f"PDF vodič „Od nule do posla”, poglavlje {c['guideChapter']}",
-                    "intro": "", "lessonMarkdown": "", "deeperMarkdown": "",
-                    "exercise": None, "cards": g["cards"], "test": g["test"], "sources": [],
+                    "id": c["id"], "title": c["title"], "subtitle": g.get("subtitle", ""), "minutes": g.get("minutes", 30),
+                    "externalRef": None if full else f"PDF vodič „Od nule do posla”, poglavlje {c['guideChapter']}",
+                    "intro": g.get("intro", ""), "lessonMarkdown": g.get("lessonMarkdown", ""),
+                    "deeperMarkdown": g.get("deeperMarkdown", ""),
+                    "exercise": {"steps": g["lab"]["steps"], "done": g["lab"]["done"]} if full else None,
+                    "cards": g["cards"], "test": g["test"], "sources": g.get("sources", []),
                 })
             else:
                 x = content[c["id"]]
