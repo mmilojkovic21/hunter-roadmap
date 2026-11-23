@@ -154,7 +154,10 @@ provereno u najnovijim zvaničnim izvorima; greške nađene usput ispravljaju se
   ispravljeno: React Router 8 (jun 2026., bez `react-router-dom`) u pogl. 26, `SubmitEvent` umesto zastarelog `FormEvent`
   u pogl. 27; u vodiču pogl. 30: prodaja je porudžbina (`useCreateOrder`), novo ime testa, Zustand 5 selektor sa novim
   objektom = beskonačna petlja. Pogl. 42 u vodiču još opisuje prodaju kao `POST /api/items/{id}/movements`: proveriti uz 42.)
-- ⬜ Deo IV: 32–34 · 35–37 · 38, 39 · 40, 41
+- ✅ Deo IV: 32–34 (paket 1.2.12; skripta, Git scenariji i TLS 1.3 preko openssl pokrenuti; u vodiču pogl. 33: TLS 1.3
+  redosled rukovanja (razmena ključeva pre sertifikata) i kraći sertifikati: 200 dana od 15. 3. 2026., Let's Encrypt 64/45 dana.
+  Pazi: red koji je tačno `=======` (oznaka konflikta) u vodic-*.md cepa blok, jer je separator `=====`.)
+- ⬜ Deo IV: 35–37 · 38, 39 · 40, 41
 - ⬜ Deo V i VI: 42, 43 · 44–47 · 48, 49
 - ⬜ `vodic-1-osnove-backend.md` … `vodic-5-intervju.md` (pitanja i kartice)
 - ⬜ dopune: uporediti sadržaj sa onim što se traži od full stack .NET inženjera i predložiti nova poglavlja
