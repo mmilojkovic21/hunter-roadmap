@@ -701,7 +701,7 @@ Hookovi se pozivaju samo na najvišem nivou komponente ili sopstvenog hooka, nik
 Vraća se iz efekta i React je poziva pre sledećeg pokretanja efekta i pri uklanjanju komponente. Tu se odjavljuju pretplate, brišu tajmeri i prekidaju zahtevi (AbortController), da ne bi curela memorija ili stizali odgovori za komponentu koje više nema.
 
 **P: Šta je „stale closure” u hookovima?**
-Efekat ili callback uhvati vrednost stanja iz iscrtavanja u kome je napravljen. Ako se ne doda u niz zavisnosti, i dalje vidi staru vrednost. Rešenje: tačne zavisnosti, funkcijski oblik setState (`setBroj(b => b + 1)`) ili useRef za vrednost koja ne treba da izaziva iscrtavanje.
+Efekat ili callback uhvati vrednost stanja iz iscrtavanja u kome je napravljen. Ako se ne doda u niz zavisnosti, i dalje vidi staru vrednost. Rešenje: tačne zavisnosti, funkcijski oblik setState (`setBroj(b => b + 1)`) ili useRef za vrednost koja ne treba da izaziva iscrtavanje. Od React 19.2 postoji i `useEffectEvent`: funkcija koju efekat poziva uvek vidi najnovije props-e i stanje, a ne mora u niz zavisnosti (samo za „događaje” iz efekta, ne da bi se ućutkao linter).
 
 ## Test
 
@@ -747,7 +747,7 @@ if (korisnik) {
 - [x] Za skupo izračunavanje ili da referenca objekta ostane ista između iscrtavanja
 - [ ] Za čuvanje stanja forme
 - [ ] Za pozive API-ja
-> useMemo ima svoju cenu. Koristi se kad je izračunavanje skupo ili kad stabilna referenca sprečava suvišna iscrtavanja dece (uz memo).
+> useMemo ima svoju cenu. Koristi se kad je izračunavanje skupo ili kad stabilna referenca sprečava suvišna iscrtavanja dece (uz memo). Uz React Compiler (stabilan od oktobra 2025.) memoizacija se dodaje automatski pri buildu, pa ručni useMemo ostaje za retke slučajeve.
 =====
 ---
 id: 25
@@ -865,6 +865,9 @@ Svako polje ima `<label>` povezan sa njim (htmlFor/id), greške su tekstom uz po
 **P: Kako prikazuješ datume i iznose za različite jezike?**
 Preko Intl API-ja: `Intl.NumberFormat("sr-Latn-RS", { style: "currency", currency: "RSD" })` i `Intl.DateTimeFormat`. Tekstovi idu u fajlove prevoda (npr. i18next), a ne u kod. Datumi se čuvaju i šalju u UTC, a lokalno se samo prikazuju.
 
+**P: Šta React 19 menja u radu sa formama?**
+Forma može da dobije funkciju kao `action`: React sam spreči ponovno učitavanje, prosledi `FormData`, a posle uspeha resetuje nekontrolisana polja. `useActionState` daje rezultat poslednjeg slanja i `isPending`, `useFormStatus` dugmetu kaže da je slanje u toku, a `useOptimistic` odmah prikaže očekivani ishod. Za složenu validaciju i dalje su korisne biblioteke formi.
+
 ## Test
 
 ### 1. Zašto server mora da validira podatke iako ih frontend već proverava?
@@ -967,6 +970,9 @@ Test tako koristi aplikaciju kao korisnik i čitač ekrana: „dugme Sačuvaj”
 **P: Da li je `VITE_API_KEY` u .env fajlu tajna?**
 Nije. Sve promenljive sa prefiksom VITE_ se ugrađuju u JS bundle i vidi ih svako ko otvori aplikaciju. Tajne ostaju na serveru; frontend zove svoj backend, a backend koristi ključ.
 
+**P: Da li Vite proverava TypeScript tipove?**
+Ne. Vite pri prevođenju samo briše tipove, da bi bio brz; tipove proverava `tsc` (zato je build `tsc -b && vite build`, a u razvoju greške prikazuje editor). Od Vite 8 i produkcijski build i razvoj idu kroz jedan bundler, Rolldown (Rust), a TypeScript 7 je proveru tipova ubrzao oko deset puta.
+
 ## Test
 
 ### 1. Ko vidi vrednost `import.meta.env.VITE_MAPS_KEY` u produkciji?
@@ -1053,4 +1059,4 @@ Kad se vrednost može izračunati iz props-a i stanja tokom iscrtavanja (filtrir
 - [x] Umotati stavku u memo i obezbediti stabilne props-e (useCallback/useMemo gde treba)
 - [ ] Prebaciti sve u context
 - [ ] Koristiti class komponente
-> memo preskače iscrtavanje kad su props isti po referenci. Prvo izmeri (React DevTools Profiler), pa optimizuj.
+> memo preskače iscrtavanje kad su props isti po referenci. Prvo izmeri (React DevTools Profiler), pa optimizuj. React Compiler (1.0, oktobar 2025.) ovo radi sam pri buildu, pa u novim projektima ručni memo/useCallback treba ređe.

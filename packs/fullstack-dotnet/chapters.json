@@ -4075,7 +4075,7 @@
       },
       {
         "q": "Šta je „stale closure” u hookovima?",
-        "a": "Efekat ili callback uhvati vrednost stanja iz iscrtavanja u kome je napravljen. Ako se ne doda u niz zavisnosti, i dalje vidi staru vrednost. Rešenje: tačne zavisnosti, funkcijski oblik setState (`setBroj(b => b + 1)`) ili useRef za vrednost koja ne treba da izaziva iscrtavanje."
+        "a": "Efekat ili callback uhvati vrednost stanja iz iscrtavanja u kome je napravljen. Ako se ne doda u niz zavisnosti, i dalje vidi staru vrednost. Rešenje: tačne zavisnosti, funkcijski oblik setState (`setBroj(b => b + 1)`) ili useRef za vrednost koja ne treba da izaziva iscrtavanje. Od React 19.2 postoji i `useEffectEvent`: funkcija koju efekat poziva uvek vidi najnovije props-e i stanje, a ne mora u niz zavisnosti (samo za „događaje” iz efekta, ne da bi se ućutkao linter)."
       }
     ],
     "test": [
@@ -4137,7 +4137,7 @@
           "Za pozive API-ja"
         ],
         "correct": 1,
-        "why": "useMemo ima svoju cenu. Koristi se kad je izračunavanje skupo ili kad stabilna referenca sprečava suvišna iscrtavanja dece (uz memo)."
+        "why": "useMemo ima svoju cenu. Koristi se kad je izračunavanje skupo ili kad stabilna referenca sprečava suvišna iscrtavanja dece (uz memo). Uz React Compiler (stabilan od oktobra 2025.) memoizacija se dodaje automatski pri buildu, pa ručni useMemo ostaje za retke slučajeve."
       }
     ],
     "sources": []
@@ -4340,6 +4340,10 @@
       {
         "q": "Kako prikazuješ datume i iznose za različite jezike?",
         "a": "Preko Intl API-ja: `Intl.NumberFormat(\"sr-Latn-RS\", { style: \"currency\", currency: \"RSD\" })` i `Intl.DateTimeFormat`. Tekstovi idu u fajlove prevoda (npr. i18next), a ne u kod. Datumi se čuvaju i šalju u UTC, a lokalno se samo prikazuju."
+      },
+      {
+        "q": "Šta React 19 menja u radu sa formama?",
+        "a": "Forma može da dobije funkciju kao `action`: React sam spreči ponovno učitavanje, prosledi `FormData`, a posle uspeha resetuje nekontrolisana polja. `useActionState` daje rezultat poslednjeg slanja i `isPending`, `useFormStatus` dugmetu kaže da je slanje u toku, a `useOptimistic` odmah prikaže očekivani ishod. Za složenu validaciju i dalje su korisne biblioteke formi."
       }
     ],
     "test": [
@@ -4516,6 +4520,10 @@
       {
         "q": "Da li je `VITE_API_KEY` u .env fajlu tajna?",
         "a": "Nije. Sve promenljive sa prefiksom VITE_ se ugrađuju u JS bundle i vidi ih svako ko otvori aplikaciju. Tajne ostaju na serveru; frontend zove svoj backend, a backend koristi ključ."
+      },
+      {
+        "q": "Da li Vite proverava TypeScript tipove?",
+        "a": "Ne. Vite pri prevođenju samo briše tipove, da bi bio brz; tipove proverava `tsc` (zato je build `tsc -b && vite build`, a u razvoju greške prikazuje editor). Od Vite 8 i produkcijski build i razvoj idu kroz jedan bundler, Rolldown (Rust), a TypeScript 7 je proveru tipova ubrzao oko deset puta."
       }
     ],
     "test": [
@@ -4679,7 +4687,7 @@
           "Koristiti class komponente"
         ],
         "correct": 1,
-        "why": "memo preskače iscrtavanje kad su props isti po referenci. Prvo izmeri (React DevTools Profiler), pa optimizuj."
+        "why": "memo preskače iscrtavanje kad su props isti po referenci. Prvo izmeri (React DevTools Profiler), pa optimizuj. React Compiler (1.0, oktobar 2025.) ovo radi sam pri buildu, pa u novim projektima ručni memo/useCallback treba ređe."
       }
     ],
     "sources": []

@@ -12,7 +12,7 @@ Projekat je ujedno portfolio, pa kod mora biti čist i lako objašnjiv na interv
 - `api/tests/Hunter.Core.Tests`: xUnit testovi za Core.
 - `api/tests/Hunter.Api.Tests`: integracioni testovi (`WebApplicationFactory<Program>` + Testcontainers PostgreSQL, primer paket kao seed). Traže pokrenut Docker.
 - `web/e2e/*.e2e.ts`: Playwright E2E testovi; tačne odgovore čitaju iz `packs/fullstack-dotnet/chapters.json`. Za UI izmene (animacije, tokovi sa klikom) proveri i `tools/e2e.sh`.
-- `web/`: React 19, Vite 8, TypeScript strict, TanStack Query 5, React Router 7, react-markdown. Stil je u `src/styles.css` (CSS promenljive po temi, `[data-theme]`, `[data-glow]`).
+- `web/`: React 19, Vite 8, TypeScript 7 (strict; nativni `tsc`, nema stari tsserver, pa VS Code traži proširenje „TypeScript Native Preview”), TanStack Query 5, React Router 7, react-markdown. Stil je u `src/styles.css` (CSS promenljive po temi, `[data-theme]`, `[data-glow]`).
 - `packs/<id>/pack.json + chapters.json`: uvoze se pri pokretanju API-ja. `examples/`: primer paket van IT-a.
 - `content/fullstack-dotnet/src/region-*.md` (puna poglavlja) i `vodic-*.md` (test i pitanja sa intervjua za poglavlja PDF vodiča) → `tools/build_pack.sh fullstack-dotnet` → `packs/fullstack-dotnet`. Posle izmene sadržaja povećaj `version` u `tools/make_pack.py`, inače API ne uvozi paket ponovo.
 - `docker-compose.yml`: db (postgres:17, bez izloženog porta), api, web (nginx na :8088, proksi `/api` → api:8080).
@@ -149,6 +149,7 @@ provereno u najnovijim zvaničnim izvorima; greške nađene usput ispravljaju se
 - ✅ Deo III temelji: 20–23 (paket 1.2.8; najnovije: React 19.3, TypeScript 7.0 (Go, jul 2026.), Node 24 sa type stripping-om;
   u vodiču: primitivni tipovi JS-a, TDZ za let/const, `strict` podrazumevan od TS 6.0, kaskada sa @layer)
 - ⬜ Deo III: 24–27 · 28, 29 · 30, 31
+  (kartice 24, 27, 29, 31 već dopunjene u paketu 1.2.9: React Compiler, `useEffectEvent`, forme u React 19, Vite 8 i Rolldown)
 - ⬜ Deo IV: 32–34 · 35–37 · 38, 39 · 40, 41
 - ⬜ Deo V i VI: 42, 43 · 44–47 · 48, 49
 - ⬜ `vodic-1-osnove-backend.md` … `vodic-5-intervju.md` (pitanja i kartice)
