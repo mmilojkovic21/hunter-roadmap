@@ -94,24 +94,14 @@ Raditi redom; posle svake stavke build, testovi i commit.
 Dizajn za stavke 3–6 postoji kao Claude Design kanvas „Hunter Roadmap — dizajn aplikacije” (ekrani Status i Podešavanja),
 za stavku 8 ekran „7 · Animacije sistema”, a za stavku 9 ekran „8 · Učitavanje aplikacije (boot)” na istom kanvasu (tačne keyframes vrednosti su u njima).
 
-## Faza 3: plan (nalozi, Sistem 2.0 i Intervju arena)
+## Faza 3: plan (Sistem 2.0, nalozi i Intervju arena)
 
 Raditi redom; posle svake stavke build, testovi (i `tools/e2e.sh` za UI) i commit. Dizajn: ekran „Intervju arena” na istom kanvasu.
 Materijal: kartice „Pitanja sa intervjua” iz paketa (203). Oblasti arene su statistike paketa (npr. INT/STR/AGI/VIT/PER), pa arena radi za svaki paket.
 
-Dogovorene odluke: nalozi pre arene (svaka nova tabela je odmah po korisniku); Sistem 2.0 izgled pre arene (arena se odmah pravi u novom izgledu); intervali 1/3/7/14 dana; ponavljanje daje mali XP sa dnevnim limitom; simulacija je sa samoocenjivanjem; faza 3 ide pre faze 4 (deploy).
+Dogovorene odluke: Sistem 2.0 izgled prvi (stranice Prijava/Registracija i arena se odmah prave u novom izgledu); nalozi odmah posle, pre arene (svaka nova tabela arene je odmah po korisniku; jedina tabela iz stavke 1, događaj preskakanja kazne, dobija `UserId` u stavci 2); intervali 1/3/7/14 dana; ponavljanje daje mali XP sa dnevnim limitom; simulacija je sa samoocenjivanjem; faza 3 ide pre faze 4 (deploy).
 
-1. **Nalozi (registracija i prijava).** ASP.NET Core Identity (`Microsoft.AspNetCore.Identity.EntityFrameworkCore`, odobreno)
-   sa `MapIdentityApi`; prijava kolačićem (HttpOnly, SameSite), ne JWT: frontend i API su na istom domenu preko nginx-a.
-   - `UserId` u svim tabelama napretka (StepCompletions, XpEvents, TestAttempts, DailyQuests, StatPoints, BossAttempts, RegionClears);
-     jedinstveni indeksi uključuju korisnika; `UserSettings` jedan red po korisniku (više nema `Id = 1`).
-   - EF Core global query filter po prijavljenom korisniku, da nijedan upit ne može da ga zaobiđe. Integracioni test: A ne vidi napredak B.
-   - Paketi su zajednički; upload i aktivacija paketa za sve: samo uloga `Admin`. Svaki korisnik bira svoj aktivni paket.
-   - Registracija otvorena; bez potvrde mejlom i resetovanja lozinke za sada (nema mail servera).
-   - CSRF: antiforgery se vraća na upload (kolačić sada nosi identitet); ukloniti `.DisableAntiforgery()`.
-   - Migracija postojećih podataka: dosadašnji napredak dobija prvi (vlasnikov) nalog, koji je i `Admin`.
-   - Frontend: stranice Prijava i Registracija, zaštićene rute, odjava u meniju; E2E se prijavljuje kroz fixture.
-2. **Sistem 2.0 izgled.** Po kanvasu, ekran „9 · Sistem 2.0 (predlog izgleda)”; originalan dizajn u žanru „sistem prozora”, bez logoa,
+1. **Sistem 2.0 izgled.** Po kanvasu, ekran „9 · Sistem 2.0 (predlog izgleda)”; originalan dizajn u žanru „sistem prozora”, bez logoa,
    likova, slika ili doslovnih elemenata iz serije.
    - Paneli kao staklo: poluprovidna pozadina, dvostruki obris (spoljni sjajni + unutrašnji tanki okvir), unutrašnji sjaj.
      `backdrop-filter` samo na nekoliko velikih prozora (performanse), ne na svakoj kartici.
@@ -137,6 +127,16 @@ Dogovorene odluke: nalozi pre arene (svaka nova tabela je odmah po korisniku); S
        bljeska (alarm) i animacijom otvaranja; lista zadataka sa [x/N] i preostalim vremenom. Dugmad: „PRIHVATI” i
        „PRESKOČI · NIZ SE PREKIDA”. **Novo pravilo** (Core, sa testovima): preskakanje odmah prekida niz i nema druge kazne.
        Uz `reduceMotion`: bez bljeskova, samo fade.
+2. **Nalozi (registracija i prijava).** ASP.NET Core Identity (`Microsoft.AspNetCore.Identity.EntityFrameworkCore`, odobreno)
+   sa `MapIdentityApi`; prijava kolačićem (HttpOnly, SameSite), ne JWT: frontend i API su na istom domenu preko nginx-a.
+   - `UserId` u svim tabelama napretka (StepCompletions, XpEvents, TestAttempts, DailyQuests, StatPoints, BossAttempts, RegionClears);
+     jedinstveni indeksi uključuju korisnika; `UserSettings` jedan red po korisniku (više nema `Id = 1`).
+   - EF Core global query filter po prijavljenom korisniku, da nijedan upit ne može da ga zaobiđe. Integracioni test: A ne vidi napredak B.
+   - Paketi su zajednički; upload i aktivacija paketa za sve: samo uloga `Admin`. Svaki korisnik bira svoj aktivni paket.
+   - Registracija otvorena; bez potvrde mejlom i resetovanja lozinke za sada (nema mail servera).
+   - CSRF: antiforgery se vraća na upload (kolačić sada nosi identitet); ukloniti `.DisableAntiforgery()`.
+   - Migracija postojećih podataka: dosadašnji napredak dobija prvi (vlasnikov) nalog, koji je i `Admin`.
+   - Frontend: stranice Prijava i Registracija, zaštićene rute, odjava u meniju; E2E se prijavljuje kroz fixture.
 3. **Pravila ponavljanja (`ReviewRules` u Core-u).** Leitner kutije 1/3/7/14 dana: „Nisam znao” → 1 dan, „Delimično” → 3 dana,
    „Znao sam” → sledeći interval (7, pa 14). Red za danas: zakasnele prve, najviše 10 novih kartica dnevno. Čiste funkcije sa testovima.
 4. **Ocena kartice je događaj.** Tabela `CardRatings` (kartica, ocena, vreme) + migracija; kutija i sledeći datum se računaju iz istorije
