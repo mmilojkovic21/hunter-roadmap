@@ -19,7 +19,7 @@ export function QuestionCard({ question, index, total, order, picked, graded, on
   // Slovo tačne opcije onako kako je korisnik video (opcije su izmešane).
   const correctKey = graded ? KEYS[order.indexOf(graded.correct)] : "";
   return (
-    <section className="card q-card" aria-labelledby={id}>
+    <section className="card glass q-card" aria-labelledby={id}>
       <span className="win-label">Pitanje {index + 1} / {total}</span>
       <h2 id={id} className="q-text">{question.text}</h2>
       {question.code && <pre className="prose q-code"><code>{question.code}</code></pre>}

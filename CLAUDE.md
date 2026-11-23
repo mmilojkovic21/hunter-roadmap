@@ -125,6 +125,8 @@ Dogovorene odluke: Sistem 2.0 izgled prvi (stranice Prijava/Registracija i arena
    - ✅ Korak 3b, Dungeon test: prozor DUNGEON (poglavlje, odgovoreno, prolaz, `AnswerPips`), pitanja kao stakleni paneli
      (`QuestionCard`, deli ga boss test), „[ SISTEM ] NETAČNO · TAČAN ODGOVOR: X” posle predaje. Sva pitanja ostaju na jednoj
      stranici (ne jedno po jedno kao na kanvasu), jer server ocenjuje tek pri predaji.
+   - ✅ Korak 3c, Poglavlje: prozor POGLAVLJE sa koracima kao karticama-tabovima (`✓ +XP`, vežba `[x/N]`, Test kao ulaz u dungeon),
+     sadržaj u `.card.glass`, vežba kao čeklista (pravi checkbox, `.check-list`), desno prozor NAGRADE (iz `ChapterView.StepXp`).
    - **Ostali ekrani po kanvasu (red „Sistem 2.0 — ostali ekrani i novi prozori”):**
      - „10 · Mapa veština”: regioni kao gate-ovi (dugmad sa rangom u rombu i % očišćeno), poglavlja kao pločice sa stanjem
        ✓ očišćeno / ▸ u toku / ○ novo, Boss gate panel na dnu regiona, desno prozor „DETALJI” sa koracima i XP-om.
