@@ -94,7 +94,26 @@ Raditi redom; posle svake stavke build, testovi i commit.
 Dizajn za stavke 3–6 postoji kao Claude Design kanvas „Hunter Roadmap — dizajn aplikacije” (ekrani Status i Podešavanja),
 za stavku 8 ekran „7 · Animacije sistema”, a za stavku 9 ekran „8 · Učitavanje aplikacije (boot)” na istom kanvasu (tačne keyframes vrednosti su u njima).
 
-## Faza 3: plan (Sistem 2.0, nalozi i Intervju arena)
+## Provera sadržaja (u toku, pre stavke 2 faze 3)
+
+Cilj: svako pitanje, odgovor, objašnjenje, karticu i lekciju paketa `fullstack-dotnet` proveriti prema pouzdanim izvorima
+(Microsoft Learn, MDN, react.dev, PostgreSQL dokumentacija, OWASP...), ispraviti greške, pa onda dodati teme koje nedostaju.
+Redosled: prvo provera svih regiona, pa dopune.
+
+Postupak po regionu: pročitaj ceo `content/fullstack-dotnet/src/<fajl>.md` → izdvoj sumnjive tvrdnje → potvrdi u zvaničnoj
+dokumentaciji (citat + URL) → kompajliraj i pokreni primere koda (konzolni projekat u scratchpad-u) → ispravi; važne činjenice
+koje nedostaju dodaj kao kartice (test mora imati tačno 5 pitanja, kartica bar 2) i dodaj izvor uz ispravku → proveri linkove
+(`curl`) → povećaj patch verziju u `tools/make_pack.py` → `tools/build_pack.sh fullstack-dotnet` → testovi i `tools/e2e.sh` →
+commit `fix(sadržaj): provera <region>` sa listom ispravki. Radi se sam, region po region (paralelni agenti su skuplji).
+Za poglavlja vodiča lekcija je u PDF-u (nije u repozitorijumu): proveravaju se samo pitanja i kartice.
+
+- ✅ region 0 (`region-0.md`, paket 1.1.1): JIT pri prvom pozivu metode, `Math.Round` na paran, `StackOverflowException`
+  ne može da se uhvati, `Array.Sort` nestabilan, `PriorityQueue` najmanja vrednost, BFS bez pada. Potrošnja: ~4% limita.
+- ⬜ `region-c.md`, `region-ai.md`, `region-pro.md` (pune lekcije)
+- ⬜ `vodic-1-osnove-backend.md` … `vodic-5-intervju.md` (pitanja i kartice)
+- ⬜ dopune: uporediti sadržaj sa onim što se traži od full stack .NET inženjera i predložiti nova poglavlja
+
+ (Sistem 2.0, nalozi i Intervju arena)
 
 Raditi redom; posle svake stavke build, testovi (i `tools/e2e.sh` za UI) i commit. Dizajn: ekran „Intervju arena” na istom kanvasu.
 Materijal: kartice „Pitanja sa intervjua” iz paketa (203). Oblasti arene su statistike paketa (npr. INT/STR/AGI/VIT/PER), pa arena radi za svaki paket.
