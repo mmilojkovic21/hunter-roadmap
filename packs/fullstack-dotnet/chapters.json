@@ -6,7 +6,7 @@
     "minutes": 30,
     "externalRef": null,
     "intro": "Program je niz instrukcija koje procesor izvršava jednu za drugom. Sve što program „zna” (brojevi, tekst, slike) u memoriji je zapisano kao bitovi: nule i jedinice. Programski jezik postoji da ti ne bi pisao bitove, nego naredbe koje čovek čita, a prevodilac ih pretvara u instrukcije za mašinu.",
-    "lessonMarkdown": "| Pojam | Šta je | Analogija |\n|---|---|---|\n| Bit / bajt | 0 ili 1; bajt je 8 bitova (256 vrednosti) | prekidač; red od 8 prekidača |\n| CPU | izvršava instrukcije: saberi, uporedi, skoči | kuvar koji prati recept |\n| RAM | brza, privremena memorija; briše se pri gašenju | radni sto |\n| Disk (SSD) | spora, trajna memorija | ormar |\n| Proces | pokrenut program sa svojom memorijom | jedno kuvanje po receptu |\n| Nit (thread) | tok izvršavanja unutar procesa | jedan kuvar u kuhinji |\n\n### Od koda do izvršavanja u .NET-u\n\n```\nProgram.cs  --(C# kompajler)-->  IL kod u .dll  --(JIT u CLR-u, pri pokretanju)-->  mašinske instrukcije\n```\n\nC# se ne prevodi direktno u instrukcije procesora, nego u međukod (IL). CLR ga pri pokretanju prevodi (JIT) za procesor na kom radi, pa ista `.dll` radi na Windowsu, Linuxu i Macu.\n\n### Memorija: stek i hip\n\n- **Stek (stack):** mali, brz, automatski se čisti kad metoda završi. Tu su lokalne promenljive i parametri.\n- **Hip (heap):** veliki prostor za objekte koji žive duže; u .NET-u ga čisti Garbage Collector.\n\nOvo se detaljnije radi u poglavlju 5 vodiča (value i reference tipovi).",
+    "lessonMarkdown": "| Pojam | Šta je | Analogija |\n|---|---|---|\n| Bit / bajt | 0 ili 1; bajt je 8 bitova (256 vrednosti) | prekidač; red od 8 prekidača |\n| CPU | izvršava instrukcije: saberi, uporedi, skoči | kuvar koji prati recept |\n| RAM | brza, privremena memorija; briše se pri gašenju | radni sto |\n| Disk (SSD) | spora, trajna memorija | ormar |\n| Proces | pokrenut program sa svojom memorijom | jedno kuvanje po receptu |\n| Nit (thread) | tok izvršavanja unutar procesa | jedan kuvar u kuhinji |\n\n### Od koda do izvršavanja u .NET-u\n\n```\nProgram.cs  --(C# kompajler)-->  IL kod u .dll  --(JIT u CLR-u, pri pokretanju)-->  mašinske instrukcije\n```\n\nC# se ne prevodi direktno u instrukcije procesora, nego u međukod (IL). CLR ga dok program radi prevodi (JIT) za procesor na kom radi, i to metodu po metodu: svaka metoda se prevede kad se prvi put pozove. Zato ista `.dll` radi na Windowsu, Linuxu i Macu. Postoji i prevođenje unapred (ReadyToRun, Native AOT), kad je bitno brzo pokretanje.\n\n### Memorija: stek i hip\n\n- **Stek (stack):** mali, brz, automatski se čisti kad metoda završi. Tu su lokalne promenljive i parametri.\n- **Hip (heap):** veliki prostor za objekte koji žive duže; u .NET-u ga čisti Garbage Collector.\n\nOvo se detaljnije radi u poglavlju 5 vodiča (value i reference tipovi).",
     "deeperMarkdown": "",
     "exercise": {
       "steps": [
@@ -25,7 +25,7 @@
       },
       {
         "q": "Zašto se C# prevodi u IL, a ne direktno u mašinski kod?",
-        "a": "Da bi isti fajl radio na više platformi i procesora; JIT ga na licu mesta prevodi i može da optimizuje za konkretan procesor."
+        "a": "Da bi isti fajl radio na više platformi i procesora; JIT svaku metodu prevodi pri prvom pozivu i može da optimizuje za konkretan procesor. Cena je sporiji start, pa .NET nudi i prevođenje unapred (ReadyToRun, Native AOT)."
       }
     ],
     "test": [
@@ -63,7 +63,7 @@
           "Izvorni C# kod"
         ],
         "correct": 1,
-        "why": "Kompajler pravi IL; JIT u CLR-u ga prevodi u mašinske instrukcije kad program krene."
+        "why": "Kompajler pravi IL; JIT u CLR-u prevodi svaku metodu u mašinske instrukcije kad se ona prvi put pozove."
       },
       {
         "text": "Šta dve niti istog procesa dele?",
@@ -87,7 +87,7 @@
           "U registru operativnog sistema"
         ],
         "correct": 1,
-        "why": "Lokalne value-type promenljive su na steku. (Izuzetak: kad ih „uhvati” lambda ili async metoda, prelaze na hip.)"
+        "why": "Lokalne value-type promenljive su na steku. (Izuzetak: kad ih „uhvati” lambda, async metoda ili iterator (`yield`), prelaze na hip.)"
       }
     ],
     "sources": [
@@ -98,6 +98,10 @@
       {
         "title": "Microsoft Learn: Upravljanje memorijom i GC",
         "url": "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/fundamentals"
+      },
+      {
+        "title": "Microsoft Learn: Proces izvršavanja (JIT pri prvom pozivu metode)",
+        "url": "https://learn.microsoft.com/en-us/dotnet/standard/managed-execution-process"
       }
     ]
   },
@@ -108,7 +112,7 @@
     "minutes": 30,
     "externalRef": null,
     "intro": "Promenljiva je imenovano mesto u memoriji. Tip kaže koliko mesta zauzima i šta sme da se radi sa vrednošću. C# je strogo tipiziran: tip se zna pri kompajliranju, pa kompajler hvata greške pre nego što program krene.",
-    "lessonMarkdown": "```csharp\nint brojKnjiga = 12;          // ceo broj, 32 bita\nlong ukupnoCitanja = 3_000_000_000; // veći ceo broj, 64 bita\ndouble prosek = 4.75;         // decimalni, brz, ali neprecizan\ndecimal cena = 1299.90m;      // decimalni, precizan: za novac\nbool dostupna = true;\nchar slovo = 'A';\nstring naslov = \"Na Drini ćuprija\";\nvar autor = \"Andrić\";         // tip zaključi kompajler: string\n```\n\n| Kada | Tip |\n|---|---|\n| brojanje, indeksi | `int` |\n| novac, porezi | `decimal` (nikad `double`) |\n| merenja, procenti | `double` |\n| da/ne | `bool` |\n| tekst | `string` |\n\n### Konverzije\n\n```csharp\nint a = 7;\ndouble b = a;                 // implicitno: nema gubitka\nint c = (int)3.99;            // eksplicitno: 3, decimala se odseca\nint d = int.Parse(\"42\");      // baca izuzetak ako tekst nije broj\nbool ok = int.TryParse(\"4x\", out int e); // ok = false, bez izuzetka\n```\n\n### Zamka: deljenje celih brojeva\n\n```csharp\nConsole.WriteLine(7 / 2);     // 3, ne 3.5\nConsole.WriteLine(7 / 2.0);   // 3.5\nConsole.WriteLine(0.1 + 0.2 == 0.3); // False za double\n```",
+    "lessonMarkdown": "```csharp\nint brojKnjiga = 12;          // ceo broj, 32 bita\nlong ukupnoCitanja = 3_000_000_000; // veći ceo broj, 64 bita\ndouble prosek = 4.75;         // decimalni, brz, ali neprecizan\ndecimal cena = 1299.90m;      // decimalni, precizan: za novac\nbool dostupna = true;\nchar slovo = 'A';\nstring naslov = \"Na Drini ćuprija\";\nvar autor = \"Andrić\";         // tip zaključi kompajler: string\n```\n\n| Kada | Tip |\n|---|---|\n| brojanje, indeksi | `int` |\n| novac, porezi | `decimal` (nikad `double`) |\n| merenja, procenti | `double` |\n| da/ne | `bool` |\n| tekst | `string` |\n\n### Konverzije\n\n```csharp\nint a = 7;\ndouble b = a;                 // implicitno: nema gubitka\nint c = (int)3.99;            // eksplicitno: 3, decimala se odseca\nint d = int.Parse(\"42\");      // baca izuzetak ako tekst nije broj\nbool ok = int.TryParse(\"4x\", out int e); // ok = false, bez izuzetka\n```\n\n### Zamka: deljenje celih brojeva\n\n```csharp\nConsole.WriteLine(7 / 2);     // 3, ne 3.5\nConsole.WriteLine(7 / 2.0);   // 3.5\nConsole.WriteLine(0.1 + 0.2 == 0.3); // False za double\n```\n\n### Zamka: Math.Round zaokružuje „na paran”\n\n```csharp\nMath.Round(2.5m);                                  // 2, ne 3\nMath.Round(2.345m, 2);                             // 2.34\nMath.Round(2.345m, 2, MidpointRounding.AwayFromZero); // 2.35, „školsko” zaokruživanje\n```\n\nPodrazumevano `Math.Round` tačnu polovinu zaokružuje na najbliži paran broj (bankarsko zaokruživanje). Za račune i PDV, gde se očekuje „5 i više naviše”, prosledi `MidpointRounding.AwayFromZero`.",
     "deeperMarkdown": "",
     "exercise": {
       "steps": [
@@ -116,7 +120,7 @@
         "Učitaj dva broja sa `Console.ReadLine()` pomoću `decimal.TryParse`.",
         "Ako unos nije broj, ispiši poruku i pitaj ponovo (bez pada programa).",
         "Ispiši zbir, razliku, proizvod i količnik; za deljenje nulom ispiši upozorenje.",
-        "Dodaj izbor PDV-a 20%: ispiši iznos sa PDV-om zaokružen na 2 decimale (`Math.Round`)."
+        "Dodaj izbor PDV-a 20%: ispiši iznos sa PDV-om zaokružen na 2 decimale (`Math.Round(x, 2, MidpointRounding.AwayFromZero)`)."
       ],
       "done": "unos „abc” ne obara program, `10 / 0` ne obara program, a `0.1 + 0.2` sa `decimal` daje tačno `0.3`."
     },
@@ -124,6 +128,10 @@
       {
         "q": "Zašto se za novac koristi decimal, a ne double?",
         "a": "`double` je binarni zapis i ne može tačno da predstavi vrednosti kao 0,1, pa se greške sabiraju. `decimal` je decimalni zapis sa 28–29 cifara preciznosti."
+      },
+      {
+        "q": "Koliko je `Math.Round(2.5)` u C#-u?",
+        "a": "2. Podrazumevano se tačna polovina zaokružuje na najbliži paran broj (bankarsko zaokruživanje), da se greške zaokruživanja ne bi gomilale naviše. Za „školsko” zaokruživanje: `MidpointRounding.AwayFromZero`."
       },
       {
         "q": "Šta radi var?",
@@ -153,7 +161,7 @@
           "int"
         ],
         "correct": 2,
-        "why": "`decimal` čuva decimalne vrednosti tačno, bez binarnih grešaka zaokruživanja."
+        "why": "`decimal` čuva decimalne razlomke kao 0,1 tačno (do 28–29 cifara), bez binarnih grešaka zaokruživanja koje ima `double`."
       },
       {
         "text": "Šta je `x` posle `var x = 5.0;`?",
@@ -196,6 +204,14 @@
       {
         "title": "Microsoft Learn: Ugrađeni tipovi u C#",
         "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/built-in-types"
+      },
+      {
+        "title": "Microsoft Learn: Tipovi sa pokretnim zarezom (float, double, decimal)",
+        "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/floating-point-numeric-types"
+      },
+      {
+        "title": "Microsoft Learn: Math.Round i MidpointRounding",
+        "url": "https://learn.microsoft.com/en-us/dotnet/api/system.math.round"
       },
       {
         "title": "Exercism: C# staza sa vežbama",
@@ -310,7 +326,7 @@
     "minutes": 35,
     "externalRef": null,
     "intro": "Funkcija (u C#-u metoda) je imenovan deo koda koji prima ulaz, radi jednu stvar i vraća rezultat. Dobra funkcija ima ime koje kaže šta radi, malo parametara i jednu odgovornost. Tako se kod čita kao rečenice i lako testira.",
-    "lessonMarkdown": "```csharp\nstatic decimal SaPdv(decimal iznos, decimal stopa = 0.20m)\n{\n    return Math.Round(iznos * (1 + stopa), 2);\n}\n\ndecimal a = SaPdv(1000m);          // 1200.00, podrazumevana stopa\ndecimal b = SaPdv(1000m, 0.10m);   // 1100.00\ndecimal c = SaPdv(stopa: 0.10m, iznos: 1000m); // imenovani argumenti\n\nstatic bool JeParan(int n) => n % 2 == 0;   // telo u jednom izrazu\n```\n\n### Prenos argumenata\n\n| Način | Šta funkcija dobija |\n|---|---|\n| podrazumevano (value tip) | kopiju vrednosti; izmena ne utiče na pozivaoca |\n| podrazumevano (reference tip) | kopiju reference; izmene objekta se vide spolja |\n| `ref` | samu promenljivu pozivaoca |\n| `out` | promenljivu koju funkcija mora da postavi |\n\n### Čista funkcija\n\nIsti ulaz uvek daje isti izlaz i ne menja ništa spolja (bez upisa u bazu, fajl, globalnu promenljivu). Ovakve funkcije se najlakše testiraju; zato se pravila poslovanja pišu kao čiste funkcije, a bazu i mrežu gurneš na ivicu sistema.\n\n### Rekurzija\n\nFunkcija može da pozove samu sebe; to je tema poglavlja 0.6.",
+    "lessonMarkdown": "```csharp\nstatic decimal SaPdv(decimal iznos, decimal stopa = 0.20m)\n{\n    return Math.Round(iznos * (1 + stopa), 2, MidpointRounding.AwayFromZero); // „školsko” zaokruživanje (pogl. 0.2)\n}\n\ndecimal a = SaPdv(1000m);          // 1200.00, podrazumevana stopa\ndecimal b = SaPdv(1000m, 0.10m);   // 1100.00\ndecimal c = SaPdv(stopa: 0.10m, iznos: 1000m); // imenovani argumenti\n\nstatic bool JeParan(int n) => n % 2 == 0;   // telo u jednom izrazu\n```\n\n### Prenos argumenata\n\n| Način | Šta funkcija dobija |\n|---|---|\n| podrazumevano (value tip) | kopiju vrednosti; izmena ne utiče na pozivaoca |\n| podrazumevano (reference tip) | kopiju reference; izmene objekta se vide spolja |\n| `ref` | samu promenljivu pozivaoca |\n| `out` | promenljivu koju funkcija mora da postavi |\n\n### Čista funkcija\n\nIsti ulaz uvek daje isti izlaz i ne menja ništa spolja (bez upisa u bazu, fajl, globalnu promenljivu). Ovakve funkcije se najlakše testiraju; zato se pravila poslovanja pišu kao čiste funkcije, a bazu i mrežu gurneš na ivicu sistema.\n\n### Rekurzija\n\nFunkcija može da pozove samu sebe; to je tema poglavlja 0.6.",
     "deeperMarkdown": "",
     "exercise": {
       "steps": [
@@ -410,7 +426,7 @@
     "minutes": 40,
     "externalRef": null,
     "intro": "Niz je blok memorije sa elementima istog tipa jedan do drugog, pa se svakom pristupa preko indeksa za isto vreme. Lista (`List<T>`) je niz koji sam raste kad se napuni. Na intervjuima je velik deo zadataka zapravo rad sa nizom: pronađi, prebroj, obrni, spoji.",
-    "lessonMarkdown": "```csharp\nint[] niz = { 5, 3, 8, 1 };     // fiksna dužina\nConsole.WriteLine(niz[0]);      // 5, indeksi kreću od 0\nConsole.WriteLine(niz[^1]);     // 1, poslednji element\nint[] deo = niz[1..3];          // { 3, 8 }\n\nvar lista = new List<int> { 5, 3 };\nlista.Add(8);                   // na kraj: brzo\nlista.Insert(0, 9);             // na početak: pomera sve elemente\nlista.Remove(3);\n```\n\n| Operacija | Niz / List<T> |\n|---|---|\n| pristup po indeksu | O(1) |\n| dodavanje na kraj | O(1) u proseku |\n| ubacivanje/brisanje na početku | O(n), svi se pomeraju |\n| pretraga vrednosti | O(n) |\n\n### Dve tehnike koje rešavaju mnogo zadataka\n\n**Dva pokazivača:** jedan indeks sa početka, drugi sa kraja, približavaju se.\n\n```csharp\nstatic bool JePalindrom(string s)\n{\n    int l = 0, d = s.Length - 1;\n    while (l < d)\n        if (s[l++] != s[d--]) return false;\n    return true;\n}\n```\n\n**Klizni prozor:** računa se nešto nad uzastopnim delom niza, bez ponovnog sabiranja.\n\n```csharp\nstatic int NajveciZbirK(int[] a, int k)\n{\n    int zbir = a[..k].Sum(), max = zbir;\n    for (int i = k; i < a.Length; i++)\n    {\n        zbir += a[i] - a[i - k];   // dodaj novi, izbaci najstariji\n        max = Math.Max(max, zbir);\n    }\n    return max;\n}\n```",
+    "lessonMarkdown": "```csharp\nint[] niz = { 5, 3, 8, 1 };     // fiksna dužina\nConsole.WriteLine(niz[0]);      // 5, indeksi kreću od 0\nConsole.WriteLine(niz[^1]);     // 1, poslednji element\nint[] deo = niz[1..3];          // { 3, 8 }\n\nvar lista = new List<int> { 5, 3 };\nlista.Add(8);                   // na kraj: brzo\nlista.Insert(0, 9);             // na početak: pomera sve elemente\nlista.Remove(3);\n```\n\n| Operacija | Niz / List<T> |\n|---|---|\n| pristup po indeksu | O(1) |\n| dodavanje na kraj (samo List<T>; niz ima fiksnu dužinu) | O(1) u proseku |\n| ubacivanje/brisanje na početku | O(n), svi se pomeraju |\n| pretraga vrednosti | O(n) |\n\n### Dve tehnike koje rešavaju mnogo zadataka\n\n**Dva pokazivača:** jedan indeks sa početka, drugi sa kraja, približavaju se.\n\n```csharp\nstatic bool JePalindrom(string s)\n{\n    int l = 0, d = s.Length - 1;\n    while (l < d)\n        if (s[l++] != s[d--]) return false;\n    return true;\n}\n```\n\n**Klizni prozor:** računa se nešto nad uzastopnim delom niza, bez ponovnog sabiranja.\n\n```csharp\nstatic int NajveciZbirK(int[] a, int k)\n{\n    int zbir = a[..k].Sum(), max = zbir;\n    for (int i = k; i < a.Length; i++)\n    {\n        zbir += a[i] - a[i - k];   // dodaj novi, izbaci najstariji\n        max = Math.Max(max, zbir);\n    }\n    return max;\n}\n```",
     "deeperMarkdown": "",
     "exercise": {
       "steps": [
@@ -511,7 +527,7 @@
     "minutes": 40,
     "externalRef": null,
     "intro": "Rekurzivna funkcija rešava problem tako što pozove samu sebe na manjem delu istog problema. Uvek ima dva dela: **bazni slučaj** (kad se staje) i **rekurzivni korak** (problem se smanjuje). Bez baznog slučaja poziva se beskonačno dok se stek ne prepuni.",
-    "lessonMarkdown": "```csharp\nstatic int Faktorijel(int n)\n{\n    if (n <= 1) return 1;          // bazni slučaj\n    return n * Faktorijel(n - 1);  // rekurzivni korak\n}\n```\n\nSvaki poziv dobija svoj okvir na steku poziva (call stack). `Faktorijel(4)` → `4 * Faktorijel(3)` → `3 * Faktorijel(2)` → … Kad se dođe do baznog slučaja, rezultati se vraćaju unazad.\n\n| Pojam | Značenje |\n|---|---|\n| Stack overflow | previše ugnježdenih poziva; stek je mali (oko 1 MB po niti) |\n| Memoizacija | pamćenje već izračunatih rezultata |\n| Rekurzija nad stablom | prirodan način za fajl sistem, menije, kategorije, JSON |\n\n### Zašto naivni Fibonači puca\n\n```csharp\nstatic long Fib(int n) => n < 2 ? n : Fib(n - 1) + Fib(n - 2);   // O(2ⁿ)\n\nstatic long FibMemo(int n, Dictionary<int, long>? m = null)\n{\n    m ??= new();\n    if (n < 2) return n;\n    if (m.TryGetValue(n, out var v)) return v;\n    return m[n] = FibMemo(n - 1, m) + FibMemo(n - 2, m);          // O(n)\n}\n```\n\n`Fib(45)` traje sekundama jer se iste vrednosti računaju milionima puta; `FibMemo(45)` je trenutan.\n\n### Iteracija ili rekurzija?\n\nSvaka rekurzija može da se napiše petljom (uz sopstveni stek). Rekurziju biraj kad je struktura prirodno rekurzivna (stablo, ugnježdene kategorije); petlju kad je dubina velika ili nepoznata.",
+    "lessonMarkdown": "```csharp\nstatic int Faktorijel(int n)\n{\n    if (n <= 1) return 1;          // bazni slučaj\n    return n * Faktorijel(n - 1);  // rekurzivni korak\n}\n```\n\nSvaki poziv dobija svoj okvir na steku poziva (call stack). `Faktorijel(4)` → `4 * Faktorijel(3)` → `3 * Faktorijel(2)` → … Kad se dođe do baznog slučaja, rezultati se vraćaju unazad.\n\n| Pojam | Značenje |\n|---|---|\n| Stack overflow | previše ugnježdenih poziva; stek je mali (podrazumevano 1 MB po niti na Windowsu, na Linuxu zavisi od sistema) |\n| Memoizacija | pamćenje već izračunatih rezultata |\n| Rekurzija nad stablom | prirodan način za fajl sistem, menije, kategorije, JSON |\n\n### Zašto naivni Fibonači puca\n\n```csharp\nstatic long Fib(int n) => n < 2 ? n : Fib(n - 1) + Fib(n - 2);   // O(2ⁿ)\n\nstatic long FibMemo(int n, Dictionary<int, long>? m = null)\n{\n    m ??= new();\n    if (n < 2) return n;\n    if (m.TryGetValue(n, out var v)) return v;\n    return m[n] = FibMemo(n - 1, m) + FibMemo(n - 2, m);          // O(n)\n}\n```\n\n`Fib(45)` traje sekundama jer se iste vrednosti računaju milionima puta; `FibMemo(45)` je trenutan.\n\n### Iteracija ili rekurzija?\n\nSvaka rekurzija može da se napiše petljom (uz sopstveni stek). Rekurziju biraj kad je struktura prirodno rekurzivna (stablo, ugnježdene kategorije); petlju kad je dubina velika ili nepoznata. C# ne garantuje optimizaciju repnog poziva (tail call), pa i „repna” rekurzija može da prepuni stek.",
     "deeperMarkdown": "",
     "exercise": {
       "steps": [
@@ -529,7 +545,7 @@
       },
       {
         "q": "Kada rekurzija izaziva StackOverflowException i kako se to izbegava?",
-        "a": "Kad je dubina prevelika. Rešenje: iteracija sa sopstvenim `Stack<T>` ili ograničenje dubine."
+        "a": "Kad je dubina prevelika. U .NET-u se `StackOverflowException` ne može uhvatiti try/catch-om: proces se ugasi. Zato se ne „hvata”, nego sprečava: iteracija sa sopstvenim `Stack<T>` ili ograničenje dubine."
       }
     ],
     "test": [
@@ -543,7 +559,7 @@
           "Povratna vrednost"
         ],
         "correct": 0,
-        "why": "Bez baznog slučaja pozivi se gomilaju na steku dok se ne prepuni."
+        "why": "Bez baznog slučaja pozivi se gomilaju na steku dok se ne prepuni. Try/catch ne pomaže: `StackOverflowException` ne može da se uhvati i proces se gasi."
       },
       {
         "text": "Kolika je složenost naivnog rekurzivnog Fibonačija?",
@@ -602,6 +618,10 @@
       {
         "title": "Microsoft Learn: Directory klasa",
         "url": "https://learn.microsoft.com/en-us/dotnet/api/system.io.directory"
+      },
+      {
+        "title": "Microsoft Learn: StackOverflowException (ne može da se uhvati)",
+        "url": "https://learn.microsoft.com/en-us/dotnet/api/system.stackoverflowexception"
       }
     ]
   },
@@ -703,6 +723,10 @@
       {
         "title": "Microsoft Learn: Izbor kolekcije",
         "url": "https://learn.microsoft.com/en-us/dotnet/standard/collections/selecting-a-collection-class"
+      },
+      {
+        "title": "Microsoft Learn: List<T>.Add (O(1), O(n) kad raste kapacitet)",
+        "url": "https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.list-1.add"
       }
     ]
   },
@@ -793,7 +817,7 @@
           "Dictionary<K, V>"
         ],
         "correct": 0,
-        "why": "Prioritetni red (heap) vraća najmanji prioritet za O(log n)."
+        "why": "Prioritetni red (heap) vraća element sa najmanjom vrednošću prioriteta za O(log n); „najviši prioritet” zato zapiši kao najmanji broj (ili prosledi obrnut `IComparer`)."
       }
     ],
     "sources": [
@@ -814,14 +838,14 @@
     "minutes": 60,
     "externalRef": null,
     "intro": "Algoritam je tačan postupak za rešavanje problema. Za posao ne moraš da znaš stotine algoritama, ali live coding na intervjuu skoro uvek proverava nekoliko istih obrazaca: pretragu, sortiranje, obilazak grafa i pamćenje međurezultata.",
-    "lessonMarkdown": "### Binarna pretraga (sortiran niz, O(log n))\n\n```csharp\nstatic int Nadji(int[] a, int cilj)\n{\n    int lo = 0, hi = a.Length - 1;\n    while (lo <= hi)\n    {\n        int mid = lo + (hi - lo) / 2;   // ne (lo+hi)/2: izbegava prelivanje\n        if (a[mid] == cilj) return mid;\n        if (a[mid] < cilj) lo = mid + 1; else hi = mid - 1;\n    }\n    return -1;\n}\n```\n\n### Sortiranje\n\n| Algoritam | Složenost | Napomena |\n|---|---|---|\n| Bubble / insertion | O(n²) | za učenje; insertion je dobar za skoro sortirane nizove |\n| Merge sort | O(n log n) uvek | stabilan, treba dodatna memorija |\n| Quick sort | O(n log n) prosek, O(n²) najgore | u mestu, brz u praksi |\n| `Array.Sort` / LINQ `OrderBy` | O(n log n) | u praksi koristiš ovo; `OrderBy` je stabilan |\n\n### BFS i DFS\n\n```csharp\n// BFS: najkraći put (u broju koraka) u grafu bez težina\nstatic int Koraci(Dictionary<string, List<string>> g, string od, string doGrada)\n{\n    var red = new Queue<(string grad, int d)>();\n    var vidjeni = new HashSet<string> { od };\n    red.Enqueue((od, 0));\n    while (red.Count > 0)\n    {\n        var (grad, d) = red.Dequeue();\n        if (grad == doGrada) return d;\n        foreach (var s in g[grad])\n            if (vidjeni.Add(s)) red.Enqueue((s, d + 1));\n    }\n    return -1;\n}\n```\n\nDFS ide u dubinu (rekurzija ili `Stack<T>`): koristi se za „da li postoji put”, otkrivanje ciklusa i topološko sortiranje (redosled migracija, zavisnosti paketa).\n\n### Dinamičko programiranje\n\nProblem se deli na manje koji se ponavljaju, a rezultati se pamte (memoizacija odozgo ili tabela odozdo). Primer: na koliko načina se penje uz n stepenica ako se ide po 1 ili 2.\n\n```csharp\nstatic long Nacini(int n)\n{\n    long a = 1, b = 1;            // f(0), f(1)\n    for (int i = 2; i <= n; i++) (a, b) = (b, a + b);\n    return b;\n}\n```\n\n### Kako pristupiti zadatku na intervjuu\n\n1. Ponovi zadatak svojim rečima i pitaj za granične slučajeve (prazan ulaz, duplikati, negativni brojevi).\n2. Reci naivno rešenje i njegovu složenost.\n3. Traži bolje: hash, sortiranje, dva pokazivača, prozor, BFS/DFS, DP.\n4. Piši kod naglas, pa ga „izvrši” na malom primeru.",
+    "lessonMarkdown": "### Binarna pretraga (sortiran niz, O(log n))\n\n```csharp\nstatic int Nadji(int[] a, int cilj)\n{\n    int lo = 0, hi = a.Length - 1;\n    while (lo <= hi)\n    {\n        int mid = lo + (hi - lo) / 2;   // ne (lo+hi)/2: izbegava prelivanje\n        if (a[mid] == cilj) return mid;\n        if (a[mid] < cilj) lo = mid + 1; else hi = mid - 1;\n    }\n    return -1;\n}\n```\n\n### Sortiranje\n\n| Algoritam | Složenost | Napomena |\n|---|---|---|\n| Bubble / insertion | O(n²) | za učenje; insertion je dobar za skoro sortirane nizove |\n| Merge sort | O(n log n) uvek | stabilan, treba dodatna memorija |\n| Quick sort | O(n log n) prosek, O(n²) najgore | u mestu, brz u praksi |\n| `Array.Sort` / LINQ `OrderBy` | O(n log n) | u praksi koristiš ovo; `Array.Sort` je introsort i nije stabilan, `OrderBy` jeste |\n\n### BFS i DFS\n\n```csharp\n// BFS: najkraći put (u broju koraka) u grafu bez težina\nstatic int Koraci(Dictionary<string, List<string>> g, string od, string doGrada)\n{\n    var red = new Queue<(string grad, int d)>();\n    var vidjeni = new HashSet<string> { od };\n    red.Enqueue((od, 0));\n    while (red.Count > 0)\n    {\n        var (grad, d) = red.Dequeue();\n        if (grad == doGrada) return d;\n        foreach (var s in g.GetValueOrDefault(grad, []))   // čvor bez suseda nema ključ u rečniku\n            if (vidjeni.Add(s)) red.Enqueue((s, d + 1));\n    }\n    return -1;\n}\n```\n\nDFS ide u dubinu (rekurzija ili `Stack<T>`): koristi se za „da li postoji put”, otkrivanje ciklusa i topološko sortiranje (redosled migracija, zavisnosti paketa).\n\n### Dinamičko programiranje\n\nProblem se deli na manje koji se ponavljaju, a rezultati se pamte (memoizacija odozgo ili tabela odozdo). Primer: na koliko načina se penje uz n stepenica ako se ide po 1 ili 2.\n\n```csharp\nstatic long Nacini(int n)\n{\n    long a = 1, b = 1;            // f(0), f(1)\n    for (int i = 2; i <= n; i++) (a, b) = (b, a + b);\n    return b;\n}\n```\n\n### Kako pristupiti zadatku na intervjuu\n\n1. Ponovi zadatak svojim rečima i pitaj za granične slučajeve (prazan ulaz, duplikati, negativni brojevi).\n2. Reci naivno rešenje i njegovu složenost.\n3. Traži bolje: hash, sortiranje, dva pokazivača, prozor, BFS/DFS, DP.\n4. Piši kod naglas, pa ga „izvrši” na malom primeru.",
     "deeperMarkdown": "",
     "exercise": {
       "steps": [
         "Implementiraj merge sort i testiraj ga na nasumičnim nizovima upoređujući sa `Array.Sort`.",
         "Binarna pretraga: prvi indeks na kom se pojavljuje vrednost u nizu sa duplikatima.",
         "BFS: broj ostrva u matrici `0/1` (susedi gore, dole, levo, desno).",
-        "DP: najmanji broj novčića (1, 2, 5, 10, 20, 50 dinara) za dati iznos.",
+        "DP: najmanji broj apoena (1, 2, 5, 10, 20, 50 dinara) za dati iznos; probaj i apoene 1, 3, 4 za iznos 6, gde pohlepno rešenje greši.",
         "Reši 10 zadataka „Easy” sa NeetCode liste (Arrays & Hashing, Two Pointers, Stack) u C#-u."
       ],
       "done": "svih pet tačaka ima testove, a za svako rešenje možeš da kažeš složenost i naivnu alternativu."
@@ -833,7 +857,11 @@
       },
       {
         "q": "BFS ili DFS za najkraći put u grafu bez težina?",
-        "a": "BFS, jer obilazi po nivoima pa prvi put kad stigne do cilja ima najmanji broj koraka. Za težine se koristi Dijkstra (prioritetni red)."
+        "a": "BFS, jer obilazi po nivoima pa prvi put kad stigne do cilja ima najmanji broj koraka. Za nenegativne težine se koristi Dijkstra (prioritetni red); sa negativnim težinama Bellman-Ford."
+      },
+      {
+        "q": "Da li je `Array.Sort` stabilan?",
+        "a": "Nije. Koristi introsort (quicksort, uz heapsort i insertion sort), pa jednaki elementi mogu da promene redosled. Kad je redosled jednakih bitan (npr. sortiranje po ceni pa po datumu), koristi LINQ `OrderBy`/`ThenBy`, koji je stabilan."
       }
     ],
     "test": [
@@ -902,6 +930,10 @@
       {
         "title": "NeetCode roadmap",
         "url": "https://neetcode.io/roadmap"
+      },
+      {
+        "title": "Microsoft Learn: Array.Sort (introsort, nestabilno)",
+        "url": "https://learn.microsoft.com/en-us/dotnet/api/system.array.sort"
       },
       {
         "title": "VisuAlgo: sortiranje i grafovi",

@@ -28,7 +28,7 @@ Program je niz instrukcija koje procesor izvršava jednu za drugom. Sve što pro
 Program.cs  --(C# kompajler)-->  IL kod u .dll  --(JIT u CLR-u, pri pokretanju)-->  mašinske instrukcije
 ```
 
-C# se ne prevodi direktno u instrukcije procesora, nego u međukod (IL). CLR ga pri pokretanju prevodi (JIT) za procesor na kom radi, pa ista `.dll` radi na Windowsu, Linuxu i Macu.
+C# se ne prevodi direktno u instrukcije procesora, nego u međukod (IL). CLR ga dok program radi prevodi (JIT) za procesor na kom radi, i to metodu po metodu: svaka metoda se prevede kad se prvi put pozove. Zato ista `.dll` radi na Windowsu, Linuxu i Macu. Postoji i prevođenje unapred (ReadyToRun, Native AOT), kad je bitno brzo pokretanje.
 
 ### Memorija: stek i hip
 
@@ -53,7 +53,7 @@ Ovo se detaljnije radi u poglavlju 5 vodiča (value i reference tipovi).
 Proces ima svoju memoriju i izolovan je od drugih. Niti unutar istog procesa dele memoriju, pa su brže za komunikaciju, ali traže sinhronizaciju.
 
 **P: Zašto se C# prevodi u IL, a ne direktno u mašinski kod?**
-Da bi isti fajl radio na više platformi i procesora; JIT ga na licu mesta prevodi i može da optimizuje za konkretan procesor.
+Da bi isti fajl radio na više platformi i procesora; JIT svaku metodu prevodi pri prvom pozivu i može da optimizuje za konkretan procesor. Cena je sporiji start, pa .NET nudi i prevođenje unapred (ReadyToRun, Native AOT).
 
 ## Test
 
@@ -76,7 +76,7 @@ Da bi isti fajl radio na više platformi i procesora; JIT ga na licu mesta prevo
 - [x] IL međukod koji CLR prevodi pri pokretanju
 - [ ] Mašinske instrukcije za tvoj procesor
 - [ ] Izvorni C# kod
-> Kompajler pravi IL; JIT u CLR-u ga prevodi u mašinske instrukcije kad program krene.
+> Kompajler pravi IL; JIT u CLR-u prevodi svaku metodu u mašinske instrukcije kad se ona prvi put pozove.
 
 ### 4. Šta dve niti istog procesa dele?
 - [ ] Samo fajlove na disku
@@ -90,11 +90,12 @@ Da bi isti fajl radio na više platformi i procesora; JIT ga na licu mesta prevo
 - [x] Na steku, i nestaju kad metoda završi
 - [ ] Na disku
 - [ ] U registru operativnog sistema
-> Lokalne value-type promenljive su na steku. (Izuzetak: kad ih „uhvati” lambda ili async metoda, prelaze na hip.)
+> Lokalne value-type promenljive su na steku. (Izuzetak: kad ih „uhvati” lambda, async metoda ili iterator (`yield`), prelaze na hip.)
 
 ## Izvori
 - [Microsoft Learn: Uvod u .NET](https://learn.microsoft.com/en-us/dotnet/core/introduction)
 - [Microsoft Learn: Upravljanje memorijom i GC](https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/fundamentals)
+- [Microsoft Learn: Proces izvršavanja (JIT pri prvom pozivu metode)](https://learn.microsoft.com/en-us/dotnet/standard/managed-execution-process)
 =====
 ---
 id: "0.2"
@@ -147,13 +148,23 @@ Console.WriteLine(7 / 2.0);   // 3.5
 Console.WriteLine(0.1 + 0.2 == 0.3); // False za double
 ```
 
+### Zamka: Math.Round zaokružuje „na paran”
+
+```csharp
+Math.Round(2.5m);                                  // 2, ne 3
+Math.Round(2.345m, 2);                             // 2.34
+Math.Round(2.345m, 2, MidpointRounding.AwayFromZero); // 2.35, „školsko” zaokruživanje
+```
+
+Podrazumevano `Math.Round` tačnu polovinu zaokružuje na najbliži paran broj (bankarsko zaokruživanje). Za račune i PDV, gde se očekuje „5 i više naviše”, prosledi `MidpointRounding.AwayFromZero`.
+
 ## Lab
 
 1. Napravi konzolnu aplikaciju `Kalkulator`.
 2. Učitaj dva broja sa `Console.ReadLine()` pomoću `decimal.TryParse`.
 3. Ako unos nije broj, ispiši poruku i pitaj ponovo (bez pada programa).
 4. Ispiši zbir, razliku, proizvod i količnik; za deljenje nulom ispiši upozorenje.
-5. Dodaj izbor PDV-a 20%: ispiši iznos sa PDV-om zaokružen na 2 decimale (`Math.Round`).
+5. Dodaj izbor PDV-a 20%: ispiši iznos sa PDV-om zaokružen na 2 decimale (`Math.Round(x, 2, MidpointRounding.AwayFromZero)`).
 
 **Gotovo je kad:** unos „abc” ne obara program, `10 / 0` ne obara program, a `0.1 + 0.2` sa `decimal` daje tačno `0.3`.
 
@@ -161,6 +172,9 @@ Console.WriteLine(0.1 + 0.2 == 0.3); // False za double
 
 **P: Zašto se za novac koristi decimal, a ne double?**
 `double` je binarni zapis i ne može tačno da predstavi vrednosti kao 0,1, pa se greške sabiraju. `decimal` je decimalni zapis sa 28–29 cifara preciznosti.
+
+**P: Koliko je `Math.Round(2.5)` u C#-u?**
+2. Podrazumevano se tačna polovina zaokružuje na najbliži paran broj (bankarsko zaokruživanje), da se greške zaokruživanja ne bi gomilale naviše. Za „školsko” zaokruživanje: `MidpointRounding.AwayFromZero`.
 
 **P: Šta radi var?**
 Kompajler zaključi tip iz desne strane. Promenljiva je i dalje strogo tipizirana; `var` nije dinamički tip.
@@ -179,7 +193,7 @@ Kompajler zaključi tip iz desne strane. Promenljiva je i dalje strogo tipiziran
 - [ ] float
 - [x] decimal
 - [ ] int
-> `decimal` čuva decimalne vrednosti tačno, bez binarnih grešaka zaokruživanja.
+> `decimal` čuva decimalne razlomke kao 0,1 tačno (do 28–29 cifara), bez binarnih grešaka zaokruživanja koje ima `double`.
 
 ### 3. Šta je `x` posle `var x = 5.0;`?
 - [ ] decimal
@@ -204,6 +218,8 @@ Kompajler zaključi tip iz desne strane. Promenljiva je i dalje strogo tipiziran
 
 ## Izvori
 - [Microsoft Learn: Ugrađeni tipovi u C#](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/built-in-types)
+- [Microsoft Learn: Tipovi sa pokretnim zarezom (float, double, decimal)](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/floating-point-numeric-types)
+- [Microsoft Learn: Math.Round i MidpointRounding](https://learn.microsoft.com/en-us/dotnet/api/system.math.round)
 - [Exercism: C# staza sa vežbama](https://exercism.org/tracks/csharp)
 =====
 ---
@@ -343,7 +359,7 @@ Funkcija (u C#-u metoda) je imenovan deo koda koji prima ulaz, radi jednu stvar 
 ```csharp
 static decimal SaPdv(decimal iznos, decimal stopa = 0.20m)
 {
-    return Math.Round(iznos * (1 + stopa), 2);
+    return Math.Round(iznos * (1 + stopa), 2, MidpointRounding.AwayFromZero); // „školsko” zaokruživanje (pogl. 0.2)
 }
 
 decimal a = SaPdv(1000m);          // 1200.00, podrazumevana stopa
@@ -464,7 +480,7 @@ lista.Remove(3);
 | Operacija | Niz / List<T> |
 |---|---|
 | pristup po indeksu | O(1) |
-| dodavanje na kraj | O(1) u proseku |
+| dodavanje na kraj (samo List<T>; niz ima fiksnu dužinu) | O(1) u proseku |
 | ubacivanje/brisanje na početku | O(n), svi se pomeraju |
 | pretraga vrednosti | O(n) |
 
@@ -581,7 +597,7 @@ Svaki poziv dobija svoj okvir na steku poziva (call stack). `Faktorijel(4)` → 
 
 | Pojam | Značenje |
 |---|---|
-| Stack overflow | previše ugnježdenih poziva; stek je mali (oko 1 MB po niti) |
+| Stack overflow | previše ugnježdenih poziva; stek je mali (podrazumevano 1 MB po niti na Windowsu, na Linuxu zavisi od sistema) |
 | Memoizacija | pamćenje već izračunatih rezultata |
 | Rekurzija nad stablom | prirodan način za fajl sistem, menije, kategorije, JSON |
 
@@ -603,7 +619,7 @@ static long FibMemo(int n, Dictionary<int, long>? m = null)
 
 ### Iteracija ili rekurzija?
 
-Svaka rekurzija može da se napiše petljom (uz sopstveni stek). Rekurziju biraj kad je struktura prirodno rekurzivna (stablo, ugnježdene kategorije); petlju kad je dubina velika ili nepoznata.
+Svaka rekurzija može da se napiše petljom (uz sopstveni stek). Rekurziju biraj kad je struktura prirodno rekurzivna (stablo, ugnježdene kategorije); petlju kad je dubina velika ili nepoznata. C# ne garantuje optimizaciju repnog poziva (tail call), pa i „repna” rekurzija može da prepuni stek.
 
 ## Lab
 
@@ -620,7 +636,7 @@ Svaka rekurzija može da se napiše petljom (uz sopstveni stek). Rekurziju biraj
 Bazni slučaj koji zaustavlja rekurziju i korak koji problem sigurno smanjuje ka baznom slučaju.
 
 **P: Kada rekurzija izaziva StackOverflowException i kako se to izbegava?**
-Kad je dubina prevelika. Rešenje: iteracija sa sopstvenim `Stack<T>` ili ograničenje dubine.
+Kad je dubina prevelika. U .NET-u se `StackOverflowException` ne može uhvatiti try/catch-om: proces se ugasi. Zato se ne „hvata”, nego sprečava: iteracija sa sopstvenim `Stack<T>` ili ograničenje dubine.
 
 ## Test
 
@@ -629,7 +645,7 @@ Kad je dubina prevelika. Rešenje: iteracija sa sopstvenim `Stack<T>` ili ograni
 - [ ] Parametar
 - [ ] Try/catch
 - [ ] Povratna vrednost
-> Bez baznog slučaja pozivi se gomilaju na steku dok se ne prepuni.
+> Bez baznog slučaja pozivi se gomilaju na steku dok se ne prepuni. Try/catch ne pomaže: `StackOverflowException` ne može da se uhvati i proces se gasi.
 
 ### 2. Kolika je složenost naivnog rekurzivnog Fibonačija?
 - [ ] O(n)
@@ -665,6 +681,7 @@ static int F(int n) => n == 0 ? 0 : n + F(n - 1);
 ## Izvori
 - [VisuAlgo: vizuelizacija rekurzije](https://visualgo.net/en/recursion)
 - [Microsoft Learn: Directory klasa](https://learn.microsoft.com/en-us/dotnet/api/system.io.directory)
+- [Microsoft Learn: StackOverflowException (ne može da se uhvati)](https://learn.microsoft.com/en-us/dotnet/api/system.stackoverflowexception)
 =====
 ---
 id: "0.7"
@@ -790,6 +807,7 @@ for (int i = 0; i < n; i++)
 ## Izvori
 - [Big-O Cheat Sheet](https://www.bigocheatsheet.com/)
 - [Microsoft Learn: Izbor kolekcije](https://learn.microsoft.com/en-us/dotnet/standard/collections/selecting-a-collection-class)
+- [Microsoft Learn: List<T>.Add (O(1), O(n) kad raste kapacitet)](https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.list-1.add)
 =====
 ---
 id: "0.8"
@@ -898,7 +916,7 @@ Red (BFS). Stek daje obilazak u dubinu (DFS).
 - [ ] Stack<T>
 - [ ] LinkedList<T>
 - [ ] Dictionary<K, V>
-> Prioritetni red (heap) vraća najmanji prioritet za O(log n).
+> Prioritetni red (heap) vraća element sa najmanjom vrednošću prioriteta za O(log n); „najviši prioritet” zato zapiši kao najmanji broj (ili prosledi obrnut `IComparer`).
 
 ## Izvori
 - [Microsoft Learn: Kolekcije u .NET-u](https://learn.microsoft.com/en-us/dotnet/standard/collections/)
@@ -941,7 +959,7 @@ static int Nadji(int[] a, int cilj)
 | Bubble / insertion | O(n²) | za učenje; insertion je dobar za skoro sortirane nizove |
 | Merge sort | O(n log n) uvek | stabilan, treba dodatna memorija |
 | Quick sort | O(n log n) prosek, O(n²) najgore | u mestu, brz u praksi |
-| `Array.Sort` / LINQ `OrderBy` | O(n log n) | u praksi koristiš ovo; `OrderBy` je stabilan |
+| `Array.Sort` / LINQ `OrderBy` | O(n log n) | u praksi koristiš ovo; `Array.Sort` je introsort i nije stabilan, `OrderBy` jeste |
 
 ### BFS i DFS
 
@@ -956,7 +974,7 @@ static int Koraci(Dictionary<string, List<string>> g, string od, string doGrada)
     {
         var (grad, d) = red.Dequeue();
         if (grad == doGrada) return d;
-        foreach (var s in g[grad])
+        foreach (var s in g.GetValueOrDefault(grad, []))   // čvor bez suseda nema ključ u rečniku
             if (vidjeni.Add(s)) red.Enqueue((s, d + 1));
     }
     return -1;
@@ -990,7 +1008,7 @@ static long Nacini(int n)
 1. Implementiraj merge sort i testiraj ga na nasumičnim nizovima upoređujući sa `Array.Sort`.
 2. Binarna pretraga: prvi indeks na kom se pojavljuje vrednost u nizu sa duplikatima.
 3. BFS: broj ostrva u matrici `0/1` (susedi gore, dole, levo, desno).
-4. DP: najmanji broj novčića (1, 2, 5, 10, 20, 50 dinara) za dati iznos.
+4. DP: najmanji broj apoena (1, 2, 5, 10, 20, 50 dinara) za dati iznos; probaj i apoene 1, 3, 4 za iznos 6, gde pohlepno rešenje greši.
 5. Reši 10 zadataka „Easy” sa NeetCode liste (Arrays & Hashing, Two Pointers, Stack) u C#-u.
 
 **Gotovo je kad:** svih pet tačaka ima testove, a za svako rešenje možeš da kažeš složenost i naivnu alternativu.
@@ -1001,7 +1019,10 @@ static long Nacini(int n)
 `lo + hi` može da pređe maksimalnu vrednost `int`-a kod velikih nizova; ovaj oblik daje isti rezultat bez prelivanja.
 
 **P: BFS ili DFS za najkraći put u grafu bez težina?**
-BFS, jer obilazi po nivoima pa prvi put kad stigne do cilja ima najmanji broj koraka. Za težine se koristi Dijkstra (prioritetni red).
+BFS, jer obilazi po nivoima pa prvi put kad stigne do cilja ima najmanji broj koraka. Za nenegativne težine se koristi Dijkstra (prioritetni red); sa negativnim težinama Bellman-Ford.
+
+**P: Da li je `Array.Sort` stabilan?**
+Nije. Koristi introsort (quicksort, uz heapsort i insertion sort), pa jednaki elementi mogu da promene redosled. Kad je redosled jednakih bitan (npr. sortiranje po ceni pa po datumu), koristi LINQ `OrderBy`/`ThenBy`, koji je stabilan.
 
 ## Test
 
@@ -1042,5 +1063,6 @@ BFS, jer obilazi po nivoima pa prvi put kad stigne do cilja ima najmanji broj ko
 
 ## Izvori
 - [NeetCode roadmap](https://neetcode.io/roadmap)
+- [Microsoft Learn: Array.Sort (introsort, nestabilno)](https://learn.microsoft.com/en-us/dotnet/api/system.array.sort)
 - [VisuAlgo: sortiranje i grafovi](https://visualgo.net/en)
 - [LeetCode](https://leetcode.com/problemset/)

@@ -35,7 +35,7 @@ pack = {
                    "i 31 poglavlje sa punim sadržajem.",
     "language": "sr-Latn",
     # Nova verzija: API pri startu ponovo uvozi paket samo kad se verzija promeni (PackImporter.SeedFromFolderAsync).
-    "version": "1.1.0",
+    "version": "1.1.1",
     "author": "Miljan",
     "passPct": manifest["passPct"],
     "xp": manifest["xp"],
