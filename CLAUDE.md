@@ -124,6 +124,19 @@ Dogovorene odluke: nalozi pre arene (svaka nova tabela je odmah po korisniku); S
    - Meni: velika slova, `▸` i svetleći okvir za aktivnu stavku.
    - Pravila ostaju: kontrast teksta ≥ 4,5:1 i na staklu; uz smanjene pokrete stoje mreža, treperenje, scan linije i odbrojavanje.
    - Redosled: zajednički tokeni i komponente (prozor, naslovna traka), pa Status, pa ostali ekrani; E2E testovi moraju da prođu.
+   - **Ostali ekrani po kanvasu (red „Sistem 2.0 — ostali ekrani i novi prozori”):**
+     - „10 · Mapa veština”: regioni kao gate-ovi (dugmad sa rangom u rombu i % očišćeno), poglavlja kao pločice sa stanjem
+       ✓ očišćeno / ▸ u toku / ○ novo, Boss gate panel na dnu regiona, desno prozor „DETALJI” sa koracima i XP-om.
+       Stanje ⊘ „zaključano” sa kanvasa se ne pravi: poglavlja nisu zaključana (odluka iz faze 2).
+     - „11 · Dungeon test”: gornji prozor (poglavlje, pitanje X/N, prolaz), segmentna traka napretka (zelena/crvena/aktivna),
+       opcije kao staklena dugmad sa slovom, posle predaje „[ SISTEM ] TAČNO · +XP” / „NETAČNO · tačan odgovor: X” sa objašnjenjem.
+       Prikaz vremena samo ako se uvede tajmer (sada ga nema). Tačni odgovori i dalje stižu tek posle predaje.
+     - „12 · Poglavlje”: koraci kao sistemske kartice sa stanjem (✓ +XP, vežba [x/N]), vežba kao čeklista u stilu dnevnog zadatka,
+       desno prozor „NAGRADE” (XP po koraku).
+     - „13 · Kazneni zadatak”: postojeći kazneni zadatak (faza 2) se prikazuje kao **crveni prozor sistema** pri ulasku, sa 3 crvena
+       bljeska (alarm) i animacijom otvaranja; lista zadataka sa [x/N] i preostalim vremenom. Dugmad: „PRIHVATI” i
+       „PRESKOČI · NIZ SE PREKIDA”. **Novo pravilo** (Core, sa testovima): preskakanje odmah prekida niz i nema druge kazne.
+       Uz `reduceMotion`: bez bljeskova, samo fade.
 3. **Pravila ponavljanja (`ReviewRules` u Core-u).** Leitner kutije 1/3/7/14 dana: „Nisam znao” → 1 dan, „Delimično” → 3 dana,
    „Znao sam” → sledeći interval (7, pa 14). Red za danas: zakasnele prve, najviše 10 novih kartica dnevno. Čiste funkcije sa testovima.
 4. **Ocena kartice je događaj.** Tabela `CardRatings` (kartica, ocena, vreme) + migracija; kutija i sledeći datum se računaju iz istorije
@@ -138,3 +151,22 @@ Dogovorene odluke: nalozi pre arene (svaka nova tabela je odmah po korisniku); S
 9. **Simulacija intervjua.** 45 min sa tajmerom: 10 kartica iz svih oblasti (bira server, prednost slabijim), jedan zadatak na tabli,
    STAR priča; samoocenjivanje; izveštaj po oblastima se čuva (napredak kroz vreme). Ulazna animacija iz postojećeg sistema animacija.
 10. **Sadržaj: zadaci na tabli.** 10–15 SQL i algoritamskih zadataka sa rešenjem i objašnjenjem, u `vodic-*.md` formatu sa istom proverom.
+11. **Inventar** (kanvas „14 · Inventar i nagrade”). Stranica „INVENTAR” u meniju: mreža slotova, filteri SVE / TITULE / BEDŽEVI / PREDMETI,
+    desno prozor „PREDMET” (ime, retkost, opis, kako se dobija, akcija). Retkost: obično / retko / epsko / legendarno (siva, plava, ljubičasta, zlatna).
+    - **Predmeti se računaju iz događaja** (kao XP), pravila u Core-u (`InventoryRules`) sa testovima; troši se upisom događaja `ItemUses`.
+    - Titule: niz od 7 dana → „Onaj koji ne odustaje”, prvi očišćen region → „Prvi gate”, Boss test regiona → titula regiona
+      (npr. „Backend vitez” za .NET). Jedna aktivna titula, prikazuje se ispod imena u prozoru STATUS.
+    - Bedževi: po jedan za svaki očišćen region (`RegionClears`).
+    - Žeton odlaganja: 1 za svaki niz od 7 dana, najviše 2 u inventaru; pomera kazneni zadatak na sutra, a niz ostaje (dugme u prozoru kazne).
+    - Kamen fokusa: nagrada za Boss test; sledeći dodeljen slobodni poen vredi 2.
+    - Neosvojeni predmeti se prikazuju kao „?” sa uslovom dobijanja. Bez kupovine i bez slučajnih nagrada.
+12. **Vojska senki** (kanvas „15 · Vojska senki”). Zavisi od stavki 3–4 (ponavljanje).
+    - Poglavlje je **spremno za izvlačenje** kad: najbolji test ≥ 90%, vežba završena i sve njegove kartice bar jednom na intervalu ≥ 7 dana.
+      Izvlačenje je ručna akcija („IZVUCI SENKU”) sa animacijom pojave; čuva se kao događaj.
+    - Senka produžava ponavljanje preko 14 dana: rang senke prati interval njenih kartica: vojnik 7, vitez 14, elitni vitez 30, komandant 60 dana.
+    - **Snaga** senke = udeo njenih kartica koje nisu pale u poslednjih 60 dana; „Nisam znao” na kartici senke spušta snagu i vraća tu karticu na 1 dan.
+      Senka sa snagom < 50% je „slaba” (crveni okvir); na 0% se raspušta, a poglavlje se vraća među slabe tačke.
+    - Kartice senki ulaze u dnevni red arene kao i ostale (ne posebna lista). Prikaz: broj senki, prosečna snaga, kartice senki danas.
+    - Pravila (`ShadowRules`) u Core-u sa testovima; stranica „VOJSKA SENKI” u meniju.
+
+Dizajn za stavke 2, 11 i 12: ekrani 9–15 na kanvasu „Hunter Roadmap — dizajn aplikacije”.
