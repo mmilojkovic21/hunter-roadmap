@@ -109,7 +109,13 @@ Za poglavlja vodiča lekcija je u PDF-u (nije u repozitorijumu): proveravaju se 
 
 - ✅ region 0 (`region-0.md`, paket 1.1.1): JIT pri prvom pozivu metode, `Math.Round` na paran, `StackOverflowException`
   ne može da se uhvati, `Array.Sort` nestabilan, `PriorityQueue` najmanja vrednost, BFS bez pada. Potrošnja: ~4% limita.
-- ⬜ `region-c.md`, `region-ai.md`, `region-pro.md` (pune lekcije)
+- ✅ region C (`region-c.md`, paket 1.1.2): HybridCache stampede samo po instanci i lokalni keš drugih instanci,
+  RabbitMQ publisher confirms i uslovi za DLQ, neispravan HCL (`provider { features {} }` u jednom redu) i
+  `subscription_id` od azurerm 4.0, Node 22/24 i akcije v7/v6, `id-token: write`, Gateway API i nešifrovan Secret,
+  `AddMeter` za sopstvene metrike, primer za p95. Primeri provereni: C# kompajliran i pokrenut, RabbitMQ uživo,
+  `terraform validate`, actionlint, kubeconform. Pomoćno: RabbitMQ sajt blokira curl, docs su na GitHub-u
+  (`rabbitmq/rabbitmq-website`); u Docker-u ne pokretati `docker exec … rabbitmq-diagnostics` dok broker ne krene (kvari `.erlang.cookie`).
+- ⬜ `region-ai.md`, `region-pro.md` (pune lekcije)
 - ⬜ `vodic-1-osnove-backend.md` … `vodic-5-intervju.md` (pitanja i kartice)
 - ⬜ dopune: uporediti sadržaj sa onim što se traži od full stack .NET inženjera i predložiti nova poglavlja
 

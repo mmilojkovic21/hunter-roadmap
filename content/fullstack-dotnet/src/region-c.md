@@ -42,7 +42,7 @@ builder.Configuration.AddAzureKeyVault(
     new DefaultAzureCredential());   // lokalno koristi tvoj az login, na Azure-u Managed Identity
 ```
 
-`DefaultAzureCredential` redom proba više izvora (promenljive okruženja, Managed Identity, Visual Studio, Azure CLI), pa isti kod radi i lokalno i u cloudu.
+`DefaultAzureCredential` redom proba više izvora (promenljive okruženja, Workload Identity, Managed Identity, Visual Studio, Azure CLI…), pa isti kod radi i lokalno i u cloudu. Za produkciju Microsoft preporučuje da ga zameniš tačno određenim (npr. `ManagedIdentityCredential`): nema isprobavanja redom, pa je brže, predvidljivije i greška se lakše nalazi.
 
 ### Troškovi
 
@@ -54,7 +54,7 @@ Pre svakog vežbanja postavi budžet i upozorenje (Cost Management → Budgets).
 2. Instaliraj Azure CLI, uloguj se (`az login`) i napravi `az group create -n rg-biblioteka -l westeurope`.
 3. Proveri dostupne .NET verzije (`az webapp list-runtimes --os linux`) i objavi Biblioteka API sa `az webapp up` na najmanji plan.
 4. Napravi Key Vault, upiši tajnu `ConnectionStrings--Db` i uključi System-assigned Managed Identity na App Service-u.
-5. Daj identitetu ulogu „Key Vault Secrets User” i povuci tajnu kroz `AddAzureKeyVault`; ukloni connection string iz appsettings.
+5. Daj identitetu ulogu „Key Vault Secrets User” (radi samo kad Key Vault koristi model dozvola „Azure RBAC”, ne stare access policies) i povuci tajnu kroz `AddAzureKeyVault`; ukloni connection string iz appsettings.
 6. Na kraju obriši resource group.
 
 **Gotovo je kad:** API radi na `*.azurewebsites.net`, connection string ne postoji ni u kodu ni u App Service podešavanjima, a resource group je obrisana posle vežbe.
@@ -69,6 +69,9 @@ App Service za klasičnu web aplikaciju bez kontejnera ili sa jednim kontejnerom
 
 **P: Kako bi preneo aplikaciju sa svog VPS-a na Azure?**
 Kontejner na Container Apps ili kod na App Service, baza na upravljani Postgres (migracija dump/restore), fajlovi u Blob, tajne u Key Vault, a deploy kroz GitHub Actions.
+
+**P: Da li `DefaultAzureCredential` treba da ostane u produkciji?**
+Microsoft preporučuje da ga u produkciji zameniš određenim kredencijalom, npr. `ManagedIdentityCredential`. Lanac isprobava izvore redom: sporije je, a kad prijava ne uspe, teško je videti koji izvor je pao. `DefaultAzureCredential` je zgodan za početak i lokalni razvoj.
 
 ## Test
 
@@ -110,6 +113,8 @@ Kontejner na Container Apps ili kod na App Service, baza na upravljani Postgres 
 ## Izvori
 - [Microsoft Learn: App Service](https://learn.microsoft.com/en-us/azure/app-service/)
 - [Microsoft Learn: Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/overview)
+- [Microsoft Learn: Key Vault i Azure RBAC (uloga Key Vault Secrets User)](https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-guide)
+- [Microsoft Learn: lanci kredencijala i DefaultAzureCredential u produkciji](https://learn.microsoft.com/en-us/dotnet/azure/sdk/authentication/credential-chains)
 - [Microsoft Learn: Azure obuke](https://learn.microsoft.com/en-us/training/azure/)
 =====
 ---
@@ -146,6 +151,9 @@ concurrency:                     # novi push otkazuje stari pipeline iste grane
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read                 # najmanja prava za GITHUB_TOKEN
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -154,19 +162,21 @@ jobs:
         image: postgres:17
         env: { POSTGRES_PASSWORD: test }
         ports: ["5432:5432"]
+        options: >-              # koraci kreću tek kad baza odgovara
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with: { dotnet-version: "10.0.x" }
       - run: dotnet test --configuration Release
 
   frontend:
     runs-on: ubuntu-latest
     strategy:
-      matrix: { node: [20, 22] }
+      matrix: { node: [22, 24] }   # aktivne LTS verzije (Node 20 je bez podrške od aprila 2026)
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: "${{ matrix.node }}", cache: npm, cache-dependency-path: web/package-lock.json }
       - run: npm ci && npm run lint && npm test && npm run build
         working-directory: web
@@ -183,11 +193,11 @@ jobs:
 ### Tajne i OIDC
 
 - `secrets.X` se maskira u logovima i ne prosleđuje se pull requestovima iz forkova.
-- **OIDC (federated credentials):** umesto da u GitHub čuvaš lozinku za Azure/AWS, cloud veruje GitHub-ovom kratkotrajnom tokenu za tačno taj repo i granu. Nema tajne koja ističe ili curi.
+- **OIDC (federated credentials):** umesto da u GitHub čuvaš lozinku za Azure/AWS, cloud veruje GitHub-ovom kratkotrajnom tokenu za tačno taj repo i granu. Nema tajne koja ističe ili curi. Job koji traži token mora da ima `permissions: id-token: write`; to ne daje nikakva prava na cloudu, samo dozvolu da se token zatraži.
 
 ### Dobre prakse
 
-- Fiksiraj verzije akcija (`@v4`, a za strožu bezbednost pun SHA commit-a).
+- Fiksiraj verzije akcija (glavna verzija kao `@v7`, a za strožu bezbednost pun SHA commit-a).
 - `permissions:` daj najmanja potrebna prava (`contents: read`).
 - Ponovljene korake izdvoji u reusable workflow (`workflow_call`).
 
@@ -195,8 +205,8 @@ jobs:
 
 1. U Biblioteka repou napravi workflow sa odvojenim `backend` i `frontend` poslovima koji rade paralelno.
 2. Dodaj `services: postgres` i bar jedan integracioni test koji koristi pravu bazu.
-3. Dodaj matricu za Node 20 i 22 i keš za npm.
-4. Dodaj `deploy` job sa `needs`, `if` na `main` i environment `production` sa obaveznim odobrenjem (Settings → Environments).
+3. Dodaj matricu za Node 22 i 24 i keš za npm.
+4. Dodaj `deploy` job sa `needs`, `if` na `main` i environment `production` sa obaveznim odobrenjem (Settings → Environments). Na besplatnom planu required reviewers rade samo u javnom repou; za privatni repo treba GitHub Enterprise.
 5. Dodaj `concurrency` i `permissions: contents: read` na nivou workflow-a.
 6. Bonus: build Docker image-a i push na GHCR (`ghcr.io/<korisnik>/biblioteka-api`).
 
@@ -209,6 +219,9 @@ Paralelni poslovi, keš paketa (NuGet/npm), Docker layer keš, pokretanje samo p
 
 **P: Kako GitHub Actions bezbedno deploy-uje na cloud bez lozinke?**
 OIDC: cloud provajder je podešen da veruje tokenima koje GitHub izdaje za određeni repo, granu ili environment; token traje minutima.
+
+**P: Šta workflow mora da ima da bi dobio OIDC token?**
+`permissions: id-token: write` na nivou job-a ili workflow-a. Bez toga (ili sa `read`) GitHub ne izdaje token. Ta dozvola ne daje pravo da se bilo šta menja na cloudu; poverenje se podešava na strani clouda (federated credential za repo, granu ili environment).
 
 ## Test
 
@@ -250,6 +263,10 @@ OIDC: cloud provajder je podešen da veruje tokenima koje GitHub izdaje za odre�
 ## Izvori
 - [GitHub Docs: Actions](https://docs.github.com/en/actions)
 - [GitHub Docs: OIDC za cloud provajdere](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
+- [GitHub Docs: OIDC u Azure-u (`id-token: write`)](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-azure)
+- [GitHub Docs: okruženja i required reviewers](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)
+- [GitHub Docs: PostgreSQL kao service kontejner](https://docs.github.com/en/actions/tutorials/use-containerized-services/create-postgresql-service-containers)
+- [Node.js: verzije i kraj podrške](https://endoflife.date/nodejs)
 =====
 ---
 id: "C3"
@@ -278,9 +295,9 @@ Svaki ključ može da ima **TTL** (vreme života) posle koga sam nestaje.
 
 Pitaj keš → ako nema (cache miss), pročitaj iz baze → upiši u keš sa TTL-om. Pri izmeni u bazi obriši ključ.
 
-### HybridCache (.NET 9+)
+### HybridCache
 
-Spaja lokalnu memoriju i distribuirani keš (Redis), i sam sprečava **stampede**: kad 100 zahteva istovremeno traži isti ključ koji ne postoji, baza se pita samo jednom.
+Biblioteka iz 2025. (NuGet paket; radi i na starijim verzijama .NET-a, sve do .NET Framework 4.7.2). Spaja lokalnu memoriju i distribuirani keš (Redis), i sam sprečava **stampede**: kad 100 zahteva u istoj instanci istovremeno traži isti ključ koji ne postoji, fabrika (upit u bazu) se izvrši samo jednom, a ostali čekaju njen rezultat. Između više servera nema distribuiranog zaključavanja, pa u najgorem slučaju bazu pita po jedna instanca.
 
 ```csharp
 // paketi: Microsoft.Extensions.Caching.Hybrid, Microsoft.Extensions.Caching.StackExchangeRedis
@@ -301,6 +318,8 @@ public class ArtikliServis(HybridCache cache, AppDb db)
     public ValueTask Izmenjen(int id) => cache.RemoveAsync($"artikal:{id}");
 }
 ```
+
+`RemoveAsync` briše ključ u lokalnoj memoriji te instance i u Redisu, ali ne i u lokalnoj memoriji ostalih instanci. One mogu da vraćaju staru vrednost dok ne istekne `LocalCacheExpiration`, zato je lokalno trajanje kraće od ukupnog.
 
 ### Šta keširati, a šta ne
 
@@ -324,10 +343,13 @@ Redis je 2024. promenio licencu, a 2025. dodao AGPL opciju; zajednica je napravi
 ## Pitanja sa intervjua
 
 **P: Šta je cache stampede i kako se sprečava?**
-Kad popularan ključ istekne, mnogo zahteva istovremeno ide u bazu. Rešenje: zaključavanje po ključu (HybridCache to radi sam), nasumičan TTL, ili osvežavanje pre isteka.
+Kad popularan ključ istekne, mnogo zahteva istovremeno ide u bazu. Rešenje: zaključavanje po ključu (HybridCache to radi sam, u okviru jedne instance), nasumičan TTL, ili osvežavanje pre isteka.
 
 **P: Kako održavaš keš usklađenim sa bazom?**
 Kratak TTL kao sigurnosna mreža i brisanje ključa pri svakoj izmeni. Za podatke gde zastarelost nije prihvatljiva, ne keširaš.
+
+**P: API radi u 3 instance sa HybridCache-om i Redisom. Instanca A obriše ključ posle izmene. Šta vide B i C?**
+Redis je očišćen, ali B i C i dalje imaju staru vrednost u svojoj lokalnoj memoriji dok ne istekne `LocalCacheExpiration`. Zato se lokalno trajanje drži kratkim (npr. 1 minut), a za podatke gde ni to nije prihvatljivo lokalni keš se isključuje.
 
 ## Test
 
@@ -345,12 +367,12 @@ Kratak TTL kao sigurnosna mreža i brisanje ključa pri svakoj izmeni. Za podatk
 - [ ] Redis je besplatan, a IMemoryCache nije
 > Distribuirani keš je zajednički za sve instance.
 
-### 3. Šta HybridCache radi kad 50 zahteva istovremeno traži nepostojeći ključ?
+### 3. Šta HybridCache radi kad 50 zahteva u istoj instanci istovremeno traži nepostojeći ključ?
 - [x] Izvrši fabriku jednom, a ostali čekaju isti rezultat
 - [ ] Šalje 50 upita bazi
 - [ ] Baca izuzetak
 - [ ] Vraća null svima
-> Zaštita od stampede-a je ugrađena.
+> Zaštita od stampede-a je ugrađena, ali važi unutar jedne instance; između servera nema distribuiranog zaključavanja.
 
 ### 4. Šta NE treba keširati?
 - [ ] Listu kategorija
@@ -393,7 +415,7 @@ Poglavlje 16 vodiča ima red poslova u bazi. Kad više servisa treba da reaguje 
 | Binding / routing key | pravilo koje vezuje exchange za red |
 | Ack | potvrda da je poruka obrađena; tek tada je broker briše |
 | Prefetch | koliko neobrađenih poruka consumer sme da drži odjednom |
-| Dead letter queue (DLQ) | red za poruke koje ne uspevaju posle N pokušaja |
+| Dead letter queue (DLQ) | red za poruke koje su odbijene bez vraćanja, istekle ili pale previše puta; puni ga dead letter exchange (DLX) |
 
 | Exchange tip | Kome ide poruka |
 |---|---|
@@ -403,7 +425,11 @@ Poglavlje 16 vodiča ima red poslova u bazi. Kad više servisa treba da reaguje 
 
 ### Garancije i šta one traže od tebe
 
-RabbitMQ daje **at-least-once**: poruka može stići dva puta (consumer pao posle obrade, a pre ack-a). Zato obrada mora biti **idempotentna**: drugi put ne pravi štetu. Najlakše: čuvaj `MessageId` obrađenih poruka i preskoči već viđene.
+RabbitMQ daje **at-least-once** samo ako uradiš svoj deo: trajan (durable) red, trajne (persistent) poruke, **publisher confirms** (broker potvrđuje produceru da je poruku sačuvao; bez toga poruka može da se izgubi ako broker padne pre upisa na disk) i ručni ack na strani consumer-a. Poruka tada može stići dva puta (consumer pao posle obrade, a pre ack-a). Zato obrada mora biti **idempotentna**: drugi put ne pravi štetu. Najlakše: čuvaj `MessageId` obrađenih poruka i preskoči već viđene.
+
+### Dead lettering
+
+Poruka ide na dead letter exchange kad je consumer odbije sa `requeue: false` (`BasicReject`/`BasicNack`), kad joj istekne TTL, kad red pređe ograničenje dužine, ili kad je u **quorum** redu isporučena više puta od `delivery-limit` (od RabbitMQ 4.0 podrazumevano 20). Ako DLX nije podešen, takva poruka se jednostavno briše.
 
 ### Outbox obrazac
 
@@ -414,7 +440,7 @@ Problem: upišeš pozajmicu u bazu, a objava poruke padne (ili obrnuto). Rešenj
 | Opcija | Licenca | Kada |
 |---|---|---|
 | `RabbitMQ.Client` | open source | učenje osnova, potpuna kontrola |
-| MassTransit v8 | Apache 2.0 | postojeći projekti; zakrpe do kraja 2026. |
+| MassTransit v8 | Apache 2.0 | postojeći projekti; zakrpe najmanje do kraja 2026. |
 | MassTransit v9 | komercijalna | firme koje plaćaju licencu |
 | Wolverine | MIT | besplatna alternativa sa outbox-om |
 
@@ -429,6 +455,10 @@ await ch.QueueDeclareAsync("pozajmice", durable: true, exclusive: false, autoDel
 var body = JsonSerializer.SerializeToUtf8Bytes(new PozajmicaKreirana(knjigaId, clanId));
 await ch.BasicPublishAsync("", "pozajmice", mandatory: false,
     basicProperties: new BasicProperties { Persistent = true, MessageId = Guid.NewGuid().ToString() }, body: body);
+
+// sa publisher confirms: BasicPublishAsync čeka potvrdu brokera i baca izuzetak ako je nema
+await using var potvrdjen = await conn.CreateChannelAsync(new CreateChannelOptions(
+    publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true));
 ```
 
 ## Lab
@@ -453,14 +483,20 @@ Atomičnost između upisa u bazu i objave poruke: oba idu u istu transakciju u b
 **P: RabbitMQ ili Kafka?**
 RabbitMQ za poslove (poruka se obradi i nestane, rutiranje). Kafka za tok događaja koji se čuva i koji više čitalaca može da čita iznova (vodič, pogl. 44).
 
+**P: Kako producer zna da je broker zaista sačuvao poruku?**
+Preko publisher confirms: kanal u confirm režimu dobija potvrdu (ack) od brokera kad je poruka preuzeta, a za trajnu poruku u trajnom redu tek kad je upisana. Bez potvrda, poruka može da nestane ako broker padne pre upisa na disk, a producer to ne bi primetio.
+
+**P: Kada poruka završi u dead letter queue?**
+Kad je consumer odbije sa `requeue: false`, kad istekne njen TTL, kad red pređe ograničenje dužine, ili kad je u quorum redu isporučena više puta od `delivery-limit` (podrazumevano 20 od RabbitMQ 4.0). Samo ako je podešen dead letter exchange; inače se briše.
+
 ## Test
 
-### 1. Kada RabbitMQ briše poruku iz reda?
+### 1. Kada RabbitMQ briše poruku iz reda kad consumer koristi ručni ack?
 - [x] Kad consumer pošalje ack
 - [ ] Kad producer potvrdi
 - [ ] Čim je consumer primi
 - [ ] Posle 24 sata
-> Bez ack-a (npr. consumer padne) poruka se vraća u red i isporučuje ponovo.
+> Bez ack-a (npr. consumer padne) poruka se vraća u red i isporučuje ponovo. Uz automatski ack (`autoAck: true`) briše se čim je isporučena.
 
 ### 2. Koja garancija isporuke važi uz ack?
 - [ ] Tačno jednom
@@ -488,10 +524,13 @@ RabbitMQ za poslove (poruka se obradi i nestane, rutiranje). Kafka za tok događ
 - [ ] Vraća se produceru
 - [ ] U log fajl brokera
 - [x] U dead letter queue
-> DLQ čuva problematične poruke za pregled i ručnu ponovnu obradu.
+> Ako je podešen dead letter exchange; bez njega se poruka briše. DLQ čuva problematične poruke za pregled i ručnu ponovnu obradu.
 
 ## Izvori
 - [RabbitMQ tutorijali (.NET)](https://www.rabbitmq.com/tutorials)
+- [RabbitMQ: potvrde consumer-a i publisher confirms](https://www.rabbitmq.com/docs/confirms)
+- [RabbitMQ: dead letter exchanges](https://www.rabbitmq.com/docs/dlx)
+- [RabbitMQ: quorum redovi i delivery-limit](https://www.rabbitmq.com/docs/quorum-queues)
 - [Najava MassTransit v9 i licence](https://masstransit.io/introduction/v9-announcement)
 - [Wolverine](https://wolverinefx.net/)
 =====
@@ -529,9 +568,16 @@ Umesto da resurse praviš klikom u portalu, opišeš ih u fajlu koji je u Gitu. 
 
 ```hcl
 terraform {
-  required_providers { azurerm = { source = "hashicorp/azurerm" } }
+  required_providers {
+    azurerm = { source = "hashicorp/azurerm", version = "~> 4.0" }
+  }
 }
-provider "azurerm" { features {} }
+
+# Od azurerm 4.0 subscription_id je obavezan: ovde ga provider čita
+# iz promenljive okruženja ARM_SUBSCRIPTION_ID (može i subscription_id = "..." u bloku).
+provider "azurerm" {
+  features {}
+}
 
 variable "env" { default = "test" }
 
@@ -564,7 +610,7 @@ terraform destroy  # obriši sve (za vežbu)
 
 ## Lab
 
-1. Instaliraj Terraform ili OpenTofu i Azure CLI; uloguj se.
+1. Instaliraj Terraform ili OpenTofu i Azure CLI; uloguj se i postavi `ARM_SUBSCRIPTION_ID` (`az account show --query id -o tsv`).
 2. Opiši resource group, App Service plan i Linux Web App za Biblioteku (pogledaj `azurerm_linux_web_app` u dokumentaciji).
 3. `plan` → `apply`; promeni SKU u kodu i vidi da `plan` pokazuje samo tu izmenu.
 4. Ručno promeni tag u portalu i pokreni `plan`: uoči drift.
@@ -577,6 +623,9 @@ terraform destroy  # obriši sve (za vežbu)
 
 **P: Šta je Terraform state i zašto je važan?**
 Mapa između koda i stvarnih resursa. Bez njega alat ne zna šta je već napravio. U timu se čuva udaljeno, sa zaključavanjem da dva apply-a ne idu istovremeno.
+
+**P: Gde čuvaš Terraform state za Azure projekat u timu?**
+U backend-u `azurerm`: state je blob u Azure Storage kontejneru, a zaključavanje i provera konzistentnosti koriste mogućnosti samog Blob Storage-a. Pristup storage nalogu se ograničava jer state sadrži osetljive podatke.
 
 **P: Deklarativni ili imperativni pristup infrastrukturi?**
 Deklarativni opisuje ciljno stanje i ponavljanje je bezbedno (idempotentno). Imperativne skripte (`az create …`) zavise od redosleda i trenutnog stanja.
@@ -621,6 +670,8 @@ Deklarativni opisuje ciljno stanje i ponavljanje je bezbedno (idempotentno). Imp
 ## Izvori
 - [HashiCorp: Terraform tutorijali za Azure](https://developer.hashicorp.com/terraform/tutorials/azure-get-started)
 - [OpenTofu dokumentacija](https://opentofu.org/docs/)
+- [HashiCorp: backend azurerm (state u Blob Storage-u, zaključavanje)](https://developer.hashicorp.com/terraform/language/backend/azurerm)
+- [HashiCorp podrška: subscription_id obavezan od azurerm 4.0](https://support.hashicorp.com/hc/en-us/articles/40621007246099-Required-subscription-id-Error-in-Terraform-with-AzureRM)
 - [Microsoft Learn: Bicep](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview)
 =====
 ---
@@ -642,8 +693,12 @@ Docker Compose pokreće kontejnere na jednom serveru. Kubernetes (K8s) radi to n
 | Pod | jedan ili više kontejnera koji rade zajedno | jedan pokrenut servis |
 | Deployment | željeni broj replika podova i verzija image-a | `deploy.replicas` + `image` |
 | Service | stabilna adresa i load balancing ka podovima | ime servisa u mreži |
-| Ingress | HTTP ulaz spolja, rutiranje po domenu i putanji | Caddy/Nginx |
+| Ingress / Gateway API | HTTP ulaz spolja, rutiranje po domenu i putanji | Caddy/Nginx |
 | ConfigMap / Secret | konfiguracija i tajne kao promenljive ili fajlovi | `environment`, `.env` |
+
+Ingress API je zamrznut (radi, ali se ne razvija); Kubernetes preporučuje **Gateway API** (`Gateway` + `HTTPRoute`). Popularni kontroler ingress-nginx je povučen u martu 2026. i više ne dobija bezbednosne zakrpe.
+
+Secret nije šifrovan: vrednosti su samo base64, a u etcd-u se podrazumevano čuvaju nešifrovane. Uključi šifrovanje u mirovanju i ograniči ko može da čita Secret-e (RBAC).
 | Namespace | izolovan prostor za grupu resursa | odvojen compose projekat |
 
 ```yaml
@@ -679,6 +734,7 @@ spec:
 
 - **Readiness:** da li pod sme da prima saobraćaj (npr. baza dostupna). Ako ne, Service ga preskače.
 - **Liveness:** da li je proces zaglavljen. Ako ne odgovara, K8s ga restartuje.
+- **Startup:** za aplikacije koje se sporo pokreću. Dok ne prođe, liveness i readiness se ne proveravaju, pa spor start ne izaziva restart.
 
 Pogrešna liveness proba (npr. koja proverava bazu) može da restartuje sve podove kad baza zakašnjava; liveness proverava samo proces.
 
@@ -711,6 +767,12 @@ Readiness odlučuje da li pod prima saobraćaj; liveness da li ga treba restarto
 **P: Compose ili Kubernetes?**
 Compose za jedan server i mali tim. Kubernetes kad treba više servera, automatsko skaliranje i oporavak, i kad postoji tim (ili upravljana usluga kao AKS) da ga održava.
 
+**P: Da li je Kubernetes Secret bezbedno mesto za lozinku?**
+Ne sam po sebi. Vrednosti su base64 (kodiranje, ne šifrovanje) i u etcd-u se podrazumevano čuvaju nešifrovane; ko ima pristup API-ju ili etcd-u može da ih pročita. Treba uključiti šifrovanje u mirovanju, ograničiti pristup kroz RBAC, ili tajne držati u spoljnom sefu (npr. Key Vault preko CSI drajvera).
+
+**P: Ingress ili Gateway API?**
+Za nove projekte Gateway API: Kubernetes ga preporučuje, a Ingress API je zamrznut. Gateway odvaja ulogu infrastrukture (`Gateway`) od rutiranja aplikacije (`HTTPRoute`). Uz to je ingress-nginx povučen u martu 2026, pa postojeće instalacije treba preseliti.
+
 ## Test
 
 ### 1. Šta Kubernetes radi kad pod iz Deployment-a padne?
@@ -718,7 +780,7 @@ Compose za jedan server i mali tim. Kubernetes kad treba više servera, automats
 - [ ] Ništa, čeka ručnu intervenciju
 - [ ] Gasi ceo Deployment
 - [ ] Šalje email
-> Deployment stalno usklađuje stvarno stanje sa željenim.
+> Deployment (preko svog ReplicaSet-a) stalno usklađuje stvarno stanje sa željenim.
 
 ### 2. Čemu služi Service?
 - [ ] Gradi Docker image
@@ -751,6 +813,10 @@ Compose za jedan server i mali tim. Kubernetes kad treba više servera, automats
 ## Izvori
 - [Kubernetes: osnovni tutorijal](https://kubernetes.io/docs/tutorials/kubernetes-basics/)
 - [kind: lokalni klaster](https://kind.sigs.k8s.io/)
+- [Kubernetes: startup, liveness i readiness probe](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/)
+- [Kubernetes: Secret (podrazumevano nešifrovan u etcd-u)](https://kubernetes.io/docs/concepts/configuration/secret/)
+- [Kubernetes: Ingress (API zamrznut, preporuka Gateway API)](https://kubernetes.io/docs/concepts/services-networking/ingress/)
+- [Kubernetes blog: povlačenje ingress-nginx](https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/)
 =====
 ---
 id: "C7"
@@ -776,17 +842,19 @@ Kad nešto pukne u produkciji, ne možeš da staviš breakpoint. Observability j
 
 ```csharp
 // paketi: OpenTelemetry.Extensions.Hosting, OpenTelemetry.Instrumentation.AspNetCore,
-//         OpenTelemetry.Instrumentation.Http, OpenTelemetry.Exporter.OpenTelemetryProtocol
+//         OpenTelemetry.Instrumentation.Http, OpenTelemetry.Instrumentation.Runtime,
+//         OpenTelemetry.Exporter.OpenTelemetryProtocol
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("biblioteka-api"))
     .WithTracing(t => t
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
-        .AddSource("Biblioteka")          // tvoji ručni spanovi
+        .AddSource("Biblioteka")          // tvoji ručni spanovi (ActivitySource)
         .AddOtlpExporter())
     .WithMetrics(m => m
         .AddAspNetCoreInstrumentation()
         .AddRuntimeInstrumentation()
+        .AddMeter("Biblioteka")           // tvoje metrike (Meter); bez ovoga se ne izvoze
         .AddOtlpExporter());
 builder.Logging.AddOpenTelemetry(o => o.AddOtlpExporter());
 ```
@@ -827,7 +895,10 @@ Na osnovu toga se postavljaju **SLO** ciljevi (npr. 99% zahteva ispod 300 ms) i 
 Logovi su pojedinačni događaji sa detaljima, metrike su agregirani brojevi kroz vreme (jeftine za čuvanje i upozorenja), tragovi prate jedan zahtev kroz sve servise.
 
 **P: Zašto p95 latencija, a ne prosek?**
-Prosek sakriva spore zahteve: 95 brzih i 5 od 10 sekundi daju „dobar” prosek, a 5% korisnika čeka. Percentil pokazuje iskustvo najsporijih.
+Prosek sakriva spore zahteve: 90 zahteva od 50 ms i 10 od 3 s daju prosek od 345 ms, što izgleda prihvatljivo, a p95 je 3 s i pokazuje da svaki deseti korisnik čeka. Percentil pokazuje iskustvo najsporijih.
+
+**P: Dodao si `Meter("Biblioteka")` i brojač, ali metrika ne stiže u Grafanu. Zašto?**
+OpenTelemetry izvozi samo metrike iz meter-a koje si prijavio: treba `.AddMeter("Biblioteka")` u `WithMetrics`. Isto važi za ručne spanove: `ActivitySource` mora da se prijavi sa `.AddSource(...)`, inače `StartActivity` vraća `null`.
 
 ## Test
 
@@ -870,6 +941,7 @@ Prosek sakriva spore zahteve: 95 brzih i 5 od 10 sekundi daju „dobar” prosek
 - [OpenTelemetry za .NET](https://opentelemetry.io/docs/languages/dotnet/)
 - [Microsoft Learn: .NET observability sa OpenTelemetry](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/observability-with-otel)
 - [Grafana dokumentacija](https://grafana.com/docs/)
+- [OpenTelemetry .NET: ručna instrumentacija (AddSource, AddMeter)](https://opentelemetry.io/docs/languages/dotnet/instrumentation/)
 =====
 ---
 id: "C8"
@@ -988,3 +1060,4 @@ Ne. Aspire opisuje aplikaciju i olakšava razvoj; za produkciju može da generi�
 ## Izvori
 - [aspire.dev: dokumentacija](https://aspire.dev)
 - [Šta je novo u Aspire 13](https://aspire.dev/whats-new/aspire-13/)
+- [Šta je novo u Aspire 13.3 (Kubernetes/Helm deploy, preview)](https://aspire.dev/whats-new/aspire-13-3/)
