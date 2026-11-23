@@ -150,7 +150,10 @@ provereno u najnovijim zvaničnim izvorima; greške nađene usput ispravljaju se
   u vodiču: primitivni tipovi JS-a, TDZ za let/const, `strict` podrazumevan od TS 6.0, kaskada sa @layer)
 - ✅ Deo III srednji: 24–27 (paket 1.2.10; kod iz lekcija proveren sa TS 7 nad tipovima React 19.3, React Router 7.18, TanStack Query 5;
   podrazumevane vrednosti Query-ja pročitane iz izvornog koda; u vodiču: `<Context value>` umesto `.Provider`)
-- ⬜ Deo III: 28, 29 · 30, 31 (kartice 29 i 31 već dopunjene u paketu 1.2.9: React Compiler, Vite 8 i Rolldown)
+- ✅ Deo III: 28–31 (paket 1.2.11; pogl. 30 provereno na kodu i testovima Zaliha; Vitest/RTL/MSW 3 i Zustand 5 pokrenuti;
+  ispravljeno: React Router 8 (jun 2026., bez `react-router-dom`) u pogl. 26, `SubmitEvent` umesto zastarelog `FormEvent`
+  u pogl. 27; u vodiču pogl. 30: prodaja je porudžbina (`useCreateOrder`), novo ime testa, Zustand 5 selektor sa novim
+  objektom = beskonačna petlja. Pogl. 42 u vodiču još opisuje prodaju kao `POST /api/items/{id}/movements`: proveriti uz 42.)
 - ⬜ Deo IV: 32–34 · 35–37 · 38, 39 · 40, 41
 - ⬜ Deo V i VI: 42, 43 · 44–47 · 48, 49
 - ⬜ `vodic-1-osnove-backend.md` … `vodic-5-intervju.md` (pitanja i kartice)
