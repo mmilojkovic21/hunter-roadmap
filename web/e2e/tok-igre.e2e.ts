@@ -1,8 +1,8 @@
 import { answerAllCorrectly, clearChapterViaApi, expect, test } from "./helpers";
 
 // Ceo tok kroz pravi pregledač, nad svežom bazom (tools/e2e.sh). Koraci se nadovezuju (XP, dnevni zadatak),
-// pa testovi u ovom fajlu idu redom. Današnji dnevni zadatak sa Full Stack paketom i ciljem 60 min:
-// 0.1 lekcija, 0.1 vežba, 0.1 test, 0.2 lekcija.
+// pa testovi u ovom fajlu idu redom. Dnevni zadatak (4 koraka) zavisi od sadržaja paketa, pa test poslednji
+// preostali korak čita sa API-ja umesto da ga podrazumeva.
 test.describe.serial("tok igre", () => {
   test("lekcija i vežba: +XP iznad dugmeta, pa LEVEL UP", async ({ page }) => {
     await page.goto("/chapters/0.1");
@@ -42,8 +42,19 @@ test.describe.serial("tok igre", () => {
     await expect(page.getByRole("heading", { name: "Dnevni zadatak" })).toBeVisible();
     await expect(page.getByText("3/4 ·")).toBeVisible();
 
-    await page.goto("/chapters/0.2");
-    await page.getByRole("button", { name: "Lekcija pročitana" }).click();
+    // Poslednji nezavršeni zadatak dana: lekcija ili „Dublje” (oba se završavaju dugmetom na svojoj kartici).
+    const before = await (await request.get("/api/status")).json();
+    const left = before.dailyQuest.tasks.filter((t: { done: boolean }) => !t.done);
+    expect(left).toHaveLength(1);
+    const { chapterId, step } = left[0] as { chapterId: string; step: string };
+    expect(["Lesson", "Deeper"]).toContain(step);
+    await page.goto(`/chapters/${chapterId}`);
+    if (step === "Deeper") {
+      await page.getByRole("tab", { name: /Dublje/ }).click();
+      await page.getByRole("button", { name: "Završeno" }).click();
+    } else {
+      await page.getByRole("button", { name: "Lekcija pročitana" }).click();
+    }
 
     const notice = page.locator(".notice");
     await expect(notice).toBeVisible();

@@ -37,6 +37,21 @@ C# se ne prevodi direktno u instrukcije procesora, nego u međukod (IL). CLR ga 
 
 Ovo se detaljnije radi u poglavlju 5 vodiča (value i reference tipovi).
 
+## Dublje
+
+**Memorijska hijerarhija.** Procesor ne čita RAM direktno za svaku vrednost, nego kroz keš (L1, L2, L3). Pristup L1 kešu traje nekoliko ciklusa, a RAM-u stotine. Iz RAM-a se uvek prenosi cela **keš linija** (na x86 obično 64 bajta, na Apple M procesorima 128), pa su podaci koji stoje jedan do drugog praktično „besplatni” kad se pročita prvi.
+
+Zato je redosled obilaska bitan. Matrica u C#-u je u memoriji zapisana red po red:
+
+```csharp
+for (int i = 0; i < N; i++) for (int j = 0; j < N; j++) s += m[i, j];  // red po red: susedni bajtovi
+for (int j = 0; j < N; j++) for (int i = 0; i < N; i++) s += m[i, j];  // kolona po kolona: skok za ceo red
+```
+
+Za matricu 4000×4000 drugi način je na M-seriji oko dva puta sporiji, iako je složenost ista, O(n²). Isti razlog čini niz i `List<T>` bržim od povezane liste u praksi: elementi niza su jedan do drugog, a čvorovi liste rasuti po hipu.
+
+**Big-O ne meri ovo.** Dva algoritma iste složenosti mogu se razlikovati više puta zbog keša; zato se performanse mere (pogl. P4), a ne pogađaju.
+
 ## Lab
 
 1. Instaliraj .NET 10 SDK i proveri: `dotnet --info`.
@@ -158,6 +173,23 @@ Math.Round(2.345m, 2, MidpointRounding.AwayFromZero); // 2.35, „školsko” za
 
 Podrazumevano `Math.Round` tačnu polovinu zaokružuje na najbliži paran broj (bankarsko zaokruživanje). Za račune i PDV, gde se očekuje „5 i više naviše”, prosledi `MidpointRounding.AwayFromZero`.
 
+## Dublje
+
+**Kako `double` čuva broj (IEEE 754).** 64 bita: znak, eksponent i 52 bita razlomka (53 sa skrivenim bitom). To daje oko 15–17 značajnih cifara. Posledice koje se pitaju:
+
+```csharp
+0.1.ToString("G17");              // 0.10000000000000001: 0.1 nije tačno zapisan
+Math.Abs(0.1 + 0.2 - 0.3) < 1e-9; // true: double se poredi sa tolerancijom, ne sa ==
+double.NaN == double.NaN;         // false: NaN nije jednak ni sebi; koristi double.IsNaN
+1.0 / 0;                          // ∞ (double.PositiveInfinity), bez izuzetka
+(double)9007199254740993L;        // 9007199254740992: iznad 2^53 ne staje svaki ceo broj
+(float)16777217;                  // 16777216: float ima samo 24 bita preciznosti
+```
+
+**Celi brojevi su u dvojnom komplementu.** Zato `int.MaxValue + 1` postaje `int.MinValue` (bez `checked`), a deljenje celog broja nulom baca `DivideByZeroException`, dok `double` daje beskonačnost.
+
+**`decimal` nije besplatan.** Tačan je za decimalne iznose, ali procesor nema instrukcije za njega, pa je računanje sporije od `double`. Za novac je to prava cena; za fiziku, grafiku i statistiku nije potreban.
+
 ## Lab
 
 1. Napravi konzolnu aplikaciju `Kalkulator`.
@@ -278,6 +310,25 @@ foreach (var k in knjige)
 
 `&&` (i), `||` (ili), `!` (ne). `&&` i `||` su „kratki”: ako je rezultat poznat posle leve strane, desna se ne izvršava. Zato je `knjiga != null && knjiga.Dostupna` bezbedno.
 
+## Dublje
+
+**Ne menjaj kolekciju dok je obilaziš.** `foreach` nad `List<T>` proverava da se lista nije promenila i baca `InvalidOperationException` („Collection was modified”) ako se u telu ukloni ili doda element.
+
+```csharp
+foreach (var x in lista) if (x % 2 == 0) lista.Remove(x);     // InvalidOperationException
+
+for (int i = lista.Count - 1; i >= 0; i--)                     // unazad: indeksi ispred se ne pomeraju
+    if (lista[i] % 2 == 0) lista.RemoveAt(i);
+
+lista.RemoveAll(x => x % 2 == 0);                              // najjasnije i O(n)
+```
+
+Uklanjanje unapred sa `for` preskače elemente (posle `RemoveAt(i)` sledeći element dođe na mesto `i`), a `RemoveAt` u petlji je O(n²) za veliku listu; `RemoveAll` prođe jednom.
+
+**`switch` nad enumom i iscrpnost.** Ako `switch` izraz ne pokriva sve vrednosti enuma, kompajler upozorava, a nepokrivena vrednost u izvršavanju baca `SwitchExpressionException`. Kad se enumu doda nova vrednost, upozorenje pokaže sva mesta koja treba dopuniti, pa je `_ =>` grana koja tiho „guta” nove vrednosti ponekad gora od upozorenja.
+
+**Petlja sa `while (true)`** mora imati jasan izlaz (`break` ili `return`) i, u serverskom kodu, `CancellationToken` (pogl. 7), inače se ne može prekinuti pri gašenju aplikacije.
+
 ## Lab
 
 1. FizzBuzz: ispiši brojeve 1–100; umesto deljivih sa 3 „Fizz”, sa 5 „Buzz”, sa oba „FizzBuzz”.
@@ -341,6 +392,7 @@ Console.WriteLine(x switch { < 5 => "A", < 10 => "B", _ => "C" });
 ## Izvori
 - [Microsoft Learn: Naredbe za izbor (if, switch)](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/selection-statements)
 - [Microsoft Learn: Petlje](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/iteration-statements)
+- [Microsoft Learn: switch izraz (iscrpnost)](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/switch-expression)
 =====
 ---
 id: "0.4"
@@ -385,6 +437,29 @@ Isti ulaz uvek daje isti izlaz i ne menja ništa spolja (bez upisa u bazu, fajl,
 ### Rekurzija
 
 Funkcija može da pozove samu sebe; to je tema poglavlja 0.6.
+
+## Dublje
+
+**Closure: lambda pamti promenljivu, ne vrednost.** Lambda „zarobi” promenljivu iz okoline i vidi njenu vrednost u trenutku poziva:
+
+```csharp
+var akcije = new List<Func<int>>();
+for (int i = 0; i < 3; i++) akcije.Add(() => i);      // sve tri vide ISTO i: posle petlje je 3
+// rezultat: 3, 3, 3
+foreach (var i in new[] { 0, 1, 2 }) akcije.Add(() => i);  // foreach pravi novu promenljivu po krugu
+// rezultat: 0, 1, 2
+```
+
+Ista zamka postoji u JavaScriptu sa `var` (pogl. 46).
+
+**Referenca se prenosi po vrednosti.** Kad metodi pošalješ listu, metoda dobija kopiju reference: može da menja isti objekat, ali dodela novog objekta parametru ne menja promenljivu pozivaoca. Tek `ref` prenosi samu promenljivu.
+
+```csharp
+static void Promeni(List<int> x) { x.Add(2); x = new List<int>(); }   // pozivalac vidi Add, ne vidi novu listu
+static void Zameni(ref List<int> x) => x = new List<int>();            // pozivalac dobija novu listu
+```
+
+**Lokalne funkcije i `params`.** Pomoćna funkcija koja se koristi samo u jednoj metodi može da bude lokalna (`static` ako ne koristi promenljive okoline, pa ne pravi closure). `params int[] brojevi` dozvoljava poziv `Zbir(1, 2, 3)` i `Zbir()`; od C# 13 `params` može biti i `ReadOnlySpan<int>`, bez alokacije niza.
 
 ## Lab
 
@@ -450,6 +525,8 @@ var lista = new List<int>(); Dodaj(lista); Console.WriteLine(lista.Count);
 ## Izvori
 - [Microsoft Learn: Metode u C#](https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/methods)
 - [Microsoft Learn: Unit testovi sa xUnit](https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-csharp-with-xunit)
+- [Microsoft Learn: lambda izrazi i zarobljene promenljive](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/lambda-expressions)
+- [Microsoft Learn: params](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/params)
 =====
 ---
 id: "0.5"
@@ -513,6 +590,22 @@ static int NajveciZbirK(int[] a, int k)
 }
 ```
 
+## Dublje
+
+**Range na nizu pravi kopiju, `Span` ne.** `niz[1..3]` vraća **nov niz** sa kopiranim elementima, pa izmena ne utiče na original. `Span<T>` je pogled na deo postojećeg niza, bez kopiranja i alokacije:
+
+```csharp
+int[] niz = { 10, 20, 30, 40 };
+var kopija = niz[1..3]; kopija[0] = 99;          // niz[1] je i dalje 20
+Span<int> pogled = niz.AsSpan(1, 2); pogled[0] = 99;   // niz[1] je sada 99
+```
+
+Za `string` je isto: `s[1..3]` pravi novi string, a `s.AsSpan(1, 2)` ne. `Span<T>` živi samo na steku (ne može biti polje klase ni preživeti `await`), zato se koristi u parserima i bibliotekama, a u poslovnom kodu retko.
+
+**Kapacitet liste.** `List<T>` drži niz veći od broja elemenata; kad se napuni, pravi dvostruko veći i kopira sve. Ako unapred znaš broj elemenata, `new List<T>(n)` (ili `EnsureCapacity`) izbegava ta kopiranja.
+
+**Dva pokazivača i prozor su O(n) jer svaki indeks ide samo napred.** Ako se u rešenju jedan pokazivač vraća unazad za svaki korak drugog, to je ponovo O(n²); proveri to pre nego što kažeš složenost.
+
 ## Lab
 
 1. Bez LINQ-a napiši: `Max`, `Obrni` (u mestu), `UkloniDuplikate` (sortiran niz), `Rotiraj(niz, k)`.
@@ -570,6 +663,8 @@ Niz kad je dužina fiksna i poznata (malo brži, bez rezerve). Lista kad broj el
 ## Izvori
 - [Microsoft Learn: Nizovi](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/arrays)
 - [NeetCode roadmap (zadaci po temama)](https://neetcode.io/roadmap)
+- [Microsoft Learn: Span i Memory](https://learn.microsoft.com/en-us/dotnet/standard/memory-and-spans/)
+- [Microsoft Learn: indeksi i opsezi (ranges)](https://learn.microsoft.com/en-us/dotnet/csharp/tutorials/ranges-indexes)
 =====
 ---
 id: "0.6"
@@ -620,6 +715,31 @@ static long FibMemo(int n, Dictionary<int, long>? m = null)
 ### Iteracija ili rekurzija?
 
 Svaka rekurzija može da se napiše petljom (uz sopstveni stek). Rekurziju biraj kad je struktura prirodno rekurzivna (stablo, ugnježdene kategorije); petlju kad je dubina velika ili nepoznata. C# ne garantuje optimizaciju repnog poziva (tail call), pa i „repna” rekurzija može da prepuni stek.
+
+## Dublje
+
+**Od rekurzije do eksplicitnog steka.** Svaka rekurzija može da se prepiše u petlju sa sopstvenim `Stack<T>`: umesto poziva, na stek staviš ono što bi bio sledeći poziv. Stek tada živi na hipu i nema ograničenje dubine kao stek poziva, pa obilazak lanca od milion čvorova radi bez `StackOverflowException`:
+
+```csharp
+var stek = new Stack<Cvor>();
+stek.Push(koren);
+while (stek.Count > 0)
+{
+    var c = stek.Pop();
+    Obradi(c);
+    foreach (var dete in c.Deca) stek.Push(dete);     // umesto rekurzivnog poziva
+}
+```
+
+**Memoizacija (odozgo) i tabela (odozdo).** Memoizacija zadrži rekurziju i pamti rezultate u rečniku. Tabelarni pristup (bottom-up) računa od najmanjih slučajeva naviše i često treba samo poslednjih nekoliko vrednosti:
+
+```csharp
+static long Fib(int n) { long a = 0, b = 1; for (int i = 0; i < n; i++) (a, b) = (b, a + b); return a; }  // O(n) vreme, O(1) memorija
+```
+
+`Fib(90)` je 2.880.067.194.370.816.120 i staje u `long`; `Fib(93)` ga već prekoračuje.
+
+**Repna rekurzija.** Neki jezici rekurzivni poziv na samom kraju funkcije pretvaraju u skok, bez novog okvira na steku. C# kompajler to ne garantuje, pa se na to ne oslanja: duboka rekurzija u C#-u se piše kao petlja.
 
 ## Lab
 
@@ -746,6 +866,18 @@ static bool ImaDuplikat2(int[] a)
 
 \* u proseku
 
+## Dublje
+
+**Najbolji, prosečni i najgori slučaj.** Big-O obično opisuje najgori slučaj, ali ne uvek: `Dictionary` je O(1) **u proseku**, a O(n) u najgorem (svi ključevi u istoj kanti). Quicksort je prosečno O(n log n), najgore O(n²); zato .NET koristi introsort, koji pređe na heapsort kad rekurzija postane preduboka.
+
+**Amortizovana složenost.** `List.Add` je ponekad O(n) (kopiranje u dvostruko veći niz), ali posle n dodavanja ukupno je urađeno oko 2n kopiranja, pa je cena po dodavanju u proseku konstantna. To je „amortizovano O(1)”, što nije isto što i „prosečno” za slučajan ulaz.
+
+**Memorijska složenost** se računa isto: `HashSet` za proveru duplikata je O(n) vremena, ali i O(n) dodatne memorije; sortiranje na mestu pa poređenje suseda je O(n log n) vremena i O(1) dodatne memorije (ako se sme menjati ulaz). Na intervjuu reci obe.
+
+**Konstante za mali n.** O(n) pretraga kroz niz od 10 elemenata može biti brza kao heš, jer nema računanja heša i podaci su u kešu (dublje u 0.1). Big-O kaže kako raste posao, ne koliko je brzo za tvoje stvarne brojeve; za to se meri.
+
+**Θ i Ω.** Formalno, O je gornja granica, Ω donja, a Θ obe. U praksi (i na intervjuima) „O(n log n)” se koristi u smislu Θ: tačna stopa rasta.
+
 ## Lab
 
 1. Za 8 kratkih funkcija koje sam napišeš (petlje, ugnježdene petlje, binarna pretraga, HashSet) zapiši složenost pre merenja.
@@ -864,6 +996,24 @@ static bool Validno(string s)
 
 Graf je skup čvorova i veza. Najčešće se čuva kao lista suseda: `Dictionary<string, List<string>>`. Obilasci (BFS, DFS) su u sledećem poglavlju.
 
+## Dublje
+
+**Kako je napravljen `Dictionary` u .NET-u.** Dva niza: `buckets` (indeks kante) i `entries` (ključ, vrednost, heš i indeks sledećeg unosa u istoj kanti). Kolizije se rešavaju lancem kroz `entries` (separate chaining). Kad se popuni, pravi veći niz (veličina je prost broj) i premesti sve unose, zato je i `Add` amortizovano O(1).
+
+**Heš stringova je nasumičan po procesu.** U modernom .NET-u `"abc".GetHashCode()` daje drugi broj pri svakom pokretanju programa. To štiti od napada u kome neko pošalje mnogo ključeva sa istim hešom i pretvori svaku pretragu u O(n). Posledica: heš se nikad ne čuva u bazi ni u fajlu; za trajan otisak koristi se kriptografski heš (SHA-256).
+
+**`PriorityQueue` nije stabilan.** Elementi sa istim prioritetom ne izlaze redom kojim su ušli (pet elemenata sa prioritetom 1 izađu npr. kao a, e, d, c, b). Ako je redosled bitan, prioritet se proširi rednim brojem: `(prioritet, redniBroj)`.
+
+**Kada koja struktura iz .NET-a:**
+
+| Potreba | Struktura | Složenost |
+|---|---|---|
+| sortirani ključevi uz česte izmene | `SortedDictionary` (crveno-crno stablo) | O(log n) |
+| sortirana lista koja se retko menja | `SortedList` (dva niza) | pretraga O(log n), ubacivanje O(n) |
+| ubacivanje u sredinu kad imaš čvor | `LinkedList` | O(1) uz čvor, ali loša lokalnost |
+| deljenje između niti | `ConcurrentDictionary`, `ConcurrentQueue` | bez spoljnog `lock`-a |
+| nepromenljiva kolekcija za čitanje | `FrozenDictionary` (.NET 8+) | brže čitanje, skupa izgradnja |
+
 ## Lab
 
 1. Implementiraj sopstveni `MojStek<T>` nad nizom (Push, Pop, Peek, Count; niz raste duplo kad se napuni).
@@ -921,6 +1071,9 @@ Red (BFS). Stek daje obilazak u dubinu (DFS).
 ## Izvori
 - [Microsoft Learn: Kolekcije u .NET-u](https://learn.microsoft.com/en-us/dotnet/standard/collections/)
 - [VisuAlgo: hash tabele, heap, grafovi](https://visualgo.net/en)
+- [Microsoft Learn: String.GetHashCode (nije stabilan između procesa)](https://learn.microsoft.com/en-us/dotnet/api/system.string.gethashcode)
+- [Microsoft Learn: PriorityQueue](https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.priorityqueue-2)
+- [dotnet/runtime: izvorni kod Dictionary](https://github.com/dotnet/runtime/blob/main/src/libraries/System.Private.CoreLib/src/System/Collections/Generic/Dictionary.cs)
 =====
 ---
 id: "0.9"
@@ -1003,6 +1156,30 @@ static long Nacini(int n)
 3. Traži bolje: hash, sortiranje, dva pokazivača, prozor, BFS/DFS, DP.
 4. Piši kod naglas, pa ga „izvrši” na malom primeru.
 
+## Dublje
+
+**Topološko sortiranje (Kahn).** Kad postoje zavisnosti (projekti u solutionu, migracije, koraci posla), redosled je: prvo ono od čega niko ne zavisi. Algoritam broji ulazne zavisnosti, stavi u red sve sa nulom, i svakim izlaskom smanji brojač onima koji od njega zavise. Ako na kraju ostanu čvorovi, postoji ciklus (isto ono što `dotnet build` javi za kružnu referencu).
+
+```csharp
+// Domain ← Application ← Infrastructure, Web zavisi od Application i Infrastructure
+// rezultat: Domain -> Application -> Infrastructure -> Web
+```
+
+**Dijkstra sa `PriorityQueue`.** .NET-ov `PriorityQueue` nema operaciju „smanji prioritet”, pa se čvor ubaci ponovo sa boljom udaljenošću, a zastareo unos se preskoči pri vađenju:
+
+```csharp
+while (pq.TryDequeue(out var u, out var du))
+{
+    if (du > dist[u]) continue;                          // zastareo unos
+    foreach (var (v, w) in graf[u])
+        if (!dist.TryGetValue(v, out var dv) || du + w < dv) { dist[v] = du + w; pq.Enqueue(v, du + w); }
+}
+```
+
+Složenost je O((V + E) log V). Radi samo sa nenegativnim težinama; za negativne se koristi Bellman-Ford.
+
+**Pohlepno ili dinamičko programiranje.** Pohlepni algoritam uzima lokalno najbolji izbor i ne vraća se; tačan je samo kad problem to dozvoljava (apoeni 1, 2, 5, 10…). Za apoene 1, 3, 4 i iznos 6 pohlepno daje 4+1+1 (tri novčića), a DP nalazi 3+3 (dva). Kad nisi siguran da pohlepno važi, DP je bezbedan izbor; na intervjuu pokaži kontraprimer.
+
 ## Lab
 
 1. Implementiraj merge sort i testiraj ga na nasumičnim nizovima upoređujući sa `Array.Sort`.
@@ -1066,3 +1243,4 @@ Nije. Koristi introsort (quicksort, uz heapsort i insertion sort), pa jednaki el
 - [Microsoft Learn: Array.Sort (introsort, nestabilno)](https://learn.microsoft.com/en-us/dotnet/api/system.array.sort)
 - [VisuAlgo: sortiranje i grafovi](https://visualgo.net/en)
 - [LeetCode](https://leetcode.com/problemset/)
+- [Microsoft Learn: PriorityQueue (bez smanjenja prioriteta)](https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.priorityqueue-2)

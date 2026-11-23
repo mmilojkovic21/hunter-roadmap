@@ -48,6 +48,20 @@ builder.Configuration.AddAzureKeyVault(
 
 Pre svakog vežbanja postavi budžet i upozorenje (Cost Management → Budgets). Posle vežbe obriši celu resource group: `az group delete -n rg-biblioteka`.
 
+## Dublje
+
+**Hijerarhija i nasleđivanje prava.** Azure ima četiri nivoa opsega: management group → subscription → resource group → resurs. Uloga dodeljena na višem nivou važi za sve ispod: ko je „Contributor” na subscription-u, menja i svaki resurs u svakoj grupi. Zato se prava daju na najnižem nivou koji je dovoljan (Key Vault, ne cela grupa), a management groups služe velikim firmama da jednom politikom pokriju mnogo subscription-a.
+
+**System-assigned ili user-assigned identitet.**
+
+| | System-assigned | User-assigned |
+|---|---|---|
+| Životni vek | vezan za resurs; briše se kad i App Service | poseban resurs, živi nezavisno |
+| Deljenje | jedan resurs | više resursa (npr. tri instance istog API-ja) |
+| Kad | jedna aplikacija, jednostavno | više aplikacija sa istim pravima, ili prava treba dodeliti pre nego što resurs postoji (IaC) |
+
+**Prava, ne lozinke.** Uz Managed Identity aplikacija dobija token od Entra ID-ja kad joj zatreba, a pristup se kontroliše dodelom uloge. Kad se uloga ukloni, pristup prestaje odmah, bez menjanja ijedne tajne. Isti princip, bez tajne koju treba rotirati, stoji iza OIDC-a u GitHub Actions (C2).
+
 ## Lab
 
 1. Napravi besplatan Azure nalog i u Cost Management postavi budžet od 10 € sa upozorenjem na 50%.
@@ -116,6 +130,8 @@ Microsoft preporučuje da ga u produkciji zameniš određenim kredencijalom, npr
 - [Microsoft Learn: Key Vault i Azure RBAC (uloga Key Vault Secrets User)](https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-guide)
 - [Microsoft Learn: lanci kredencijala i DefaultAzureCredential u produkciji](https://learn.microsoft.com/en-us/dotnet/azure/sdk/authentication/credential-chains)
 - [Microsoft Learn: Azure obuke](https://learn.microsoft.com/en-us/training/azure/)
+- [Microsoft Learn: opsezi Azure RBAC i nasleđivanje](https://learn.microsoft.com/en-us/azure/role-based-access-control/scope-overview)
+- [Microsoft Learn: Managed Identity (system i user-assigned)](https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview)
 =====
 ---
 id: "C2"
@@ -201,6 +217,22 @@ jobs:
 - `permissions:` daj najmanja potrebna prava (`contents: read`).
 - Ponovljene korake izdvoji u reusable workflow (`workflow_call`).
 
+## Dublje
+
+**Keš: ključ, restore-keys i granice.** `actions/cache` (ili `cache:` u `setup-node`/`setup-dotnet`) traži tačan ključ, a ako ga nema, redom proba `restore-keys` kao prefikse. Zato ključ uključuje heš lock fajla (`hashFiles('**/package-lock.json')`): promena zavisnosti pravi nov keš, a stari i dalje služi kao polazna tačka. Keš nekorišćen 7 dana se briše, a ukupno ograničenje je podrazumevano 10 GB po repou. Pokretanje može da čita keš svoje grane i podrazumevane grane (pull request i keš osnovne grane), ne i keš neke druge grane.
+
+**Reusable workflow ili composite action.**
+
+| | Reusable workflow (`workflow_call`) | Composite action |
+|---|---|---|
+| Šta deli | cele poslove (jobs), sa svojim runnerima | niz koraka unutar jednog posla |
+| Tajne i okruženja | prima ih eksplicitno (`secrets:`) | koristi okruženje posla koji ga zove |
+| Kad | standardni pipeline za sve repoe firme | ponovljen blok koraka (setup + restore) |
+
+**Bezbednost lanca snabdevanja.** Tag (`@v7`) može da se pomeri na drugi commit ako neko preuzme nalog autora akcije. Zato se akcije trećih strana fiksiraju na pun SHA (uz Dependabot koji ga ažurira), a GitHub sada ima i **lockfile** (`.github/workflows/actions.lock`, pravi ga `gh actions-lock`) koji beleži tačan commit svake akcije, i tranzitivnih; trenutno je dostupan uz GitHub Enterprise Cloud.
+
+**`pull_request_target` je opasan.** Radi u kontekstu glavnog repoa, sa tajnama i pravom pisanja. Ako uz njega uradiš checkout koda iz tuđeg pull requesta i pokreneš ga, napadač izvršava svoj kod sa tvojim tajnama. Za testiranje PR-ova iz forkova koristi `pull_request`.
+
 ## Lab
 
 1. U Biblioteka repou napravi workflow sa odvojenim `backend` i `frontend` poslovima koji rade paralelno.
@@ -267,6 +299,10 @@ OIDC: cloud provajder je podešen da veruje tokenima koje GitHub izdaje za odre�
 - [GitHub Docs: okruženja i required reviewers](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments)
 - [GitHub Docs: PostgreSQL kao service kontejner](https://docs.github.com/en/actions/tutorials/use-containerized-services/create-postgresql-service-containers)
 - [Node.js: verzije i kraj podrške](https://endoflife.date/nodejs)
+- [GitHub Docs: keš zavisnosti](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)
+- [GitHub Docs: reusable workflows](https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows)
+- [GitHub Docs: bezbedna upotreba (SHA, pull_request_target)](https://docs.github.com/en/actions/reference/security/secure-use)
+- [GitHub Docs: workflow dependency lockfiles](https://docs.github.com/en/actions/concepts/security/workflow-dependency-lockfiles)
 =====
 ---
 id: "C3"
@@ -330,6 +366,22 @@ public class ArtikliServis(HybridCache cache, AppDb db)
 
 Redis je 2024. promenio licencu, a 2025. dodao AGPL opciju; zajednica je napravila **Valkey**, fork pod BSD licencom koji je kompatibilan sa Redis klijentima. Za učenje i male projekte oba rade isto.
 
+## Dublje
+
+**Kad se memorija napuni.** Redis podrazumevano nema ograničenje memorije na 64-bitnim sistemima, a podrazumevana politika je `noeviction`: kad se dostigne `maxmemory`, upis vraća grešku. Za keš to nije dobro; postavlja se `maxmemory` i politika izbacivanja:
+
+| Politika | Šta izbacuje |
+|---|---|
+| `allkeys-lru` / `allkeys-lfu` | najduže nekorišćene / najređe korišćene ključeve; uobičajeno za čist keš |
+| `volatile-lru` / `volatile-ttl` | samo ključeve sa TTL-om; ponaša se kao `noeviction` ako TTL-a nema |
+| `noeviction` | ništa; za Redis kao bazu (redovi, brojači) gde gubitak nije prihvatljiv |
+
+**Trajnost: RDB i AOF.** RDB pravi snimak cele baze u razmacima (brz restart, ali gubi izmene od poslednjeg snimka). AOF beleži svaku izmenu (gubi najviše oko sekunde uz podrazumevani `fsync` jednom u sekundi). Za čist keš trajnost često nije potrebna: posle restarta se keš ponovo napuni iz baze.
+
+**Jedna nit za komande.** Redis izvršava komande jednu po jednu, pa je svaka komanda atomska (`INCR` brojača ne može da se „izgubi”). Zato je dobar za brojače i rate limit, ali spora komanda (`KEYS *` nad milionima ključeva) blokira sve ostale klijente; za obilazak se koristi `SCAN`.
+
+**Distribuirano zaključavanje (`SET key value NX PX 30000`)** radi za „neka samo jedan posao radi ovo”, ali nije pouzdano za tačnost podataka: ako proces stane duže od isteka ključa, dva procesa misle da drže zaključavanje. Za tačnost stanja (zalihe) zaključavanje ostaje u bazi (pogl. 14).
+
 ## Lab
 
 1. Dodaj Redis (ili Valkey) u `docker-compose.yml` Biblioteke: `image: redis:8` ili `valkey/valkey:8`.
@@ -392,6 +444,8 @@ Redis je očišćen, ali B i C i dalje imaju staru vrednost u svojoj lokalnoj me
 - [Microsoft Learn: HybridCache](https://learn.microsoft.com/en-us/aspnet/core/performance/caching/hybrid)
 - [Redis dokumentacija](https://redis.io/docs/latest/)
 - [Valkey](https://valkey.io/)
+- [Redis: politike izbacivanja](https://redis.io/docs/latest/develop/reference/eviction/)
+- [Redis: trajnost (RDB i AOF)](https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/)
 =====
 ---
 id: "C4"
@@ -460,6 +514,16 @@ await ch.BasicPublishAsync("", "pozajmice", mandatory: false,
 await using var potvrdjen = await conn.CreateChannelAsync(new CreateChannelOptions(
     publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true));
 ```
+
+## Dublje
+
+**Prefetch i takmičenje potrošača.** Više consumer-a na istom redu dele poruke (competing consumers), što je najlakši način skaliranja obrade. `BasicQosAsync(0, prefetchCount: N, global: false)` (RabbitMQ.Client 7) kaže koliko nepotvrđenih poruka broker sme da pošalje jednom consumer-u. Bez ograničenja, jedan spor consumer može da „pokupi” hiljade poruka koje drugi ne mogu da obrade; premali prefetch (1) smanjuje propusnost zbog čekanja na mrežu. Polazna vrednost je obično nekoliko desetina, pa se meri.
+
+**Redosled.** Unutar jednog reda poruke izlaze redom, ali sa više consumer-a, ponovnim isporukama i dead letteringom redosled obrade nije zagarantovan. Ako je bitan (statusi iste porudžbine), obrada se piše tako da ne zavisi od redosleda: ciljno stanje i verzija, kao kod webhooka (pogl. 16).
+
+**Tipovi redova u RabbitMQ 4.** Classic (jedan čvor, za privremene redove), quorum (replikovan preko više čvorova algoritmom Raft, preporučen za trajne poruke, ima `delivery-limit`), i streams (dnevnik koji se čita više puta, slično Kafki). Stari „mirrored classic” redovi su uklonjeni u verziji 4.
+
+**Saga.** Kad jedna poslovna operacija menja više servisa (pozajmica, naplata članarine, email), nema jedne transakcije. Saga je niz lokalnih transakcija povezanih porukama, gde svaki korak ima i **kompenzaciju** (vrati pozajmicu ako naplata ne uspe). Skuplja je za razumevanje i testiranje od monolita sa jednom transakcijom, zato se uvodi tek kad su servisi stvarno odvojeni.
 
 ## Lab
 
@@ -533,6 +597,8 @@ Kad je consumer odbije sa `requeue: false`, kad istekne njen TTL, kad red pređe
 - [RabbitMQ: quorum redovi i delivery-limit](https://www.rabbitmq.com/docs/quorum-queues)
 - [Najava MassTransit v9 i licence](https://masstransit.io/introduction/v9-announcement)
 - [Wolverine](https://wolverinefx.net/)
+- [RabbitMQ: consumer prefetch](https://www.rabbitmq.com/docs/consumer-prefetch)
+- [RabbitMQ: streams](https://www.rabbitmq.com/docs/streams)
 =====
 ---
 id: "C5"
@@ -608,6 +674,23 @@ terraform destroy  # obriši sve (za vežbu)
 - `plan` ide u pull request, `apply` radi pipeline posle odobrenja.
 - Tajne ne idu u `.tf` fajlove ni u state bez zaštite; state sadrži osetljive podatke.
 
+## Dublje
+
+**Refaktorisanje bez brisanja resursa.** Kad u kodu preimenuješ resurs (`azurerm_service_plan.plan` u `.main`), Terraform bi obrisao stari i napravio novi, jer je adresa u state-u drugačija. Blok `moved` kaže da je to isti resurs:
+
+```hcl
+moved {
+  from = azurerm_service_plan.plan
+  to   = azurerm_service_plan.main
+}
+```
+
+**Uvoz postojećeg resursa.** Resurs napravljen klikom u portalu se uvodi pod upravljanje blokom `import` (`to` je adresa u kodu, `id` je Azure ID), a `terraform plan -generate-config-out=generated.tf` može da napiše i početnu konfiguraciju.
+
+**Plan koji se primenjuje je plan koji je pregledan.** `terraform plan -out=plan.tfplan` sačuva tačan plan, a `terraform apply plan.tfplan` primeni baš njega. U pipeline-u se tako između pregleda i primene ne može ubaciti ništa novo.
+
+**Moduli i okruženja.** Modul je folder sa resursima i promenljivama (`module "app" { source = "./modules/app" env = "prod" }`). Za test i produkciju obično se prave odvojeni folderi ili odvojeni state fajlovi po okruženju, da greška u testu nikad ne dira produkciju; `terraform workspace` deli state, ali ne i backend ni prava, pa se za strogo odvajanje bira poseban backend.
+
 ## Lab
 
 1. Instaliraj Terraform ili OpenTofu i Azure CLI; uloguj se i postavi `ARM_SUBSCRIPTION_ID` (`az account show --query id -o tsv`).
@@ -673,6 +756,8 @@ Deklarativni opisuje ciljno stanje i ponavljanje je bezbedno (idempotentno). Imp
 - [HashiCorp: backend azurerm (state u Blob Storage-u, zaključavanje)](https://developer.hashicorp.com/terraform/language/backend/azurerm)
 - [HashiCorp podrška: subscription_id obavezan od azurerm 4.0](https://support.hashicorp.com/hc/en-us/articles/40621007246099-Required-subscription-id-Error-in-Terraform-with-AzureRM)
 - [Microsoft Learn: Bicep](https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/overview)
+- [HashiCorp: moved blok](https://developer.hashicorp.com/terraform/language/moved)
+- [HashiCorp: import blok](https://developer.hashicorp.com/terraform/language/import)
 =====
 ---
 id: "C6"
@@ -748,6 +833,24 @@ kubectl rollout status deploy/biblioteka-api
 kubectl rollout undo deploy/biblioteka-api   # vrati prethodnu verziju
 ```
 
+## Dublje
+
+**Requests, limits i QoS klase.** `requests` je ono što scheduler rezerviše na čvoru; `limits` je gornja granica. Kontejner koji pređe memorijski limit se ubija (OOMKilled), a CPU iznad limita se samo usporava (throttling). Iz toga Kubernetes pravi QoS klasu poda:
+
+| Klasa | Uslov | Pri nedostatku memorije na čvoru |
+|---|---|---|
+| Guaranteed | svaki kontejner ima CPU i memorijski request jednak limitu | izbacuje se poslednji |
+| Burstable | bar jedan request ili limit, ali ne Guaranteed | posle BestEffort |
+| BestEffort | nijedan request ni limit | izbacuje se prvi |
+
+Česta praksa za .NET API: memorijski request i limit jednaki (predvidljivo), CPU request bez limita (da se ne usporava nepotrebno).
+
+**Rolling update.** Deployment podrazumevano drži najmanje 75% podova dostupnim i pravi najviše 25% preko željenog broja (`maxUnavailable` i `maxSurge`, po 25%). Novi pod dobija saobraćaj tek kad prođe readiness probu, zato je ispravna readiness proba uslov za isporuku bez zastoja.
+
+**Gašenje bez izgubljenih zahteva.** Pri gašenju Kubernetes pošalje SIGTERM i čeka `terminationGracePeriodSeconds` (podrazumevano 30 s). ASP.NET Core na SIGTERM prestaje da prima nove zahteve i završava započete; aplikacija treba da završi posao u tom roku, inače dobija SIGKILL.
+
+**Horizontalno skaliranje.** HorizontalPodAutoscaler menja broj replika prema metrici (CPU u odnosu na request, ili sopstvenoj). Radi samo ako je aplikacija stateless (pogl. 44).
+
 ## Lab
 
 1. Instaliraj `kind` (ili minikube) i `kubectl`; napravi lokalni klaster `kind create cluster`.
@@ -817,6 +920,8 @@ Za nove projekte Gateway API: Kubernetes ga preporučuje, a Ingress API je zamrz
 - [Kubernetes: Secret (podrazumevano nešifrovan u etcd-u)](https://kubernetes.io/docs/concepts/configuration/secret/)
 - [Kubernetes: Ingress (API zamrznut, preporuka Gateway API)](https://kubernetes.io/docs/concepts/services-networking/ingress/)
 - [Kubernetes blog: povlačenje ingress-nginx](https://kubernetes.io/blog/2025/11/11/ingress-nginx-retirement/)
+- [Kubernetes: QoS klase podova](https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/)
+- [Kubernetes: Deployment i rolling update](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
 =====
 ---
 id: "C7"
@@ -877,6 +982,23 @@ Svaki log nosi `TraceId`, pa iz greške u logu skočiš na ceo trag zahteva. Str
 - **D**uration: latencija (p50, p95, p99, ne prosek)
 
 Na osnovu toga se postavljaju **SLO** ciljevi (npr. 99% zahteva ispod 300 ms) i upozorenja.
+
+## Dublje
+
+**Kako trag prelazi između servisa.** Standard W3C Trace Context nosi trag kroz HTTP zaglavlje `traceparent`:
+
+```
+traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01
+             │  └ trace-id (isti za ceo zahtev) └ parent span-id └ zastavice (01 = uzorkovano)
+```
+
+`HttpClient` i ASP.NET Core u .NET-u ga šalju i čitaju sami, pa se trag povezuje kroz servise bez ručnog koda. Isti `trace-id` je u logovima i u `traceId` polju ProblemDetails odgovora (pogl. 11).
+
+**Uzorkovanje (sampling).** Čuvanje svakog traga je skupo. *Head* uzorkovanje odluči na početku zahteva (npr. 10% tragova), jednostavno i jeftino, ali može da propusti retke greške. *Tail* uzorkovanje odluči kad je trag završen (zadrži sve sa greškom ili sporije od 1 s), što traži OpenTelemetry Collector koji privremeno drži tragove.
+
+**Kardinalnost metrika.** Svaka jedinstvena kombinacija oznaka (labela) je posebna vremenska serija. Oznaka `endpoint` sa 30 vrednosti je u redu; `userId` ili `orderId` kao oznaka pravi milione serija i obori sistem za metrike. Pojedinačni ID-jevi idu u logove i tragove, ne u metrike.
+
+**Percentili iz histograma.** Metrike latencije se beleže kao histogram (brojevi u razredima: do 50 ms, do 100 ms…), a p95 se izračuna iz razreda pri prikazu. Zato se p95 ne sabira niti uprosečava preko servera; računa se iz zbirnog histograma.
 
 ## Lab
 
@@ -942,6 +1064,8 @@ OpenTelemetry izvozi samo metrike iz meter-a koje si prijavio: treba `.AddMeter(
 - [Microsoft Learn: .NET observability sa OpenTelemetry](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/observability-with-otel)
 - [Grafana dokumentacija](https://grafana.com/docs/)
 - [OpenTelemetry .NET: ručna instrumentacija (AddSource, AddMeter)](https://opentelemetry.io/docs/languages/dotnet/instrumentation/)
+- [W3C: Trace Context (traceparent)](https://www.w3.org/TR/trace-context/)
+- [OpenTelemetry: uzorkovanje (head i tail)](https://opentelemetry.io/docs/concepts/sampling/)
 =====
 ---
 id: "C8"
@@ -1002,6 +1126,16 @@ aspire update       # podigni verzije paketa
 
 Aspire je pre svega alat za razvoj, ali može i da generiše artefakte za deploy (Docker Compose, Azure Container Apps, a od 13.3 u preview-u i Kubernetes/Helm). Na intervjuu je dovoljno znati: „Aspire mi daje lokalno okruženje sa svim zavisnostima i telemetrijom za par minuta.”
 
+## Dublje
+
+**Šta `WithReference` stvarno radi.** AppHost pokreće resurse i svakom koji referencira drugi postavi promenljive okruženja: za bazu `ConnectionStrings__biblioteka`, za servis `services__api__http__0` (i `https`). U API-ju ih čita obična konfiguracija, pa `AddNpgsqlDbContext<LibraryDb>("biblioteka")` nalazi connection string bez ijednog fajla. Isti mehanizam radi i za JavaScript i Go: oni samo čitaju promenljivu okruženja.
+
+**Service discovery.** Uz `AddServiceDefaults` HttpClient može da koristi adresu `https+http://api` (prvo HTTPS, pa HTTP): ime resursa iz AppHost-a se pretvara u stvarnu adresu iz konfiguracije. U produkciji ista imena rešava platforma (DNS u Kubernetesu, Container Apps).
+
+**Integracije za hosting i za klijenta.** Paket `Aspire.Hosting.PostgreSQL` (u AppHost-u) pokreće kontejner baze; paket `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL` (u API-ju) registruje DbContext sa health check-om, ponovnim pokušajima i telemetrijom. To su dve odvojene stvari: API može da koristi klijentsku integraciju i kad bazu ne pokreće Aspire.
+
+**Dashboard i bez AppHost-a.** Aspire dashboard postoji i kao samostalan kontejner koji prima OTLP, pa može da posluži kao lokalni prikaz logova, tragova i metrika za bilo koju aplikaciju sa OpenTelemetry-jem (C7).
+
 ## Lab
 
 1. Instaliraj Aspire CLI (uputstvo na aspire.dev) i napravi projekat iz ASP.NET Core + React šablona.
@@ -1061,3 +1195,4 @@ Ne. Aspire opisuje aplikaciju i olakšava razvoj; za produkciju može da generi�
 - [aspire.dev: dokumentacija](https://aspire.dev)
 - [Šta je novo u Aspire 13](https://aspire.dev/whats-new/aspire-13/)
 - [Šta je novo u Aspire 13.3 (Kubernetes/Helm deploy, preview)](https://aspire.dev/whats-new/aspire-13-3/)
+- [aspire.dev: service discovery](https://aspire.dev/fundamentals/service-discovery/)
