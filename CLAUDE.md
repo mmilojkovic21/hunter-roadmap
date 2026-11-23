@@ -138,7 +138,7 @@ provereno u najnovijim zvaničnim izvorima; greške nađene usput ispravljaju se
   Puno poglavlje nema `externalRef` (to znači „lekcija van aplikacije”). Postojeći test i pitanja se zadržavaju i proveravaju.
 - Postupak po delu: pročitaj poglavlje u PDF-u → proveri tvrdnje (izvor + URL) → kod iz lekcije i vežbe pokreni →
   napiši blok → proveri linkove → verzija → build, testovi, e2e → commit.
-- „Dublje” u 31 poglavlje dodataka (nisu ga imala): ✅ region 0, ✅ C (paket 1.2.2) · ⬜ AI · ⬜ Pro (uz proveru regiona)
+- „Dublje” u 31 poglavlje dodataka (nisu ga imala): ✅ region 0, ✅ C (paket 1.2.2), ✅ AI (1.2.3) · ⬜ Pro (uz proveru regiona)
 - ✅ Deo I: 1, 2 (paket 1.2.0)
 - ✅ Deo II temelji: 3–7 (paket 1.2.1; u vodiču ispravljeno: .NET 11 i kraj .NET 8/9, STS dve godine, LOH 85.000 B)
 - ⬜ Deo II: 8–12 · 13–17 · 18, 19
