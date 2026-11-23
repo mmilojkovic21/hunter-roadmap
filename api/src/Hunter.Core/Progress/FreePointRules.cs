@@ -1,15 +1,15 @@
 namespace Hunter.Core.Progress;
 
 /// <summary>
-/// Slobodni poeni: dobijaju se za svaki novi nivo i za svaki završen dnevni zadatak, a dodeljuju se statistici
-/// na koju se fokusiraš. Kao i XP, ne čuvaju se kao broj: zarađeno se računa iz nivoa i završenih zadataka,
-/// potrošeno iz upisanih dodela, pa stanje ne može da se raskorači sa istorijom.
+/// Free points: earned for every new level and every finished daily quest, and assigned to the stat
+/// you focus on. Like XP, they are not stored as a number: earned points come from levels and finished quests,
+/// spent points from recorded allocations, so the balance can never drift from the history.
 /// </summary>
 public static class FreePointRules
 {
     public const int PerLevelUp = 1;
 
-    /// <summary>Koliko jedan dodeljen poen podiže vrednost statistike (dizajn: +2 po poenu).</summary>
+    /// <summary>How much one assigned point raises a stat (design: +2 per point).</summary>
     public const int StatBonusPerPoint = 2;
 
     public static int Earned(int level, int completedQuests)
@@ -22,8 +22,8 @@ public static class FreePointRules
     public static int Available(int earned, int spent) => Math.Max(0, earned - spent);
 
     /// <summary>
-    /// Vrednost statistike na kartici: procenat očišćenih poglavlja oblasti plus bonus od poena, najviše 100.
-    /// Rang i dalje zavisi samo od očišćenih poglavlja (RankRules), pa poeni ne mogu da „kupe” rang.
+    /// Stat value shown on the card: percentage of the area's cleared chapters plus the point bonus, at most 100.
+    /// Rank still depends only on cleared chapters (RankRules), so points cannot "buy" a rank.
     /// </summary>
     public static int StatValue(int completionPct, int points) =>
         Math.Min(100, completionPct + points * StatBonusPerPoint);

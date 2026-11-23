@@ -2,7 +2,7 @@ using Hunter.Core.Packs;
 
 namespace Hunter.Core.Progress;
 
-// Čista pravila igre: bez baze, bez HTTP-a. Zato se lako testiraju (vodič, pogl. 17; dodatak 0.4).
+// Pure game rules: no database, no HTTP. That is why they are easy to test (guide, ch. 17; appendix 0.4).
 
 public enum Step { Lesson, Deeper, Exercise, Test }
 
@@ -15,7 +15,7 @@ public sealed record LevelInfo(int Level, int XpIntoLevel, int XpForNextLevel, i
 
 public static class LevelRules
 {
-    /// <summary>XP potreban da se sa nivoa <paramref name="level"/> pređe na sledeći: 100, 150, 200...</summary>
+    /// <summary>XP needed to go from <paramref name="level"/> to the next level: 100, 150, 200...</summary>
     public static int XpToNext(int level) => 100 + 50 * (level - 1);
 
     public static LevelInfo FromTotalXp(int totalXp)
@@ -33,8 +33,8 @@ public static class LevelRules
 
 public static class RankRules
 {
-    // Rang zavisi od procenta završenih poglavlja paketa, ne od XP-a:
-    // XP se može „farmovati”, završena poglavlja ne mogu.
+    // Rank depends on the percentage of the pack's cleared chapters, not on XP:
+    // XP can be "farmed", cleared chapters cannot.
     private static readonly (int MinPct, string Rank)[] Ranks =
         [(85, "S"), (65, "A"), (45, "B"), (25, "C"), (10, "D"), (0, "E")];
 
@@ -49,7 +49,7 @@ public static class RankRules
 
 public static class ChapterRules
 {
-    /// <summary>Koraci koje poglavlje ima, zavisno od toga šta paket sadrži.</summary>
+    /// <summary>Steps a chapter has, depending on what the pack contains.</summary>
     public static IReadOnlyList<Step> StepsOf(ChapterFile c)
     {
         var steps = new List<Step> { Step.Lesson };
@@ -81,7 +81,7 @@ public sealed record GradeResult(int CorrectCount, int Total, int Percent, bool 
 
 public static class QuizGrader
 {
-    /// <param name="answers">Za svako pitanje indeks izabrane opcije u ORIGINALNOM redosledu (-1 = bez odgovora).</param>
+    /// <param name="answers">For each question, the index of the chosen option in the ORIGINAL order (-1 = no answer).</param>
     public static GradeResult Grade(IReadOnlyList<QuestionDef> test, IReadOnlyList<int> answers, int passPct)
     {
         if (test.Count == 0) throw new ArgumentException("Poglavlje nema test.", nameof(test));
@@ -97,9 +97,9 @@ public static class QuizGrader
 public static class StreakRules
 {
     /// <summary>
-    /// Broj uzastopnih dana sa aktivnošću, zaključno sa danas (ili juče, ako danas još nije bilo učenja).
-    /// <paramref name="brokenOn"/> je dan poslednjeg preskočenog kaznenog zadatka: preskakanje odmah prekida niz,
-    /// pa se dani pre njega ne računaju. Sam taj dan se računa ako na njemu ima učenja (nov niz kreće od njega).
+    /// Number of consecutive active days up to today (or yesterday, if there is no study today yet).
+    /// <paramref name="brokenOn"/> is the day of the last skipped penalty quest: skipping breaks the streak at once,
+    /// so days before it do not count. That day itself counts if there was study on it (a new streak starts there).
     /// </summary>
     public static int Current(IEnumerable<DateOnly> activeDays, DateOnly today, DateOnly? brokenOn = null)
     {

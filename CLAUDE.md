@@ -41,6 +41,8 @@ Posle svake izmene pokreni build i testove dela koji si menjao. Zadatak nije got
 - **Paketi su nepouzdan ulaz:** sve prolazi kroz `PackValidator`. Markdown se prikazuje bez sirovog HTML-a.
 - **Tekst u UI-ju je na srpskom, latinicom.** Bez ćiriličnih slova u latiničnom tekstu (build_content.py to proverava za sadržaj).
 - **Komentari objašnjavaju ZAŠTO**, uz uputnicu na poglavlje vodiča kad je to korisno (npr. „vodič, pogl. 9”).
+  U `Hunter.Core` i `Endpoints.cs` komentari su na engleskom (ono što regruter i intervjuer prvo otvore; „guide, ch. 9”), ostalo na srpskom.
+  README.md je na engleskom, README.sr.md na srpskom: izmene idu u oba.
 - **Pristupačnost:** prava `<button>`/`<a>`, `aria-*` za radio/switch/tab, dodirne površine bar 44px, vidljiv fokus.
 - Male izmene i commit-ovi po Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`).
 - Pre dodavanja nove zavisnosti (NuGet ili npm) pitaj i obrazloži.

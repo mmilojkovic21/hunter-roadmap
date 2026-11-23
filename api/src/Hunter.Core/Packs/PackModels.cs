@@ -1,7 +1,7 @@
 namespace Hunter.Core.Packs;
 
-// Format paketa „hunter-pack/1”. Isti format važi za bilo koju oblast učenja:
-// programiranje, medicina, jezik... Struktura je u pack.json, sadržaj u chapters.json.
+// The "hunter-pack/1" pack format. The same format works for any field of study:
+// programming, medicine, languages... Structure is in pack.json, content in chapters.json.
 
 public sealed record PackFile(
     string Format,
@@ -18,7 +18,7 @@ public sealed record PackFile(
 
 public sealed record XpRules(int Lesson = 50, int Deeper = 30, int Lab = 100, int Test = 80, int Boss = 500);
 
-/// <summary>Statistika (npr. STR = Backend). Svaki paket definiše svoje.</summary>
+/// <summary>A stat (e.g. STR = Backend). Each pack defines its own.</summary>
 public sealed record StatDef(string Key, string Name, string Color);
 
 public sealed record RegionDef(string Code, string Title, string Stat, IReadOnlyList<LevelDef> Levels);
@@ -30,11 +30,11 @@ public sealed record ChapterFile(
     string Title,
     string? Subtitle,
     int Minutes,
-    string? ExternalRef,          // npr. „PDF vodič, poglavlje 9” kad je lekcija van aplikacije
+    string? ExternalRef,          // e.g. "PDF guide, chapter 9" when the lesson is outside the app
     string? Intro,
     string? LessonMarkdown,
     string? DeeperMarkdown,
-    ExerciseDef? Exercise,        // lab za programiranje, slučaj za medicinu, esej za filozofiju...
+    ExerciseDef? Exercise,        // a lab for programming, a case for medicine, an essay for philosophy...
     IReadOnlyList<CardDef>? Cards,
     IReadOnlyList<QuestionDef>? Test,
     IReadOnlyList<SourceDef>? Sources);
@@ -47,5 +47,5 @@ public sealed record QuestionDef(string Text, string? Code, IReadOnlyList<string
 
 public sealed record SourceDef(string Title, string Url);
 
-/// <summary>Ceo učitan paket: struktura + poglavlja.</summary>
+/// <summary>A whole loaded pack: structure + chapters.</summary>
 public sealed record LoadedPack(PackFile Pack, IReadOnlyList<ChapterFile> Chapters);

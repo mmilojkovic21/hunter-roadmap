@@ -1,23 +1,23 @@
 namespace Hunter.Core.Progress;
 
-/// <summary>Jedan nezavršen korak koji može ući u dnevni zadatak, sa procenom trajanja.</summary>
+/// <summary>One unfinished step that can go into the daily quest, with an estimated duration.</summary>
 public sealed record QuestCandidate(string ChapterId, Step Step, int Minutes);
 
 /// <summary>
-/// Dnevni zadatak: svakog dana 3–4 sledeća koraka, skrojena prema dnevnom cilju u minutima.
-/// Bira se jednom dnevno i zaključava (servis ga čuva u bazi), pa se lista ne menja dok je rešavaš,
-/// a sutra se pouzdano zna da li je jučerašnji zadatak završen (osnova za kazneni zadatak).
+/// Daily quest: 3–4 next steps every day, sized to the daily goal in minutes.
+/// It is picked once a day and locked (the service stores it), so the list does not change while you work on it,
+/// and tomorrow it is certain whether yesterday's quest was finished (the basis for the penalty quest).
 /// </summary>
 public static class DailyQuestRules
 {
     public const int MinTasks = 3;
     public const int MaxTasks = 4;
 
-    /// <summary>Slobodni poeni za završen dnevni zadatak (troše se u fazi 2, stavka 5).</summary>
+    /// <summary>Free points for a finished daily quest (see FreePointRules).</summary>
     public const int RewardPoints = 1;
 
-    // Udeo koraka u trajanju poglavlja. Paket daje samo ukupne minute poglavlja,
-    // pa ih delimo po težini: lekcija i vežba nose najviše, test je najkraći.
+    // Share of each step in the chapter's duration. The pack only gives total minutes per chapter,
+    // so they are split by weight: lesson and exercise take the most, the test is the shortest.
     private static int Weight(Step step) => step switch
     {
         Step.Lesson => 4,
@@ -27,7 +27,7 @@ public static class DailyQuestRules
         _ => 1
     };
 
-    /// <summary>Procena minuta za jedan korak: deo minuta poglavlja srazmeran težini koraka, najmanje 5.</summary>
+    /// <summary>Estimated minutes for one step: the chapter's minutes in proportion to the step's weight, at least 5.</summary>
     public static int StepMinutes(Step step, IReadOnlyList<Step> chapterSteps, int chapterMinutes)
     {
         if (!chapterSteps.Contains(step)) throw new ArgumentException($"Poglavlje nema korak {step}.", nameof(step));
@@ -36,8 +36,8 @@ public static class DailyQuestRules
     }
 
     /// <summary>
-    /// Bira zadatke redom iz sledećih koraka (redosled mape se poštuje, ništa se ne preskače).
-    /// Prva 3 ulaze uvek, da dan ima smisla i kad je cilj kratak; 4. samo ako staje u cilj.
+    /// Picks tasks in order from the next steps (map order is kept, nothing is skipped).
+    /// The first 3 always go in, so the day makes sense even with a short goal; the 4th only if it fits the goal.
     /// </summary>
     public static IReadOnlyList<QuestCandidate> Pick(IEnumerable<QuestCandidate> nextSteps, int goalMinutes)
     {

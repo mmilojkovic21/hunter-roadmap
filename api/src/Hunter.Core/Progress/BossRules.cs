@@ -1,13 +1,13 @@
 namespace Hunter.Core.Progress;
 
-/// <summary>Jedno pitanje iz testa poglavlja: koje poglavlje i koje pitanje po redu.</summary>
+/// <summary>One question from a chapter test: which chapter and which question in order.</summary>
 public sealed record QuestionRef(string ChapterId, int Index);
 
 public enum BossState { Locked, Ready, Cleared }
 
 /// <summary>
-/// Boss test regiona: kad su sva poglavlja regiona očišćena, 20–25 nasumičnih pitanja iz svih njegovih testova,
-/// prolaz 80%. Prvi prolaz daje Boss XP iz paketa (podrazumevano 500) i oznaku na mapi.
+/// Region boss test: once every chapter of a region is cleared, 20–25 random questions from all of its tests,
+/// pass mark 80%. The first win gives the pack's boss XP (500 by default) and a mark on the map.
 /// </summary>
 public static class BossRules
 {
@@ -21,8 +21,8 @@ public static class BossRules
         : BossState.Locked;
 
     /// <summary>
-    /// Nasumično bira 20–25 različitih pitanja (manji region daje sva svoja). <paramref name="rng"/> se ubacuje
-    /// da bi test mogao da koristi seme i dobije uvek isti izbor.
+    /// Picks 20–25 distinct random questions (a smaller region gives all of its own). <paramref name="rng"/> is injected
+    /// so a test can use a seed and always get the same pick.
     /// </summary>
     public static IReadOnlyList<QuestionRef> PickQuestions(IReadOnlyList<QuestionRef> pool, Random rng)
     {

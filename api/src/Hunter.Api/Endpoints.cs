@@ -15,7 +15,7 @@ public static class Endpoints
     {
         var api = app.MapGroup("/api");
 
-        // ---------- paketi ----------
+        // ---------- packs ----------
         api.MapGet("/packs", (ProgressService s, CancellationToken ct) => s.ListPacksAsync(ct));
 
         api.MapPost("/packs", async Task<Results<Ok<PackSummary>, ValidationProblem, BadRequest<string>>> (
@@ -33,8 +33,8 @@ public static class Endpoints
             var summary = (await s.ListPacksAsync(ct)).First(p => p.Id == result.Pack!.Pack.Id);
             return TypedResults.Ok(summary);
         })
-        // Lokalna aplikacija bez prijave, pa nema kolačića sesije koje bi CSRF iskoristio (vodič, pogl. 15).
-        // Kad aplikacija dobije naloge, ovo se uključuje.
+        // A local app without login, so there is no session cookie for CSRF to abuse (guide, ch. 15).
+        // This gets turned on when the app gets accounts.
         .DisableAntiforgery();
 
         api.MapPost("/packs/{id}/activate", async Task<Results<NoContent, NotFound>> (string id, HunterDb db, CancellationToken ct) =>
@@ -46,7 +46,7 @@ public static class Endpoints
             return TypedResults.NoContent();
         });
 
-        // ---------- status, mapa, poglavlja ----------
+        // ---------- status, map, chapters ----------
         api.MapGet("/status", async Task<Results<Ok<StatusView>, NotFound>> (ProgressService s, CancellationToken ct) =>
             await s.GetStatusAsync(ct) is { } v ? TypedResults.Ok(v) : TypedResults.NotFound());
 
@@ -70,7 +70,7 @@ public static class Endpoints
             return result is not null ? TypedResults.Ok(result) : TypedResults.BadRequest(error!);
         });
 
-        // ---------- boss test regiona ----------
+        // ---------- region boss test ----------
         api.MapPost("/regions/{code}/boss", async Task<Results<Ok<BossView>, BadRequest<string>>> (
             string code, ProgressService s, CancellationToken ct) =>
         {
@@ -85,7 +85,7 @@ public static class Endpoints
             return result is not null ? TypedResults.Ok(result) : TypedResults.BadRequest(error!);
         });
 
-        // ---------- slobodni poeni ----------
+        // ---------- free points ----------
         api.MapPost("/stats/{key}/points", async Task<Results<Ok<AllocatePointResult>, BadRequest<string>>> (
             string key, ProgressService s, CancellationToken ct) =>
         {
@@ -93,14 +93,14 @@ public static class Endpoints
             return result is not null ? TypedResults.Ok(result) : TypedResults.BadRequest(error!);
         });
 
-        // Preskakanje kaznenog zadatka: odmah prekida niz (StreakRules), druge kazne nema.
+        // Skipping the penalty quest: breaks the streak at once (StreakRules), with no other penalty.
         api.MapPost("/penalty/skip", async Task<Results<Ok<PenaltySkipResult>, Conflict<string>>> (ProgressService s, CancellationToken ct) =>
         {
             var (result, error) = await s.SkipPenaltyAsync(ct);
             return result is not null ? TypedResults.Ok(result) : TypedResults.Conflict(error!);
         });
 
-        // ---------- podešavanja ----------
+        // ---------- settings ----------
         api.MapGet("/settings", async (HunterDb db, CancellationToken ct) =>
         {
             var s = await db.Settings.AsNoTracking().SingleAsync(x => x.Id == 1, ct);

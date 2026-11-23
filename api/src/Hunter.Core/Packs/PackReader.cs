@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace Hunter.Core.Packs;
 
-/// <summary>Čita paket iz foldera ili iz .zip arhive i proverava ga pre upisa u bazu.</summary>
+/// <summary>Reads a pack from a folder or a .zip archive and validates it before it is saved.</summary>
 public static class PackReader
 {
     public const string PackFileName = "pack.json";
@@ -29,7 +29,7 @@ public static class PackReader
         try
         {
             using var archive = new ZipArchive(zip, ZipArchiveMode.Read, leaveOpen: true);
-            // Fajlovi mogu biti u korenu ili u jednom podfolderu (kad se zipuje ceo folder).
+            // Files can be at the root or in one subfolder (when the whole folder is zipped).
             var pack = archive.Entries.FirstOrDefault(e => e.Name == PackFileName);
             var chapters = archive.Entries.FirstOrDefault(e => e.Name == ChaptersFileName);
             if (pack is null || chapters is null)
@@ -39,8 +39,8 @@ public static class PackReader
             using var c = chapters.Open();
             return Parse(p, c);
         }
-        // Nevažeći zip ne javlja uvek InvalidDataException: nad upload streamom (IFormFile) ZipArchive
-        // pokuša da skoči van kraja kratkog fajla i baci ArgumentOutOfRangeException. Oba su „nije zip”, ne 500.
+        // An invalid zip does not always raise InvalidDataException: on an upload stream (IFormFile) ZipArchive
+        // tries to seek past the end of a short file and throws ArgumentOutOfRangeException. Both mean "not a zip", not a 500.
         catch (Exception ex) when (ex is InvalidDataException or ArgumentOutOfRangeException)
         {
             return PackResult.Fail("Fajl nije ispravan zip.");

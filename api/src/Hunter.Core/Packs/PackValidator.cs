@@ -3,8 +3,8 @@ using System.Text.RegularExpressions;
 namespace Hunter.Core.Packs;
 
 /// <summary>
-/// Pravila koja paket mora da ispuni. Ista pravila proverava i tools/build_content.py,
-/// ali se ovde proveravaju ponovo jer paket može da stigne od bilo koga (upload).
+/// Rules a pack must meet. tools/build_content.py checks the same rules,
+/// but they are checked again here because a pack can come from anyone (upload).
 /// </summary>
 public static partial class PackValidator
 {
