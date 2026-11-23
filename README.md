@@ -50,7 +50,7 @@ These are the decisions I would walk through in an interview:
 |---|---|---|
 | Unit | xUnit (53 tests) | all game rules in `Hunter.Core` |
 | Integration | `WebApplicationFactory<Program>` + Testcontainers PostgreSQL (32 tests) | pack import and activation, rejected invalid zip, XP paid once, answers hidden before submit, test pass/fail, daily and penalty quests, free points, boss |
-| Frontend unit | Vitest (13 tests) | answer shuffling, count-up animation, boot timing |
+| Frontend unit | Vitest (17 tests) | answer shuffling, count-up animation, boot timing, inline code in questions |
 | End-to-end | Playwright in real Chrome (15 tests) | full flows: steps and +XP, level up, test gate, daily quest, penalty dialog, boss and region clear, reduced motion |
 
 E2E tests run against a separate Compose project (`hunter-e2e`, port 8099, its own database), so they never touch your local progress.

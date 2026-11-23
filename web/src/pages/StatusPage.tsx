@@ -7,6 +7,7 @@ import { Icon } from "../components/Icon";
 import { useCountUp, useRankChanged, useSeenNumbers } from "../components/Fx";
 import { Window } from "../components/Window";
 import { PenaltyDialog } from "../components/PenaltyDialog";
+import { InlineText } from "../components/InlineText";
 import { heatLevel, STEP_LABEL } from "../lib/quiz";
 
 const HEAT_ALPHA = [0, 0.25, 0.45, 0.7, 1];
@@ -285,7 +286,7 @@ export function StatusPage() {
           {s.weakPoints.map((w, i) => (
             <Link key={i} className="list-row" to={`/chapters/${encodeURIComponent(w.chapterId)}`}>
               <span style={{ fontFamily: "var(--mono)", fontSize: 12, color: "var(--bad)", minWidth: 40 }}>{w.chapterId}</span>
-              <span style={{ flex: 1, fontSize: 14 }}>{w.question}</span>
+              <span style={{ flex: 1, fontSize: 14 }}><InlineText text={w.question} /></span>
             </Link>
           ))}
         </section>

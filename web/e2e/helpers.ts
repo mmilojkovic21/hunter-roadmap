@@ -1,5 +1,6 @@
 import { test as base, expect, type APIRequestContext, type Page } from "@playwright/test";
 import pack from "../../packs/fullstack-dotnet/chapters.json" with { type: "json" };
+import { splitInlineCode } from "../src/lib/inlineCode";
 
 // Pomoćne funkcije za E2E testove. Tačne odgovore API namerno ne šalje pre predaje, pa ih test
 // čita iz samog paketa (isti fajl koji API uvozi), kao što bi ih znao korisnik koji je naučio lekciju.
@@ -29,9 +30,12 @@ interface PackChapter { id: string; test: PackQuestion[] }
 const chapters = pack as PackChapter[];
 
 // Pitanje se prepoznaje po tekstu I kodu: više pitanja ima isti tekst („Šta ispisuje kod?”) sa drugim kodom.
-const key = (text: string, code: string | null) => `${text.trim()}\n${(code ?? "").trim()}`;
+const key = (text: string, code: string | null) => `${plain(text)}\n${(code ?? "").trim()}`;
+// Inline kod (`...`) se na ekranu prikazuje kao <code>, bez backtick-ova (InlineText),
+// pa se tekst iz paketa poredi bez njih, isto kao splitInlineCode.
+const plain = (s: string) => splitInlineCode(s).map((p) => p.text).join("").trim();
 const correctOption = new Map(
-  chapters.flatMap((c) => c.test.map((q) => [key(q.text, q.code), q.options[q.correct]] as const)),
+  chapters.flatMap((c) => c.test.map((q) => [key(q.text, q.code), plain(q.options[q.correct])] as const)),
 );
 
 export const correctAnswers = (chapterId: string) =>

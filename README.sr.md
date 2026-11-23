@@ -77,7 +77,7 @@ U VS Code-u instaliraj predloženo proširenje „TypeScript Native Preview” (
 |---|---|---|
 | jedinični | xUnit (53) | sva pravila igre u `Hunter.Core` |
 | integracioni | `WebApplicationFactory<Program>` + Testcontainers PostgreSQL (32) | uvoz i aktivacija paketa, odbijen neispravan zip, XP samo jednom, odgovori skriveni pre predaje, test, dnevni i kazneni zadatak, slobodni poeni, boss |
-| frontend | Vitest (13) | mešanje opcija, odbrojavanje, vremena boot ekrana |
+| frontend | Vitest (17) | mešanje opcija, odbrojavanje, vremena boot ekrana, inline kod u pitanjima |
 | E2E | Playwright u pravom Chrome-u (15) | koraci i +XP, level up, kapija pred test, dnevni zadatak, kazna, boss i „DUNGEON CLEARED”, smanjeni pokreti |
 
 ```bash

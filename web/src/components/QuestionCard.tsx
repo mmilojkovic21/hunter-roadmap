@@ -1,5 +1,6 @@
 import type { PublicQuestion, QuestionResult } from "../api";
 import { KEYS } from "../lib/quiz";
+import { InlineText } from "./InlineText";
 
 /**
  * Jedno pitanje testa sa opcijama u izmešanom redosledu (`order`) i, posle predaje, ocenom.
@@ -21,7 +22,7 @@ export function QuestionCard({ question, index, total, order, picked, graded, on
   return (
     <section className="card glass q-card" aria-labelledby={id}>
       <span className="win-label">Pitanje {index + 1} / {total}</span>
-      <h2 id={id} className="q-text">{question.text}</h2>
+      <h2 id={id} className="q-text"><InlineText text={question.text} /></h2>
       {question.code && <pre className="prose q-code"><code>{question.code}</code></pre>}
       <div role="radiogroup" aria-labelledby={id} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {order.map((orig, pos) => {
@@ -31,7 +32,7 @@ export function QuestionCard({ question, index, total, order, picked, graded, on
             <button key={orig} type="button" role="radio" aria-checked={isPicked} className={`option ${cls}`}
               disabled={!!graded} onClick={() => onPick(orig)}>
               <span className="key">{KEYS[pos]}</span>
-              <span style={{ flex: 1 }}>{question.options[orig]}</span>
+              <span style={{ flex: 1 }}><InlineText text={question.options[orig]} /></span>
               {graded && orig === graded.correct && <strong className="opt-mark">Tačno</strong>}
               {graded && isPicked && !graded.isCorrect && <strong className="opt-mark">Tvoj odgovor</strong>}
             </button>
@@ -41,7 +42,7 @@ export function QuestionCard({ question, index, total, order, picked, graded, on
       {graded && (
         <div className={`q-feedback${graded.isCorrect ? " ok" : " bad"}`}>
           <strong>{graded.isCorrect ? "[ SISTEM ] TAČNO" : `[ SISTEM ] NETAČNO · TAČAN ODGOVOR: ${correctKey}`}</strong>
-          <span>{graded.why}</span>
+          <span><InlineText text={graded.why} /></span>
         </div>
       )}
     </section>
