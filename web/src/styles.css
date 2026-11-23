@@ -101,9 +101,8 @@ h1, h2, h3 { font-family: var(--display); margin: 0; letter-spacing: 0.02em; }
 .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(var(--min, 320px), 100%), 1fr)); }
 .card { background: rgba(var(--glass-rgb), 0.86); border: 1px solid rgba(var(--accent-rgb), 0.22); border-radius: 0; padding: 22px; display: flex; flex-direction: column; gap: 14px; }
 .sys { position: relative; background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.1), rgba(var(--glass-rgb), 0.86)); border: 1px solid rgba(var(--accent-rgb), 0.6); padding: 24px 28px; box-shadow: var(--glow-lg); }
-.sys::before, .sys::after { content: ""; position: absolute; width: 18px; height: 18px; border-color: var(--accent); border-style: solid; }
-.sys::before { top: -1px; left: -1px; border-width: 3px 0 0 3px; }
-.sys::after { bottom: -1px; right: -1px; border-width: 0 3px 3px 0; }
+/* Isti dvostruki obris kao prozor sistema (.win::before). */
+.sys::before { content: ""; position: absolute; inset: 5px; border: 1px solid rgba(var(--accent-rgb), 0.18); pointer-events: none; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; border: 1px solid rgba(var(--accent-rgb), 0.35); background: transparent; color: var(--muted-2); font-family: var(--display); font-weight: 700; font-size: 16px; letter-spacing: 0.14em; text-transform: uppercase; text-decoration: none; cursor: pointer; }
 .btn:hover { color: var(--bright); border-color: rgba(var(--accent-rgb), 0.6); }
 /* Glavno dugme sistema (kanvas): staklo u boji teme, svetao tekst, blag sjaj. */
@@ -208,12 +207,45 @@ h1, h2, h3 { font-family: var(--display); margin: 0; letter-spacing: 0.02em; }
 .prose table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; font-size: 14px; }
 .prose th, .prose td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
 .prose th { background: #141c30; }
-.option { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 58px; padding: 12px 16px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--card); color: var(--text); text-align: left; cursor: pointer; }
+.option { display: flex; align-items: center; gap: 16px; width: 100%; min-height: 60px; padding: 10px 16px; border: 1px solid rgba(var(--accent-rgb), 0.3); background: rgba(var(--glass-rgb), 0.7); color: var(--bright); font-size: 16px; text-align: left; cursor: pointer; }
+.option:hover:not(:disabled) { border-color: rgba(var(--accent-rgb), 0.7); }
 .option:disabled { cursor: default; }
-.option.picked { border-color: var(--accent); background: var(--soft); }
-.option.right { border-color: #2f8f73; background: #0f2620; }
-.option.wrong { border-color: #a0445f; background: #24121a; }
-.option .key { width: 32px; height: 32px; flex: none; border-radius: 8px; display: grid; place-items: center; font-family: var(--mono); font-size: 13px; font-weight: 600; background: #1a2238; color: var(--muted-2); }
+.option .key { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border: 1px solid var(--label); font-family: var(--display); font-size: 18px; font-weight: 700; color: var(--label); }
+.option.picked { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.16); }
+.option.picked .key { border-color: var(--accent); color: var(--bright); background: rgba(var(--accent-rgb), 0.3); }
+.option.right { border-color: var(--ok); background: rgba(16, 48, 40, 0.7); box-shadow: 0 0 16px rgba(95, 224, 183, 0.35); }
+.option.right .key, .option.right .opt-mark { border-color: var(--ok); color: var(--ok); }
+.option.wrong { border-color: #ff6b81; background: rgba(48, 14, 24, 0.7); }
+.option.wrong .key, .option.wrong .opt-mark { border-color: var(--penalty-text); color: var(--penalty-text); }
+.opt-mark { font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* Dungeon test (Sistem 2.0, kanvas „11 · Dungeon test”) */
+.dungeon-head { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between; }
+.dungeon-id { display: flex; flex-direction: column; gap: 2px; }
+.dungeon-name { font-family: var(--display); font-size: 28px; font-weight: 700; color: var(--bright); }
+.dungeon-stats { display: flex; flex-wrap: wrap; gap: 26px; }
+.dungeon-stats > div { display: flex; flex-direction: column; align-items: flex-end; }
+.dungeon-stats strong { font-family: var(--display); font-size: 26px; font-weight: 700; color: var(--bright); font-variant-numeric: tabular-nums; }
+.pips { display: grid; gap: 4px; }
+.pips span { height: 8px; background: rgba(var(--accent-rgb), 0.15); }
+.pips span.on { background: var(--accent); box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.8); }
+.pips span.ok { background: var(--ok); }
+.pips span.bad { background: #ff6b81; }
+[data-glow="off"] .pips span.on { box-shadow: none; }
+/* Pitanje kao stakleni panel bez naslovne trake (kao na kanvasu). */
+.card.q-card { position: relative; padding: 26px 30px 28px; gap: 16px; border-color: rgba(var(--accent-rgb), 0.6); background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.08), rgba(var(--glass-rgb), 0.88)); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.12), 0 0 22px rgba(var(--accent-rgb), 0.2); }
+.card.q-card::before { content: ""; position: absolute; inset: 5px; border: 1px solid rgba(var(--accent-rgb), 0.18); pointer-events: none; }
+[data-glow="off"] .card.q-card { box-shadow: none; }
+@media (max-width: 700px) { .card.q-card { padding: 20px 16px; } }
+.q-text { font-family: var(--display); font-size: 26px; font-weight: 700; line-height: 1.25; color: var(--bright); }
+.prose.q-code { margin: 0; max-width: none; }
+.prose.q-code, .prose pre { border-radius: 0; border-color: rgba(var(--accent-rgb), 0.3); background: rgba(3, 6, 14, 0.85); }
+.q-feedback { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; font-size: 15px; line-height: 1.55; color: #dce3f2; animation: fx-in 0.35s ease both; }
+.q-feedback strong { font-family: var(--mono); font-size: 13px; letter-spacing: 0.1em; }
+.q-feedback.ok { border: 1px solid rgba(95, 224, 183, 0.6); background: rgba(16, 48, 40, 0.45); }
+.q-feedback.ok strong { color: var(--ok); }
+.q-feedback.bad { border: 1px solid rgba(255, 107, 129, 0.6); background: rgba(48, 14, 24, 0.45); }
+.q-feedback.bad strong { color: var(--penalty-text); }
 .toast { position: fixed; right: 24px; bottom: 24px; z-index: 10; }
 
 /* Poruka sistema (faza 2, stavka 8; vrednosti iz dizajn kanvasa, „7 · Animacije sistema”):
@@ -358,7 +390,7 @@ h1, h2, h3 { font-family: var(--display); margin: 0; letter-spacing: 0.02em; }
    opšte pravilo [data-motion="reduce"] * gasi sve animacije, a ovde kontejneri treba da zadrže fade. */
 @media (prefers-reduced-motion: reduce) {
   .gate, .fx-float, .rank-wave, .boss-alarm, .cleared-sweep, .ember { display: none !important; }
-  .levelup *, .cleared *, .boss-gate *, .rank, .flame svg, .chapter-card.fx-glow { animation: none !important; }
+  .levelup *, .cleared *, .boss-gate *, .rank, .flame svg, .chapter-card.fx-glow, .q-feedback { animation: none !important; }
   .levelup, .cleared, .boss-gate { animation: fx-fade 150ms ease-out both !important; }
 }
 [data-motion="reduce"] .gate, [data-motion="reduce"] .fx-float, [data-motion="reduce"] .rank-wave,

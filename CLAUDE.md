@@ -122,6 +122,9 @@ Dogovorene odluke: Sistem 2.0 izgled prvi (stranice Prijava/Registracija i arena
      video (`useSeenNumbers`, localStorage `hunter.seen.<paket>`), pa se posle završenog koraka XP odbroji od stare vrednosti.
    - ✅ Korak 3a, Mapa: `MapPage.tsx` sa prozorima MAPA VEŠTINA (gate-ovi), GATE (pločice, Boss gate) i DETALJI (`?c=` bira poglavlje).
      API: `RegionView.Rank` (RankRules nad poglavljima regiona), `ChapterView.StepXp` (XP po koraku). Dugmad `.btn` u stilu sistema. E2E `mapa.e2e.ts`.
+   - ✅ Korak 3b, Dungeon test: prozor DUNGEON (poglavlje, odgovoreno, prolaz, `AnswerPips`), pitanja kao stakleni paneli
+     (`QuestionCard`, deli ga boss test), „[ SISTEM ] NETAČNO · TAČAN ODGOVOR: X” posle predaje. Sva pitanja ostaju na jednoj
+     stranici (ne jedno po jedno kao na kanvasu), jer server ocenjuje tek pri predaji.
    - **Ostali ekrani po kanvasu (red „Sistem 2.0 — ostali ekrani i novi prozori”):**
      - „10 · Mapa veština”: regioni kao gate-ovi (dugmad sa rangom u rombu i % očišćeno), poglavlja kao pločice sa stanjem
        ✓ očišćeno / ▸ u toku / ○ novo, Boss gate panel na dnu regiona, desno prozor „DETALJI” sa koracima i XP-om.

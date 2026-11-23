@@ -6,7 +6,8 @@ import { ErrorBox, Loading } from "../components/common";
 import { Icon } from "../components/Icon";
 import { QuestCompletedNotice } from "../components/SystemNotice";
 import { DungeonGate, LevelUp } from "../components/Fx";
-import { QuestionCard } from "../components/QuestionCard";
+import { AnswerPips, QuestionCard } from "../components/QuestionCard";
+import { Window } from "../components/Window";
 import { shuffledOrder } from "../lib/quiz";
 
 export function TestPage() {
@@ -44,14 +45,24 @@ export function TestPage() {
   return (
     <>
       <DungeonGate key={attempt} label={`[ DUNGEON ] POGLAVLJE ${c.id}`} />
-      <div className="row between">
+      <div className="row">
         <Link className="btn" to={`/chapters/${encodeURIComponent(id)}`}><Icon name="back" /> Napusti dungeon</Link>
-        <span className="kicker">dungeon · poglavlje {c.id}</span>
       </div>
-      <header style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <h1 className="title">{c.title}</h1>
-        <span className="muted">{c.test.length} pitanja · prolaz {c.passPct}% · netačni odgovori idu u slabe tačke</span>
-      </header>
+      {/* Gornji prozor (kanvas „11 · Dungeon test”). Vreme se ne prikazuje: test nema tajmer. */}
+      <Window title={`Dungeon · poglavlje ${c.id}`} level={1} glass>
+        <div className="dungeon-head">
+          <div className="dungeon-id">
+            <span className="win-label">{c.regionTitle}</span>
+            <h2 className="dungeon-name">{c.title}</h2>
+          </div>
+          <div className="dungeon-stats">
+            <div><span className="win-label">Odgovoreno</span><strong>{answered} / {c.test.length}</strong></div>
+            <div><span className="win-label">Prolaz</span><strong>{c.passPct}%</strong></div>
+            {c.bestPercent !== null && <div><span className="win-label">Najbolje</span><strong>{c.bestPercent}%</strong></div>}
+          </div>
+        </div>
+        <AnswerPips total={c.test.length} answers={answers} graded={result?.grade.questions} />
+      </Window>
 
       {result && (
         <section className="sys" role="status" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -77,7 +88,7 @@ export function TestPage() {
       {submit.isError && <ErrorBox error={submit.error} />}
       {!result && (
         <div className="row between">
-          <span className="muted">Odgovoreno {answered} / {c.test.length}</span>
+          <span className="win-label">Netačni odgovori idu u slabe tačke · odgovoreno {answered} / {c.test.length}</span>
           <button type="button" className="btn primary" disabled={answered < c.test.length || submit.isPending} onClick={() => submit.mutate()}>
             {submit.isPending ? "Sistem ocenjuje…" : "Predaj test"}
           </button>

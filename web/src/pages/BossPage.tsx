@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { ErrorBox, Loading } from "../components/common";
 import { Icon } from "../components/Icon";
-import { QuestionCard } from "../components/QuestionCard";
+import { AnswerPips, QuestionCard } from "../components/QuestionCard";
 import { LevelUp, RegionCleared } from "../components/Fx";
 import { shuffledOrder } from "../lib/quiz";
 
@@ -72,6 +72,7 @@ export function BossPage() {
           <header style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <h1 className="title">Boss: {boss.regionTitle}</h1>
             <span className="muted">{boss.questions.length} pitanja · prolaz {boss.passPct}% · prvi prolaz +{boss.xpReward} XP</span>
+            <AnswerPips total={boss.questions.length} answers={answers} graded={result?.grade.questions} />
           </header>
 
           {result?.firstClear && (
