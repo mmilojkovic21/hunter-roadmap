@@ -3240,27 +3240,165 @@
   {
     "id": "18",
     "title": ".NET u Zalihama",
-    "subtitle": "",
-    "minutes": 30,
-    "externalRef": "PDF vodič „Od nule do posla”, poglavlje 18",
-    "intro": "",
-    "lessonMarkdown": "",
-    "deeperMarkdown": "",
-    "exercise": null,
-    "cards": [],
-    "test": [],
-    "sources": []
+    "subtitle": "slojevi, kretanja i stanje, zaključavanje, firme, webhook, SignalR, wc-auth, testovi",
+    "minutes": 60,
+    "externalRef": null,
+    "intro": "Zalihe (Lagerko) su SaaS za praćenje zaliha malih firmi, povezan sa WooCommerce prodavnicama. Ovde se sve iz poglavlja 3–17 vidi na pravom kodu: gde je koji pojam primenjen i zašto baš tako. Svaka vrednost u ovom poglavlju (rokovi, limiti, imena klasa i testova) proverena je u repou projekta.",
+    "lessonMarkdown": "### Ceo sistem\n\nBrowser (React) → Caddy (HTTPS) → jedan .NET proces sa četiri projekta-sloja → PostgreSQL; prodavnica šalje porudžbine **webhookom**, a aplikacija joj vraća stanje preko njenog **REST** API-ja. Modularni monolit (pogl. 1, 13).\n\n```\nsrc/\n  Zalihe.Domain/          entiteti i pravila, nijedna referenca na pakete     (pogl. 13)\n  Zalihe.Application/     servisi (StockService…), interfejsi (ISalesChannel, IAppDbContext)\n  Zalihe.Infrastructure/  AppDbContext, WooCommerceClient, Hangfire poslovi, email\n  Zalihe.Web/             kontroleri, middleware, Program.cs, servira React build\ntests/\n  Zalihe.Domain.Tests/  Zalihe.Application.Tests/  Zalihe.IntegrationTests/\n```\n\nFolderi su **po oblasti** (`Items/`, `Stock/`, `Orders/`, `Auth/`), ne po vrsti. Kompromis: `AccountService` je u Infrastructure, jer radi sa Identity tipovima (`UserManager<User>`), a Application ne sme da zavisi od Identity-ja. Bez MediatR-a i CQRS-a: kontroler direktno zove servis.\n\n### Kretanja i stanje\n\nStanje se **nikad ne menja direktno**. Svaka promena je novi `StockMovement` (prijem, prodaja, povrat, korekcija), koji se nikad ne menja ni ne briše; greška se ispravlja novim kretanjem. `StockLevel` je keš zbira kretanja i ažurira se u istoj transakciji. Bogat domen (pogl. 13) u praksi:\n\n```csharp\npublic static StockMovement Sale(Item item, decimal quantity, ...) =>\n    new(item, StockMovementType.Sale, -Positive(quantity), ...);       // pravilo predznaka je OVDE\n\npublic static StockMovement? AdjustmentToCount(Item item, decimal counted, decimal currentStock, ...)\n{\n    var difference = counted - currentStock;\n    return difference == 0 ? null : Adjustment(item, difference, ...);  // razliku računa domen\n}\n```\n\nID-jevi su `Guid.CreateVersion7()` (rastući, dobri za indeks), količine `decimal(18,3)`, novac `decimal(18,2)`, vreme `DateTimeOffset` u UTC.\n\n### Transakcija i zaključavanje\n\n```csharp\nawait using var transaction = await db.Database.BeginTransactionAsync(ct);\nvar item = await db.Items.SingleOrDefaultAsync(i => i.Id == itemId, ct);   // filter firme dodat sam\nvar level = await db.LockStockLevelAsync(itemId, ct);                       // SELECT *, xmin ... FOR UPDATE\nvar movement = Create(item, level.Quantity, command);\ndb.StockMovements.Add(movement);\nlevel.Apply(movement);\nvar shops = await stockPush.MarkChangedAsync([itemId], ct);                 // \"označi za slanje\", ista transakcija\nawait db.SaveChangesAsync(ct);\nawait transaction.CommitAsync(ct);\nstockPush.Schedule(shops);                                                  // posao posle COMMIT-a\n```\n\n- Test `Record_TenConcurrentReceipts_NoneIsLost` šalje 10 prijema istovremeno i proverava da je stanje tačno 10.\n- Porudžbine zaključavaju artikle **sortirane po ID-ju** (`changes.OrderBy(c => c.ItemId)`), da ne bi bilo deadlocka.\n- Dva događaja za novu porudžbinu (WooCommerce šalje `order.created` i odmah `order.updated`): `INSERT … ON CONFLICT (\"ChannelId\", \"ExternalId\") DO NOTHING`, pa `SELECT … FOR UPDATE`.\n- `StockRecalculationService` ponovo sabere kretanja i ispravi keš ako se razlikuje; ispravka se loguje kao Warning, jer znači bug.\n\n### Izolacija firmi u četiri sloja\n\n| Sloj | Šta radi |\n|---|---|\n| 1. Claim u cookie-ju | pri prijavi `AppClaimsPrincipalFactory` upiše `tenant_id`; ne čita se iz baze pri svakom zahtevu |\n| 2. `TenantMiddleware` | postavi scoped `TenantContext` jednom po zahtevu; posao i webhook postavljaju firmu sami |\n| 3. Global query filter | svaki `ITenantOwned` entitet dobija `WHERE \"TenantId\" = @tenant` u **svakom** upitu; upit bez firme baca izuzetak |\n| 4. Provera u `SaveChanges` | nov red sa tuđim `TenantId` baca izuzetak; poslednja linija odbrane |\n\nFilter se dodaje refleksijom za svaki `ITenantOwned` entitet (`ApplyTenantFilter<T>`), a `TenantFilterTests` proverava da nijedan nije zaboravljen. Tuđi artikal zato vraća **404, ne 403**. `IgnoreQueryFilters()` se koristi samo svesno (webhook mora da nađe firmu kanala pre nego što zna firmu).\n\n### Program.cs, greške, bezbednost\n\n- Pipeline: `UseForwardedHeaders` (iza Caddyja) → `UseExceptionHandler` → statički fajlovi → `UseAuthentication` → `TenantMiddleware` (mora posle autentifikacije) → `UseAuthorization` → kontroleri; nepoznat `/api/...` vraća 404, ostalo `MapFallbackToFile(\"index.html\")`.\n- `AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>())` daje istu instancu konteksta servisima i kontroleru u zahtevu.\n- Greške kao kodovi: servis vrati `AppError(\"item.sku_duplicate\", \"sku\")`, a ProblemDetails nosi kod koji frontend prevodi.\n- Identity sa `AddIdentityApiEndpoints<User>()`: cookie `zalihe.auth` (HttpOnly, `SameSite=Lax`, 14 dana, klizni rok); security stamp se proverava **svakog minuta** (umesto 30), pa promenjena uloga važi brzo; reset lozinke važi 2 sata.\n- CSRF: `CookieAntiforgeryFilter` proverava token samo na izmenama autentifikovanim cookie-jem; frontend čita `XSRF-TOKEN` i šalje `X-XSRF-TOKEN`.\n- Uloge (admin, menadžer, zaposleni) kao politike; nabavne cene za zaposlene skriva servis (`PurchasePriceAccess`), DTO tada nosi `null`.\n- Tajne: API ključevi prodavnica šifrovani Data Protection-om (`ICredentialProtector`); tokeni pozivnica i povezivanja čuvaju se samo kao SHA-256 heš. Iz porudžbina se nikad ne čuvaju lični podaci kupaca.\n\n### Webhook, poslovi, žive promene\n\n- Webhook: firma kanala (`IgnoreQueryFilters`) → HMAC-SHA256 nad telom, `FixedTimeEquals` → upis događaja → `Enqueue` → odmah 200. Obrada računa koliko porudžbina **treba da drži sada** (aktivni statusi `processing`, `on-hold`, `completed`) i primenjuje samo razliku.\n- Hangfire u istoj bazi (šema `hangfire`, LISTEN/NOTIFY): sinhronizacija porudžbina svakih 15 minuta (`*/15 * * * *`), slanje stanja odloženo 30 s (`StockPushDelaySeconds`) da se izmene spoje; `[AutomaticRetry(Attempts = 0)]` jer je sledeće zakazano pokretanje „retry”.\n- SignalR: `ChangesHub` stavlja vezu u grupu firme iz claima (nikad od klijenta); `SaveChanges` zapamti firme čiji su ekranski podaci menjani, a `DataChangeTransactionInterceptor` javi tek posle COMMIT-a (posle ROLLBACK-a zaboravi). Poruka ne nosi podatke; `GroupExcept` preskače tab koji je izmenu napravio. `IDataChangeNotifier` je u Application, implementacija u Web (Dependency Inversion).\n- wc-auth: povezivanje prodavnice bez kopiranja ključeva; nasumičan token čiji se samo heš čuva (važi 1 sat, jednom), prodavnica šalje ključeve direktno serveru, ključevi se šifruju i proveravaju probnim pozivom.\n- Ograničenja: registracija 30 po satu po IP-ju (`RegistrationRateLimit`), email za reset najviše jednom u 2 minuta po nalogu; prijava koristi Identity lockout.\n\n### Testovi\n\n`ZaliheApiFactory` pokreće celu aplikaciju sa pravim `postgres:18` u Testcontainers-u (jedan za sve testove, `ICollectionFixture`), a u `ConfigureTestServices` podmeće lažnu prodavnicu (`FakeShopHandler`) i emailove. Unit: `StockLevelTests`, `StockMovementTests.Receipt_ZeroOrNegative_Throws`. Fake-ovi: `ShiftedTimeProvider` pomera sat da se proveri osvežavanje cookie-ja.",
+    "deeperMarkdown": "**Šta se desi bez `FOR UPDATE`: eksperiment.** Kad se iz `LockStockLevelAsync` privremeno ukloni `FOR UPDATE`, test sa deset istovremenih prijema **pada**, ali ne zbog izgubljenih izmena: druga linija odbrane, `xmin` kao token konkurentnosti, zaustavi devet zahteva sa `DbUpdateConcurrencyException`, i oni dobiju 500 (`common.unexpected`). Stanje ostaje tačno, ali devet korisnika dobije grešku. Zato su potrebna oba: zaključavanje (zahtevi čekaju jedan drugog i svi uspeju) i token (ako zaključavanje ikad izostane, greška je glasna, a ne tiha).\n\n**Zašto kretanja, a ne samo kolona stanja.** Istorija koja se ne može prepraviti (audit), korekcija umesto brisanja i mogućnost da se stanje uvek ponovo izračuna. Cena: dve stvari moraju biti usklađene (kretanja i keširano stanje), pa postoje transakcija i „Provera stanja”. Ovo liči na event sourcing (pogl. 13), ali je jednostavnije: stanje se čuva, a ne izvodi pri svakom čitanju.\n\n**Zašto poruka žive promene ne nosi podatke.** Svaki korisnik vidi drugo (uloga, nabavne cene, filter, stranica). Kad ekran ponovo učita kroz API, važe ista pravila kao i inače, a izgubljena poruka ne ostavlja pogrešan podatak; cena je jedan GET više (pogl. 25).\n\n**Šta bi se menjalo za više instanci.** Data Protection ključevi u zajedničko skladište, Redis backplane za SignalR, brojači limita u Redis i migracije kao poseban korak isporuke; Hangfire već radi sa više servera (pogl. 44).",
+    "exercise": {
+      "steps": [
+        "Kloniraj Zalihe, pokreni `docker compose up -d --wait` i aplikaciju (`dotnet run --project src/Zalihe.Web --launch-profile http`), pa u UI-ju zabeleži jednu prodaju.",
+        "Prati tu prodaju kroz kod: kontroler → `StockService.RecordAsync` → `LockStockLevelAsync` → `StockMovement.Sale` → `SaveChanges`; zapiši u kom sloju je svaki korak.",
+        "Pokreni `dotnet test tests/Zalihe.IntegrationTests --filter \"FullyQualifiedName~Record_TenConcurrentReceipts_NoneIsLost|FullyQualifiedName~TenantFilterTests|FullyQualifiedName~ChangesHubTests\"`.",
+        "Privremeno ukloni `FOR UPDATE` iz `LockStockLevelAsync`, pokreni test konkurentnosti i zapiši kako pada (koliko 500 i zašto); vrati izmenu (`git checkout -- <fajl>`).",
+        "Nađi gde se dodaje global query filter i pokaži zašto tuđi artikal vraća 404, a ne 403.",
+        "Pošalji webhook sa pogrešnim potpisom (curl) i proveri odgovor; pronađi u kodu `FixedTimeEquals`."
+      ],
+      "done": "umeš da nacrtaš put prodaje kroz slojeve, objasniš četiri sloja izolacije firmi i pokažeš šta tačno štiti `FOR UPDATE`, a šta `xmin`."
+    },
+    "cards": [
+      {
+        "q": "Kako si rešio istovremene izmene stanja?",
+        "a": "Transakcija i `SELECT … FOR UPDATE` na redu stanja, pa drugi zahtev za isti artikal čeka; `xmin` je druga linija (bez zaključavanja konflikt postane glasna greška, ne izgubljena izmena); artikli se zaključavaju sortirani po ID-ju; test sa 10 paralelnih zahteva protiv pravog Postgresa."
+      },
+      {
+        "q": "Kako si izolovao firme?",
+        "a": "Četiri sloja: claim firme u cookie-ju, scoped `TenantContext` iz middleware-a, global query filter za sve `ITenantOwned` entitete i provera u `SaveChanges`, uz testove da firma B ne vidi podatke firme A i da nijedan entitet nema zaboravljen filter."
+      },
+      {
+        "q": "Zašto kretanja, a ne samo kolona stanja?",
+        "a": "Istorija koja se ne može prepraviti (audit), korekcija umesto brisanja i mogućnost da se stanje uvek ponovo izračuna; keširano stanje se ažurira u istoj transakciji radi brzih lista."
+      },
+      {
+        "q": "Kako ekrani saznaju za tuđe izmene?",
+        "a": "SignalR hub sa grupom po firmi; `SaveChanges` zapamti firme čiji su podaci menjani i posle COMMIT-a im pošalje poruku bez podataka; klijent invalidira upite i ponovo učita kroz API."
+      },
+      {
+        "q": "Kako je obezbeđen webhook iz prodavnice?",
+        "a": "HMAC-SHA256 potpis nad telom, poređen u konstantnom vremenu, brz odgovor 200 i obrada u Hangfire poslu, idempotentno (ciljno stanje porudžbine minus već primenjeno), uz periodičnu sinhronizaciju kao rezervu."
+      },
+      {
+        "q": "Kako povezuješ prodavnicu bez kopiranja ključeva?",
+        "a": "wc-auth: jednokratni token čiji se samo heš čuva, prodavnica šalje ključeve direktno serveru, ključevi se šifruju Data Protection-om i proveravaju probnim pozivom pre čuvanja."
+      }
+    ],
+    "test": [
+      {
+        "text": "Kako se u Zalihama ispravlja pogrešno zabeležen prijem?",
+        "code": null,
+        "options": [
+          "Izmenom postojećeg kretanja",
+          "Brisanjem kretanja",
+          "Novim kretanjem (korekcijom), jer se kretanja nikad ne menjaju ni ne brišu",
+          "Direktnom izmenom kolone stanja"
+        ],
+        "correct": 2,
+        "why": "Kretanja su istorija koja se ne prepravlja; stanje je keš njihovog zbira i ažurira se u istoj transakciji."
+      },
+      {
+        "text": "Šta se desi kad se iz `LockStockLevelAsync` ukloni `FOR UPDATE`, a deset prijema stigne istovremeno?",
+        "code": null,
+        "options": [
+          "Ništa, test i dalje prolazi",
+          "Stanje bude 1 umesto 10, bez greške",
+          "`xmin` otkrije konflikte, pa devet zahteva dobije grešku (500); test pada",
+          "Baza prijavi deadlock"
+        ],
+        "correct": 2,
+        "why": "Token konkurentnosti sprečava tihu izgubljenu izmenu, ali bez zaključavanja zahtevi padaju umesto da čekaju."
+      },
+      {
+        "text": "Zašto korisnik firme A za artikal firme B dobija 404, a ne 403?",
+        "code": null,
+        "options": [
+          "Global query filter dodaje uslov firme u svaki upit, pa artikal za njega ne postoji",
+          "Zato što je 404 brži odgovor",
+          "Zbog greške u rutiranju",
+          "Zato što React sakrije artikal"
+        ],
+        "correct": 0,
+        "why": "404 ne otkriva ni da resurs postoji; filter radi u svakom upitu bez obzira da li se neko setio `where`."
+      },
+      {
+        "text": "Kada SignalR javlja ekranima da su se podaci promenili?",
+        "code": null,
+        "options": [
+          "Pre upisa, da ekran bude brži",
+          "Odmah posle `SaveChanges`, i kad se transakcija posle poništi",
+          "Posle COMMIT-a; posle ROLLBACK-a se zapamćene firme zaborave",
+          "Samo kad korisnik osveži stranicu"
+        ],
+        "correct": 2,
+        "why": "Interceptor transakcije objavljuje tek kad je upis trajan, inače bi drugi ekran prikazao nešto što se nije desilo."
+      },
+      {
+        "text": "Zašto poslovi Hangfire-a za sinhronizaciju imaju `[AutomaticRetry(Attempts = 0)]`?",
+        "code": null,
+        "options": [
+          "Zato što Hangfire ne podržava ponavljanje",
+          "Sledeće zakazano pokretanje (svakih 15 minuta) je samo po sebi ponovni pokušaj",
+          "Da bi greške ostale skrivene",
+          "Zbog licence"
+        ],
+        "correct": 1,
+        "why": "Ponavljanje istog posla odmah bi se preklapalo sa sledećim redovnim pokretanjem."
+      }
+    ],
+    "sources": [
+      {
+        "title": "Handling concurrency conflicts (EF Core)",
+        "url": "https://learn.microsoft.com/en-us/ef/core/saving/concurrency"
+      },
+      {
+        "title": "Global query filters (EF Core)",
+        "url": "https://learn.microsoft.com/en-us/ef/core/querying/filters"
+      },
+      {
+        "title": "Explicit locking: SELECT FOR UPDATE (PostgreSQL)",
+        "url": "https://www.postgresql.org/docs/current/explicit-locking.html"
+      },
+      {
+        "title": "Manage users and groups in SignalR (Microsoft Learn)",
+        "url": "https://learn.microsoft.com/en-us/aspnet/core/signalr/groups"
+      },
+      {
+        "title": "Performing recurrent tasks (Hangfire)",
+        "url": "https://docs.hangfire.io/en/latest/background-methods/performing-recurrent-tasks.html"
+      },
+      {
+        "title": "WooCommerce REST API: webhooks i potpis X-WC-Webhook-Signature, wc-auth",
+        "url": "https://woocommerce.github.io/woocommerce-rest-api-docs/#webhooks"
+      },
+      {
+        "title": "ASP.NET Core Data Protection (Microsoft Learn)",
+        "url": "https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/introduction"
+      },
+      {
+        "title": "Testcontainers for .NET: PostgreSQL modul",
+        "url": "https://dotnet.testcontainers.org/modules/postgres/"
+      }
+    ]
   },
   {
     "id": "19",
     "title": "Podsetnik: .NET",
-    "subtitle": "",
+    "subtitle": "brza pitanja i odgovori za ceo backend deo, sa uputnicom na poglavlje",
     "minutes": 30,
-    "externalRef": "PDF vodič „Od nule do posla”, poglavlje 19",
-    "intro": "",
-    "lessonMarkdown": "",
-    "deeperMarkdown": "",
-    "exercise": null,
+    "externalRef": null,
+    "intro": "Pitanje i odgovor u jednoj rečenici, za poslednje ponavljanje pred intervju. Ako odgovor nije jasan, vrati se na poglavlje u zagradi. Odgovaraj naglas: na intervjuu se ocenjuje i kako kažeš, ne samo šta znaš.",
+    "lessonMarkdown": "### C# i .NET\n\n| Pitanje | Odgovor |\n|---|---|\n| Šta je CLR? | Runtime koji izvršava IL: JIT, GC, izuzeci, bezbednost tipova. (3) |\n| Value vs reference type? | Vrednost se kopira; referenca pokazuje na objekat na heapu. (5) |\n| `string` je value ili reference? | Referentni, ali nepromenljiv, a `==` poredi sadržaj. (5) |\n| Boxing? | Pakovanje vrednosnog tipa u `object` na heapu; skupo u petljama. (5) |\n| abstract class vs interface? | Stanje i delimična implementacija, jedna po klasi, vs ugovor, više po klasi. (5) |\n| `sealed`, `static`, `readonly`, `const`? | Ne nasleđuje se; pripada tipu; dodela samo pri deklaraciji ili u konstruktoru; vrednost pri kompajliranju. (5) |\n| Overloading vs overriding? | Ista metoda sa drugim parametrima vs naslednik menja `virtual` metodu roditelja. (5) |\n| Delegat, lambda, event? | Funkcija kao vrednost; kratak zapis funkcije; delegat na koji se spolja samo pretplaćuje. (6) |\n| Generici i ograničenja? | Tip kao parametar; `where T : class, IHasId`. (6) |\n| Extension metoda? | Statička metoda koja izgleda kao metoda tipa: `services.AddInfrastructure()`. (6) |\n| `yield return`? | Lenja sekvenca: elementi se prave jedan po jedan, kad ih neko traži. (6) |\n| `IEnumerable` vs `IQueryable`? | U memoriji vs stablo izraza koje EF prevodi u SQL. (6) |\n| Task vs Thread? | Posao (I/O ne drži nit) vs nit operativnog sistema. (7) |\n| Deadlock sa async? | `.Result`/`.Wait()` uz `SynchronizationContext`; async do kraja. (7) |\n| `using`/`IDisposable`? | Determinističko oslobađanje resursa, i pri izuzetku. (7) |\n| Šta je novo u .NET 8–10? | Primary konstruktori i collection expressions (C# 12), `TimeProvider` (8), `Guid.CreateVersion7` (9), ugrađen OpenAPI (9), Identity API endpointi (8), extension members (C# 14, .NET 10). (3) |\n\n### ASP.NET Core\n\n| Pitanje | Odgovor |\n|---|---|\n| Životni vek u DI? | Singleton, Scoped (po zahtevu), Transient (svaki put nov). (9) |\n| Captive dependency? | Singleton drži scoped servis; rešenje je `IServiceScopeFactory`. (9) |\n| Middleware? | Lanac oko svakog zahteva; redosled je bitan. (10) |\n| Filter vs middleware? | Filter zna za akciju i model; middleware za ceo HTTP. (10) |\n| Model binding i validacija? | Parametri iz rute, upita, tela; atributi + `[ApiController]` → 400. (11) |\n| ProblemDetails? | Standardni JSON za greške (RFC 9457), kod nas sa kodom i greškama po poljima. (11, 18) |\n| Prioritet konfiguracije? | appsettings → appsettings.{Env} → user secrets (Development) → promenljive okruženja → argumenti komandne linije; kasniji pobeđuje. (8) |\n| `IHostedService`? | Servis koji radi u pozadini uz host (Hangfire server, `BackgroundService`). (16) |\n| Rate limiting? | Ugrađen `AddRateLimiter`; broj zahteva po ključu u prozoru, višak 429; u memoriji važi po instanci. (15, 18) |\n\n### Baza, arhitektura, bezbednost\n\n| Pitanje | Odgovor |\n|---|---|\n| Code-first vs database-first? | Model u kodu pa migracije vs model generisan iz postojeće baze (scaffold). (12) |\n| N+1? | Upit po redu liste; `Include`, projekcija, grupni upit. (12) |\n| Global query filter? | Uslov koji EF dodaje u svaki upit; u Zalihama firma. (12, 18) |\n| Concurrency token? | Verzija reda; `UPDATE … WHERE verzija = stara`; u Zalihama `xmin`. (14) |\n| OFFSET ili keyset? | OFFSET je jednostavan; keyset (`WHERE id > poslednji`) je brz i za duboke stranice. (12) |\n| SOLID? | SRP, Open/Closed, Liskov, Interface Segregation, Dependency Inversion. (13) |\n| Repository sa EF-om? | `DbSet` već jeste repository, `DbContext` unit of work; u Zalihama samo interfejs `IAppDbContext`. (13) |\n| Event sourcing? | Stanje iz niza događaja; kretanja u Zalihama su slična ideja, ali se čuva i stanje. (13, 18) |\n| Hash vs encrypt? | Jednosmerno (lozinke, tokeni) vs dvosmerno sa ključem (API ključevi). (15) |\n| HMAC? | Heš poruke sa tajnim ključem; dokazuje pošiljaoca i integritet. (16) |\n| Retry, timeout, circuit breaker? | Ponovi prolaznu grešku; ne čekaj zauvek; prestani da zoveš servis koji stalno pada. (16) |\n| OAuth vs OIDC? | Pristup resursu (access token) vs ko je korisnik (ID token); code flow + PKCE. (15) |\n| SignalR? | Trajna veza server → klijent (WebSockets, pa SSE, pa long polling) sa grupama; u Zalihama grupa po firmi. (18, 25) |\n| Stateless aplikacija? | Ništa bitno u memoriji procesa; preduslov za više instanci. (44) |",
+    "deeperMarkdown": "**Kako odgovoriti kad odgovor u jednoj rečenici nije dovoljan.** Jednorečenični odgovor je ulaz; sagovornik skoro uvek pita „zašto” ili „kada ne”. Dobar obrazac je tri koraka: definicija (jedna rečenica), primer iz sopstvenog koda (Zalihe ili ova aplikacija), pa kompromis („ovo ne bih koristio kada…”). Primer za concurrency token: „verzija reda koju EF dodaje u `WHERE` izmene; u Zalihama je to `xmin`, uz `FOR UPDATE` na stanju; bez zaključavanja bi istovremeni zahtevi dobijali grešku umesto da čekaju.”\n\n**Česta dopunska pitanja.**\n\n- `string` je referentni tip, pa zašto se ponaša kao vrednost? Nepromenljiv je (svaka „izmena” pravi nov string) i ima preklopljen `==`; `StringBuilder` postoji baš zbog te nepromenljivosti.\n- `readonly` polje sa listom: referenca se ne menja, ali sadržaj liste da. Za pravu nepromenljivost: `IReadOnlyList<T>`, `ImmutableArray<T>` ili `FrozenSet<T>`.\n- Da li `async` pravi novu nit? Ne: dok se čeka I/O, nit se vraća u pool; nastavak ide na bilo koju slobodnu nit (u ASP.NET Core nema `SynchronizationContext`-a).\n- Zašto se u ASP.NET Core retko vidi deadlock sa `.Result`, a ipak je loše? Nema konteksta koji bi se zaglavio, ali blokirana nit ne radi ništa drugo; pod opterećenjem ponestane niti u pool-u (thread pool starvation, pogl. 45).\n- Scoped servis u `BackgroundService`-u: napravi scope po poslu (`CreateAsyncScope`), jer pozadinski servis je singleton.\n\n**Prioritet konfiguracije u praksi.** Isti ključ `ConnectionStrings:Default` u `appsettings.json`, u `appsettings.Development.json` i kao promenljiva okruženja `ConnectionStrings__Default`: pobeđuje promenljiva okruženja (dvostruka donja crta zamenjuje `:`), a argument `--ConnectionStrings:Default=...` bi pobedio i nju. User secrets se učitavaju samo u Development okruženju.",
+    "exercise": {
+      "steps": [
+        "Prekrij kolonu „Odgovor” u sve tri tabele i naglas odgovori na svako pitanje; meri vreme (cilj: ispod 15 sekundi po pitanju).",
+        "Svako pitanje na kom zastaneš zapiši i ponovi poglavlje iz zagrade.",
+        "Za pet pitanja po izboru dodaj primer iz svog koda (Zalihe ili Hunter Roadmap) i jedan kompromis („ne bih koristio kada…”).",
+        "Napravi mali projekat (`dotnet new web`) i proveri prioritet konfiguracije: isti ključ u `appsettings.json` i kao promenljiva okruženja, pa ispiši vrednost.",
+        "Zamoli nekoga da te pita nasumičnih 10 pitanja iz tabela i postavi bar jedno dopunsko pitanje („zašto?”, „kada ne?”)."
+      ],
+      "done": "na svako pitanje iz tabela odgovaraš bez zastajkivanja, a za bar pet imaš primer iz sopstvenog koda i kompromis."
+    },
     "cards": [
       {
         "q": "Kako bi u dve rečenice objasnio tok jednog zahteva kroz ASP.NET Core API?",
@@ -3273,6 +3411,14 @@
       {
         "q": "Šta proveravaš u code review-u .NET koda?",
         "a": "Ispravnost i granične slučajeve, async do kraja, upite (N+1, nedostatak indeksa, AsNoTracking), validaciju ulaza i autorizaciju, rukovanje greškama, nazive i čitljivost, i da li postoje testovi za izmenjeno ponašanje."
+      },
+      {
+        "q": "Koji je prioritet izvora konfiguracije u ASP.NET Core-u?",
+        "a": "appsettings.json, pa appsettings.{Environment}.json, pa user secrets (samo u Development), pa promenljive okruženja, pa argumenti komandne linije; kasniji izvor pobeđuje. Zato produkcija lozinku dobija iz okruženja ili sefa tajni, a ne iz fajla."
+      },
+      {
+        "q": "Da li async metoda pravi novu nit?",
+        "a": "Ne. Dok se čeka I/O, nit se vraća u pool i radi nešto drugo; nastavak ide na neku slobodnu nit. Zato async povećava propusnost servera, a ne brzinu jednog zahteva."
       }
     ],
     "test": [
@@ -3337,7 +3483,36 @@
         "why": "Klijent treba da zna šta da ispravi. Stack trace u odgovoru je bezbednosni propust."
       }
     ],
-    "sources": []
+    "sources": [
+      {
+        "title": "Configuration in ASP.NET Core (Microsoft Learn)",
+        "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/"
+      },
+      {
+        "title": "Dependency injection in .NET (Microsoft Learn)",
+        "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection"
+      },
+      {
+        "title": "Handle errors in ASP.NET Core APIs (Microsoft Learn)",
+        "url": "https://learn.microsoft.com/en-us/aspnet/core/web-api/handle-errors"
+      },
+      {
+        "title": "RFC 9457: Problem Details for HTTP APIs",
+        "url": "https://www.rfc-editor.org/rfc/rfc9457"
+      },
+      {
+        "title": "Value types (C# reference)",
+        "url": "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/value-types"
+      },
+      {
+        "title": "What's new in C# 14 (Microsoft Learn)",
+        "url": "https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/csharp-14"
+      },
+      {
+        "title": "Background tasks with hosted services (Microsoft Learn)",
+        "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services"
+      }
+    ]
   },
   {
     "id": "20",
