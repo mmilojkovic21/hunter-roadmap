@@ -169,4 +169,4 @@ Dogovorene odluke: Sistem 2.0 izgled prvi (stranice Prijava/Registracija i arena
     - Kartice senki ulaze u dnevni red arene kao i ostale (ne posebna lista). Prikaz: broj senki, prosečna snaga, kartice senki danas.
     - Pravila (`ShadowRules`) u Core-u sa testovima; stranica „VOJSKA SENKI” u meniju.
 
-Dizajn za stavke 2, 11 i 12: ekrani 9–15 na kanvasu „Hunter Roadmap — dizajn aplikacije”.
+Dizajn za stavke 1, 11 i 12: ekrani 9–15 na kanvasu „Hunter Roadmap — dizajn aplikacije”.
