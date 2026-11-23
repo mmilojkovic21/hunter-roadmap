@@ -69,6 +69,8 @@ export function SettingsPage() {
         <div>
           <Switch on={s.glow} label="Sjaj prozora" hint="Svetlucanje oko prozora sistema, ranga i dugmadi." onToggle={() => set({ glow: !s.glow })} />
           <Switch on={s.reduceMotion} label="Smanji animacije" hint="Bez prelaza i animacija." onToggle={() => set({ reduceMotion: !s.reduceMotion })} />
+          <Switch on={s.scanLines} label="Scan linije" hint="Tanke horizontalne linije preko ekrana, kao na monitoru sistema."
+            onToggle={() => set({ scanLines: !s.scanLines })} />
         </div>
       </section>
 

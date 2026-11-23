@@ -51,7 +51,8 @@ public sealed class HunterApiFactory : WebApplicationFactory<Program>, IAsyncLif
         await db.Settings.ExecuteUpdateAsync(s => s
             .SetProperty(x => x.ActivePackId, SeedPackId)
             .SetProperty(x => x.DailyGoalMinutes, 60)
-            .SetProperty(x => x.PenaltyEnabled, true));
+            .SetProperty(x => x.PenaltyEnabled, true)
+            .SetProperty(x => x.ScanLines, true));
     }
 
     /// <summary>

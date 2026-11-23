@@ -49,7 +49,7 @@ export interface TestResultView {
 export interface AllocatePointResult { freePoints: number; stat: StatView }
 export interface BossView { attemptId: number; regionCode: string; regionTitle: string; passPct: number; xpReward: number; questions: PublicQuestion[] }
 export interface BossResultView { grade: TestResultView["grade"]; xp: XpResult; firstClear: boolean }
-export interface Settings { activePackId: string | null; theme: Theme; glow: boolean; reduceMotion: boolean; dailyGoalMinutes: number; penaltyEnabled: boolean }
+export interface Settings { activePackId: string | null; theme: Theme; glow: boolean; reduceMotion: boolean; dailyGoalMinutes: number; penaltyEnabled: boolean; scanLines: boolean }
 export type Theme = "sistem" | "monarh" | "crveni" | "zlatni";
 
 export class ApiError extends Error {

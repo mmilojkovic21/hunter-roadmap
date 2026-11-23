@@ -85,6 +85,19 @@ public sealed class ApiTests(HunterApiFactory factory) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Scan_lines_are_on_by_default_and_can_be_turned_off()
+    {
+        var before = await _client.GetFromJsonAsync<SettingsView>("/api/settings", Json);
+        Assert.True(before!.ScanLines);
+
+        await _client.PutAsJsonAsync("/api/settings", before with { ScanLines = false }, Json);
+        var after = await _client.GetFromJsonAsync<SettingsView>("/api/settings", Json);
+        await _client.PutAsJsonAsync("/api/settings", before, Json);  // podešavanja deli cela klasa testova
+
+        Assert.False(after!.ScanLines);
+    }
+
+    [Fact]
     public async Task Activate_unknown_pack_returns_404()
     {
         var response = await _client.PostAsync("/api/packs/ne-postoji/activate", null);
@@ -181,7 +194,7 @@ public sealed class ApiTests(HunterApiFactory factory) : IAsyncLifetime
     public async Task Daily_quest_is_locked_for_the_day()
     {
         await StatusAsync();   // zadatak se pravi pri prvom statusu u danu
-        await _client.PutAsJsonAsync("/api/settings", new SettingsView(HunterApiFactory.SeedPackId, "sistem", true, false, 10, true), Json);
+        await _client.PutAsJsonAsync("/api/settings", new SettingsView(HunterApiFactory.SeedPackId, "sistem", true, false, 10, true, true), Json);
 
         var quest = (await StatusAsync()).DailyQuest!;
 
@@ -259,7 +272,7 @@ public sealed class ApiTests(HunterApiFactory factory) : IAsyncLifetime
     public async Task Penalty_can_be_turned_off_in_settings()
     {
         await factory.SeedPenaltyAsync(yesterdayCompleted: false);
-        await _client.PutAsJsonAsync("/api/settings", new SettingsView(HunterApiFactory.SeedPackId, "sistem", true, false, 60, false), Json);
+        await _client.PutAsJsonAsync("/api/settings", new SettingsView(HunterApiFactory.SeedPackId, "sistem", true, false, 60, false, true), Json);
 
         Assert.False((await StatusAsync()).DailyQuest!.Penalty);
     }

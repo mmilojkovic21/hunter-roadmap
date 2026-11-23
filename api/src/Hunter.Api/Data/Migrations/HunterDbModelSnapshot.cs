@@ -341,6 +341,9 @@ namespace Hunter.Api.Data.Migrations
                     b.Property<bool>("ReduceMotion")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("ScanLines")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Theme")
                         .IsRequired()
                         .HasColumnType("text");
@@ -357,6 +360,7 @@ namespace Hunter.Api.Data.Migrations
                             Glow = true,
                             PenaltyEnabled = true,
                             ReduceMotion = false,
+                            ScanLines = true,
                             Theme = "sistem"
                         });
                 });

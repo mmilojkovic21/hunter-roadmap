@@ -114,6 +114,9 @@ Dogovorene odluke: Sistem 2.0 izgled prvi (stranice Prijava/Registracija i arena
    - Meni: velika slova, `▸` i svetleći okvir za aktivnu stavku.
    - Pravila ostaju: kontrast teksta ≥ 4,5:1 i na staklu; uz smanjene pokrete stoje mreža, treperenje, scan linije i odbrojavanje.
    - Redosled: zajednički tokeni i komponente (prozor, naslovna traka), pa Status, pa ostali ekrani; E2E testovi moraju da prođu.
+   - ✅ Korak 1, zajednički delovi: font Rajdhani (`--display`), tokeni `--glass-rgb`/`--label`/`--bright` po temi, scena u Layout-u
+     (`.scene`: mreža, vinjeta, scan linije), `components/Window.tsx` (`.win*`, `glass` = zamućenje samo za velike prozore),
+     meni sa `▸`, postojeći paneli (`.sys`, `.card`, `.quest`, `.notice`) u staklu. Podešavanje `ScanLines` (migracija `AddScanLines`, `data-scan`).
    - **Ostali ekrani po kanvasu (red „Sistem 2.0 — ostali ekrani i novi prozori”):**
      - „10 · Mapa veština”: regioni kao gate-ovi (dugmad sa rangom u rombu i % očišćeno), poglavlja kao pločice sa stanjem
        ✓ očišćeno / ▸ u toku / ○ novo, Boss gate panel na dnu regiona, desno prozor „DETALJI” sa koracima i XP-om.

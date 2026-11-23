@@ -84,4 +84,4 @@ public sealed record BossResultView(GradeResult Grade, XpResult Xp, bool FirstCl
 
 public sealed record TestResultView(GradeResult Grade, XpResult Xp, bool FirstPass);
 
-public sealed record SettingsView(string? ActivePackId, string Theme, bool Glow, bool ReduceMotion, int DailyGoalMinutes, bool PenaltyEnabled);
+public sealed record SettingsView(string? ActivePackId, string Theme, bool Glow, bool ReduceMotion, int DailyGoalMinutes, bool PenaltyEnabled, bool ScanLines);

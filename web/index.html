@@ -6,7 +6,7 @@
     <title>Hunter Roadmap</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap"
       rel="stylesheet"
     />
     <script>
@@ -25,6 +25,7 @@
         root.dataset.theme = s.theme || "sistem";
         root.dataset.glow = s.glow === false ? "off" : "on";
         root.dataset.motion = s.reduceMotion === true ? "reduce" : "full";
+        root.dataset.scan = s.scanLines === false ? "off" : "on";
         root.dataset.boot = reduce ? "static" : last === today ? "short" : "full";
         if (root.dataset.boot === "full") {
           try { localStorage.setItem("hunter.boot.lastFull", JSON.stringify(today)); } catch (e) { /* ponoviće se sutra */ }
@@ -59,7 +60,7 @@
       .boot-cells { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 3px; height: 8px; margin-top: 6px; }
       .boot-cells i { background: #1c2742; animation: boot-cell 0.08s linear calc(1.1s + var(--i) * 0.06s) both; }
       .boot-grant-wrap { display: flex; justify-content: center; padding-top: 10px; min-height: 40px; }
-      .boot-grant { font: 700 26px "Space Grotesk", Inter, sans-serif; letter-spacing: 0.22em; color: #e6f2ff; text-shadow: 0 0 18px rgba(var(--boot-rgb), 0.9); opacity: 0; }
+      .boot-grant { font: 700 28px Rajdhani, Inter, sans-serif; letter-spacing: 0.22em; color: #e6f2ff; text-shadow: 0 0 18px rgba(var(--boot-rgb), 0.9); opacity: 0; }
       .boot.granted .boot-grant { animation: boot-grant 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) var(--grant-delay, 0ms) both, boot-glow 0.9s ease-in-out calc(var(--grant-delay, 0ms) + 0.45s) 1; }
       .boot-short { display: none; position: relative; flex-direction: column; align-items: center; gap: 14px; }
       .boot-short .boot-line { position: static; margin: 0; animation: boot-line 0.3s cubic-bezier(0.7, 0, 0.3, 1) both; }

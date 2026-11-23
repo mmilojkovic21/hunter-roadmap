@@ -131,6 +131,7 @@ public class UserSettings
     public bool ReduceMotion { get; set; }
     public int DailyGoalMinutes { get; set; } = 60;
     public bool PenaltyEnabled { get; set; } = true;
+    public bool ScanLines { get; set; } = true;  // dekor pozadine (Sistem 2.0); neki ih ne vole, pa se gase
 }
 
 public class HunterDb(DbContextOptions<HunterDb> options) : DbContext(options)
