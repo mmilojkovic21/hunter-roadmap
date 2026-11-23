@@ -9,7 +9,7 @@ minutes: 60
 ---
 # C1 Azure osnove
 
-Cloud je iznajmljen računar, baza i mreža koje plaćaš po potrošnji, umesto da ih održavaš sam. Na tvom netcup serveru sam brineš o Linuxu, Dockeru, sertifikatima i backupu; na Azure-u biraš gotovu uslugu (PaaS) i on preuzima veći deo toga. Azure se najčešće traži u oglasima uz .NET, pa je dobro znati bar osnovne usluge.
+Cloud je iznajmljen računar, baza i mreža koje plaćaš po potrošnji, umesto da ih održavaš sam. Na tvom netcup serveru sam brineš o Linuxu, Dockeru, sertifikatima i backupu (vodič, pogl. 37–40); na Azure-u biraš gotovu uslugu (PaaS) i on preuzima veći deo toga. Azure se najčešće traži u oglasima uz .NET, pa je dobro znati bar osnovne usluge.
 
 ## Pojmovi
 
@@ -33,7 +33,7 @@ Cloud je iznajmljen računar, baza i mreža koje plaćaš po potrošnji, umesto 
 
 ### Managed Identity: bez lozinki u kodu
 
-Aplikacija na Azure-u dobija sopstveni identitet. Daš tom identitetu pravo da čita Key Vault, i aplikacija pristupa bez ijedne lozinke u konfiguraciji.
+Aplikacija na Azure-u dobija sopstveni identitet. Daš tom identitetu pravo da čita Key Vault, i aplikacija pristupa bez ijedne lozinke u konfiguraciji. Key Vault je samo još jedan izvor konfiguracije u nizu koji vodič opisuje u pogl. 8 (appsettings, user secrets, promenljive okruženja).
 
 ```csharp
 // paketi: Azure.Identity, Azure.Extensions.AspNetCore.Configuration.Secrets
@@ -293,7 +293,7 @@ Svaki ključ može da ima **TTL** (vreme života) posle koga sam nestaje.
 
 ### Cache-aside
 
-Pitaj keš → ako nema (cache miss), pročitaj iz baze → upiši u keš sa TTL-om. Pri izmeni u bazi obriši ključ.
+Pitaj keš → ako nema (cache miss), pročitaj iz baze → upiši u keš sa TTL-om. Pri izmeni u bazi obriši ključ. Nivoi keša, od browsera do Redisa, i invalidacija su u vodiču, pogl. 44.
 
 ### HybridCache
 
@@ -425,7 +425,7 @@ Poglavlje 16 vodiča ima red poslova u bazi. Kad više servisa treba da reaguje 
 
 ### Garancije i šta one traže od tebe
 
-RabbitMQ daje **at-least-once** samo ako uradiš svoj deo: trajan (durable) red, trajne (persistent) poruke, **publisher confirms** (broker potvrđuje produceru da je poruku sačuvao; bez toga poruka može da se izgubi ako broker padne pre upisa na disk) i ručni ack na strani consumer-a. Poruka tada može stići dva puta (consumer pao posle obrade, a pre ack-a). Zato obrada mora biti **idempotentna**: drugi put ne pravi štetu. Najlakše: čuvaj `MessageId` obrađenih poruka i preskoči već viđene.
+RabbitMQ daje **at-least-once** samo ako uradiš svoj deo: trajan (durable) red, trajne (persistent) poruke, **publisher confirms** (broker potvrđuje produceru da je poruku sačuvao; bez toga poruka može da se izgubi ako broker padne pre upisa na disk) i ručni ack na strani consumer-a. Poruka tada može stići dva puta (consumer pao posle obrade, a pre ack-a). Zato obrada mora biti **idempotentna**: drugi put ne pravi štetu. Najlakše: čuvaj `MessageId` obrađenih poruka i preskoči već viđene. Druga varijanta je obrada po ciljnom stanju umesto po prelazu (vodič, pogl. 16).
 
 ### Dead lettering
 
@@ -433,7 +433,7 @@ Poruka ide na dead letter exchange kad je consumer odbije sa `requeue: false` (`
 
 ### Outbox obrazac
 
-Problem: upišeš pozajmicu u bazu, a objava poruke padne (ili obrnuto). Rešenje: u **istoj transakciji** upiši pozajmicu i poruku u tabelu `Outbox`; poseban pozadinski posao čita outbox i objavljuje na broker. Baza i poruke ostaju usklađene.
+Problem: upišeš pozajmicu u bazu, a objava poruke padne (ili obrnuto). Rešenje: u **istoj transakciji** upiši pozajmicu i poruku u tabelu `Outbox`; poseban pozadinski posao čita outbox i objavljuje na broker. Baza i poruke ostaju usklađene. Isti obrazac, i varijantu u kojoj se podatak samo označi kao izmenjen, opisuje vodič u pogl. 16.
 
 ### Biblioteke u .NET-u (stanje 2026)
 
@@ -544,7 +544,7 @@ minutes: 50
 ---
 # C5 Infrastruktura kao kod
 
-Umesto da resurse praviš klikom u portalu, opišeš ih u fajlu koji je u Gitu. Alat uporedi opis sa stvarnim stanjem i napravi samo razliku. Infrastruktura tako postaje ponovljiva (isto okruženje za test i produkciju), pregledljiva kroz pull request i obnovljiva posle greške.
+Umesto da resurse praviš klikom u portalu, opišeš ih u fajlu koji je u Gitu. Alat uporedi opis sa stvarnim stanjem i napravi samo razliku. Infrastruktura tako postaje ponovljiva (isto okruženje za test i produkciju), pregledljiva kroz pull request i obnovljiva posle greške. Vodič je pominje u pogl. 38 (Infrastructure as Code); ovde je praksa sa Terraformom.
 
 ## Pojmovi
 
@@ -693,7 +693,7 @@ Docker Compose pokreće kontejnere na jednom serveru. Kubernetes (K8s) radi to n
 | Pod | jedan ili više kontejnera koji rade zajedno | jedan pokrenut servis |
 | Deployment | željeni broj replika podova i verzija image-a | `deploy.replicas` + `image` |
 | Service | stabilna adresa i load balancing ka podovima | ime servisa u mreži |
-| Ingress / Gateway API | HTTP ulaz spolja, rutiranje po domenu i putanji | Caddy/Nginx |
+| Ingress / Gateway API | HTTP ulaz spolja, rutiranje po domenu i putanji | Caddy/Nginx (vodič, pogl. 37) |
 | ConfigMap / Secret | konfiguracija i tajne kao promenljive ili fajlovi | `environment`, `.env` |
 
 Ingress API je zamrznut (radi, ali se ne razvija); Kubernetes preporučuje **Gateway API** (`Gateway` + `HTTPRoute`). Popularni kontroler ingress-nginx je povučen u martu 2026. i više ne dobija bezbednosne zakrpe.
@@ -868,7 +868,7 @@ logger.LogWarning("Pozajmica {LoanId} odbijena za člana {MemberId}", loanId, me
 logger.LogWarning($"Pozajmica {loanId} odbijena za člana {memberId}");
 ```
 
-Svaki log nosi `TraceId`, pa iz greške u logu skočiš na ceo trag zahteva.
+Svaki log nosi `TraceId`, pa iz greške u logu skočiš na ceo trag zahteva. Strukturisano logovanje i nivoi su u vodiču, pogl. 8, a `traceId` u ProblemDetails odgovoru u pogl. 11.
 
 ### Šta pratiti: RED
 
@@ -953,7 +953,7 @@ minutes: 45
 ---
 # C8 Aspire
 
-Aspire (do verzije 13 zvao se „.NET Aspire”) opisuje celu aplikaciju kao C# kod: API, React, Postgres, Redis i veze među njima. Jednom komandom podigne sve lokalno, poveže connection stringove, uključi OpenTelemetry i otvori dashboard sa logovima i tragovima svih servisa. Zamenjuje ručno nameštanje `docker-compose.yml` i `.env` fajlova za razvoj. Aspire 13 traži .NET 10 SDK.
+Aspire (do verzije 13 zvao se „.NET Aspire”) opisuje celu aplikaciju kao C# kod: API, React, Postgres, Redis i veze među njima. Jednom komandom podigne sve lokalno, poveže connection stringove, uključi OpenTelemetry i otvori dashboard sa logovima i tragovima svih servisa. Zamenjuje ručno nameštanje `docker-compose.yml` i `.env` fajlova za razvoj (vodič, pogl. 36 i 40). Aspire 13 traži .NET 10 SDK.
 
 ## Pojmovi
 

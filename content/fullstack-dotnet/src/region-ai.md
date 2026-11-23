@@ -52,7 +52,7 @@ AI asistenti (Claude Code, GitHub Copilot, Cursor) danas su deo svakodnevnog rad
 ## Pitanja sa intervjua
 
 **P: Kako koristiš AI alate u radu?**
-Za istraživanje nepoznatog koda, prve verzije rutinskog koda i testova. Zadatke delim na male, tražim plan, i svaki diff pregledam kao pull request kolege; testovi i build moraju da prođu.
+Za istraživanje nepoznatog koda, prve verzije rutinskog koda i testova. Zadatke delim na male, tražim plan, i svaki diff pregledam kao pull request kolege; testovi i build moraju da prođu. Kako se o tome priča i koja pitanja slede posle odgovora: vodič, pogl. 48 („Pitanje o AI alatima”).
 
 **P: Kako znaš da je AI kod ispravan?**
 Ne verujem mu unapred: čitam ga, pokrećem testove, proveravam granične slučajeve i da li API-ji i paketi zaista postoje.
@@ -156,8 +156,8 @@ record Kategorija(string Naziv, double Sigurnost);
 
 ### Inženjerske stvari koje se pitaju
 
-- **Ključevi** samo na serveru (Key Vault, user-secrets); frontend nikad ne zove LLM direktno.
-- **Timeout i retry** kao za svaki spoljni servis; ponuda rezervnog odgovora kad model ne odgovori.
+- **Ključevi** samo na serveru (Key Vault, user-secrets); frontend nikad ne zove LLM direktno (tajne: vodič, pogl. 8).
+- **Timeout i retry** kao za svaki spoljni servis; ponuda rezervnog odgovora kad model ne odgovori (otpornost poziva i `Microsoft.Extensions.Http.Resilience`: vodič, pogl. 16).
 - **Strimovanje do browsera:** API šalje delove kroz SSE ili SignalR (vodič, pogl. 25).
 - **Logovanje** broja tokena po zahtevu da bi znao trošak.
 
@@ -409,9 +409,9 @@ public static class ZaliheAlati
 
 ### Pravila za alate
 
-- **Najmanja prava:** alati za čitanje su bezbedni; alati koji menjaju podatke (prodaja, brisanje) traže potvrdu korisnika.
+- **Najmanja prava:** alati za čitanje su bezbedni; alati koji menjaju podatke (prodaja, brisanje) traže potvrdu korisnika. Alat proverava i pravo nad podatkom, kao svaki endpoint (vodič, pogl. 15).
 - **Jasni opisi:** model bira alat po opisu, pa je opis deo „koda”.
-- **Provera argumenata:** argumente koje model pošalje proveravaš kao bilo koji korisnički unos.
+- **Provera argumenata:** argumente koje model pošalje proveravaš kao bilo koji korisnički unos (validacija na serveru: vodič, pogl. 11).
 - **Ograničenje koraka:** agent petlja ima maksimum poziva, da ne bi trošila bez kraja (`MaximumIterationsPerRequest`, podrazumevano 40; spusti ga na ono što zadatku treba).
 
 ## Lab
@@ -506,7 +506,7 @@ Prompt injection je na prvom mestu OWASP liste rizika za LLM aplikacije (LLM01:2
 
 - Alati imaju **samo prava trenutnog korisnika** (ne admin nalog servisa).
 - **Osetljive akcije traže potvrdu** čoveka.
-- **Izlaz modela je nepouzdan ulaz:** ne izvršava se kao SQL, HTML ili komanda bez provere i enkodovanja.
+- **Izlaz modela je nepouzdan ulaz:** ne izvršava se kao SQL, HTML ili komanda bez provere i enkodovanja. React tekst sam escapuje (vodič, pogl. 23), a XSS i injection su u pogl. 15.
 - Podaci različitih korisnika (tenanta) se nikad ne mešaju u istom kontekstu.
 
 ### Podaci

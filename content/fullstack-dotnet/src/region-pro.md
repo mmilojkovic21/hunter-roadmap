@@ -141,7 +141,7 @@ Dizajn obrazac je provereno rešenje za problem koji se stalno ponavlja. Ne uči
 | Adapter | spoljna biblioteka ima drugačiji interfejs od tvog | omotač oko SDK-a (npr. WooCommerce klijent) |
 | Observer | više delova reaguje na događaj | `event`, domain events, SignalR |
 | Builder | složeno pravljenje objekta korak po korak | `WebApplication.CreateBuilder`, `StringBuilder` |
-| Repository / Unit of Work | pristup podacima kroz kolekciju i jednu transakciju | `DbSet` i `DbContext` |
+| Repository / Unit of Work | pristup podacima kroz kolekciju i jednu transakciju | `DbSet` i `DbContext` (vodič, pogl. 13) |
 | Singleton | jedna instanca za celu aplikaciju | `AddSingleton` u DI (ne ručni statički singleton) |
 
 ### Strategy u praksi
@@ -360,7 +360,7 @@ minutes: 50
 ---
 # P4 Performanse i profilisanje
 
-Pravilo broj jedan: prvo izmeri, pa menjaj. Intuicija o tome šta je sporo je često pogrešna. U web aplikacijama je usko grlo skoro uvek baza ili mreža, ređe sam C# kod. Medior se od juniora razlikuje po tome što zna da pronađe uzrok, a ne samo da pogađa.
+Pravilo broj jedan: prvo izmeri, pa menjaj. Intuicija o tome šta je sporo je često pogrešna. U web aplikacijama je usko grlo skoro uvek baza ili mreža, ređe sam C# kod. Medior se od juniora razlikuje po tome što zna da pronađe uzrok, a ne samo da pogađa. Async i memorijske zamke su u vodiču, pogl. 45, a N+1 u pogl. 12.
 
 ## Pojmovi
 
@@ -479,7 +479,7 @@ minutes: 45
 ---
 # P5 Tailwind CSS i shadcn/ui
 
-Tailwind je CSS pristup u kom stilove pišeš malim klasama direktno u markupu (`flex gap-4 p-6 rounded-xl`) umesto u posebnim CSS fajlovima. shadcn/ui je kolekcija gotovih, pristupačnih React komponenti (dugme, dijalog, tabela, forma) koje se kopiraju u tvoj projekat, pa ih menjaš kao svoj kod. Ova kombinacija je danas jedan od najčešćih izbora za nove React aplikacije.
+Tailwind je CSS pristup u kom stilove pišeš malim klasama direktno u markupu (`flex gap-4 p-6 rounded-xl`) umesto u posebnim CSS fajlovima. shadcn/ui je kolekcija gotovih, pristupačnih React komponenti (dugme, dijalog, tabela, forma) koje se kopiraju u tvoj projekat, pa ih menjaš kao svoj kod. Ova kombinacija je danas jedan od najčešćih izbora za nove React aplikacije. Design tokeni i CSS moduli su u vodiču, pogl. 28, a osnove CSS-a u pogl. 20.
 
 ## Pojmovi
 
@@ -534,7 +534,7 @@ Komponente se pojave u `src/components/ui/`. Nisu npm zavisnost: menjaš ih slob
 
 1. Dodaj Tailwind v4 u React deo Biblioteke i definiši temu (boja brenda, font) kroz `@theme`.
 2. Prepravi listu knjiga u responzivnu mrežu kartica (1 kolona na telefonu, 3 na desktopu).
-3. Dodaj shadcn/ui i napravi dijalog „Nova pozajmica” sa formom (React Hook Form + Zod, vodič pogl. 27).
+3. Dodaj shadcn/ui i napravi dijalog „Nova pozajmica” sa formom (React Hook Form + Zod; forme su u vodiču, pogl. 27, a Zod u pogl. 22).
 4. Dodaj tamnu temu (`dark:`) i prekidač.
 5. Prođi celu formu samo tastaturom i proveri kontrast u DevTools-u (Lighthouse → Accessibility).
 
@@ -708,7 +708,7 @@ minutes: 50
 ---
 # P7 Next.js osnove
 
-Next.js je React framework koji dodaje rutiranje po fajlovima i renderovanje na serveru. Zalihe su SPA iza prijave i tu Vite je pravi izbor (vodič, pogl. 46). Ali za javne sajtove, prodavnice i sve gde je važan SEO i prvi prikaz, firme biraju Next.js, pa se u oglasima često traži uz React. Aktuelna glavna verzija je 16, sa Turbopack-om kao podrazumevanim bundlerom.
+Next.js je React framework koji dodaje rutiranje po fajlovima i renderovanje na serveru. Zalihe su SPA iza prijave i tu Vite je pravi izbor (vodič, pogl. 46; SSR i SPA u pogl. 1). Ali za javne sajtove, prodavnice i sve gde je važan SEO i prvi prikaz, firme biraju Next.js, pa se u oglasima često traži uz React. Aktuelna glavna verzija je 16, sa Turbopack-om kao podrazumevanim bundlerom.
 
 ## Pojmovi
 
@@ -830,7 +830,7 @@ minutes: 40
 ---
 # P8 Rad u timu
 
-Na intervjuu za medior poziciju pola pitanja nije o kodu, nego o tome kako radiš sa ljudima: kako procenjuješ, kako pregledaš tuđi kod, šta radiš kad se ne slažeš. Ovo se ne uči iz knjige, ali postoje ustaljene prakse koje treba znati i o kojima treba umeti da pričaš kroz primere iz ITM-a.
+Na intervjuu za medior poziciju pola pitanja nije o kodu, nego o tome kako radiš sa ljudima: kako procenjuješ, kako pregledaš tuđi kod, šta radiš kad se ne slažeš. Ovo se ne uči iz knjige, ali postoje ustaljene prakse koje treba znati i o kojima treba umeti da pričaš kroz primere iz ITM-a. Pojmovi (Scrum, Kanban, Definition of Done, code review) su ukratko u vodiču, pogl. 48, a grane, merge i rebase u pogl. 34.
 
 ## Pojmovi
 
@@ -949,7 +949,7 @@ minutes: 40
 ---
 # P9 Tehnički engleski
 
-Strane firme i agencije (Toggl, Luxoft, Deel, Malt klijenti) intervjue rade na engleskom. Znanje je isto, ali pod pritiskom reči ne dolaze same. Cilj nije savršena gramatika, nego da tečno objasniš šta radiš, zašto, i šta bi uradio drugačije. To se vežba naglas, ne čitanjem.
+Strane firme i agencije (Toggl, Luxoft, Deel, Malt klijenti) intervjue rade na engleskom. Znanje je isto, ali pod pritiskom reči ne dolaze same. Cilj nije savršena gramatika, nego da tečno objasniš šta radiš, zašto, i šta bi uradio drugačije. To se vežba naglas, ne čitanjem. Tabela najčešćih rečenica je i u vodiču, pogl. 48 („Na engleskom”).
 
 ## Pojmovi
 

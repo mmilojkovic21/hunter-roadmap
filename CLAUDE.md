@@ -118,8 +118,13 @@ Za poglavlja vodiča lekcija je u PDF-u (nije u repozitorijumu): proveravaju se 
 - ✅ region AI (`region-ai.md`, paket 1.1.3): `record` usred top-level naredbi (CS8803), `static` lokalna funkcija
   zahvata promenljivu (CS8421), MCP stdio server mora da loguje na stderr (provereno uživo), limit
   `MaximumIterationsPerRequest` (40), HNSW indeks u pgvector-u, AGENTS.md, OWASP LLM 2025 stavke, novi linkovi.
-  Nije provereno: reference „vodič, pogl. 25” (SSE/SignalR, AI2) i „pogl. 15” (rate limit, AI5); PDF nije u repou,
-  a u paketu se rate limiting pojavljuje u pitanjima pogl. 44.
+- ✅ Reference na vodič (paket 1.1.4): sve „pogl. N” u regionima 0, C, AI i Pro proverene prema PDF-u vodiča
+  („Od nule do posla”, Zalihe-intervju.pdf, 20. 11. 2026, nije u repou) i tačne; dodato 29 novih referenci.
+  Nepreciznosti u samom vodiču (PDF se ne menja odavde, ispraviti u izvoru vodiča):
+  pogl. 44 „HybridCache (.NET 9+)” (radi i na starijim, zaštita od stampede-a samo po instanci);
+  pogl. 44 sticky sessions za SignalR trebaju na više servera i uz Redis backplane, osim WebSockets-only + SkipNegotiation
+  ili Azure SignalR; pogl. 15 tabela OWASP prati listu 2021 (u 2025 SSRF je u A01, nove su A03 Supply Chain i
+  A10 Exceptional Conditions); pogl. 38 akcije `@v4` su zastarele (v7/v6/v7).
 - ⬜ `region-pro.md` (pune lekcije)
 - ⬜ `vodic-1-osnove-backend.md` … `vodic-5-intervju.md` (pitanja i kartice)
 - ⬜ dopune: uporediti sadržaj sa onim što se traži od full stack .NET inženjera i predložiti nova poglavlja

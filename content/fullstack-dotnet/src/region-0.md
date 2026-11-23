@@ -107,7 +107,7 @@ minutes: 30
 ---
 # 0.2 Promenljive i tipovi
 
-Promenljiva je imenovano mesto u memoriji. Tip kaže koliko mesta zauzima i šta sme da se radi sa vrednošću. C# je strogo tipiziran: tip se zna pri kompajliranju, pa kompajler hvata greške pre nego što program krene.
+Promenljiva je imenovano mesto u memoriji. Tip kaže koliko mesta zauzima i šta sme da se radi sa vrednošću. C# je strogo tipiziran: tip se zna pri kompajliranju, pa kompajler hvata greške pre nego što program krene. U vodiču su tipovi u pogl. 4 (C# osnove), uz razlog zašto je za novac `decimal`, a ne `double`.
 
 ## Pojmovi
 
@@ -232,7 +232,7 @@ minutes: 35
 ---
 # 0.3 Uslovi i petlje
 
-Uslovi biraju koji deo koda se izvršava, a petlje ponavljaju deo koda. Sa ova dva alata i promenljivama može da se napiše skoro svaki algoritam.
+Uslovi biraju koji deo koda se izvršava, a petlje ponavljaju deo koda. Sa ova dva alata i promenljivama može da se napiše skoro svaki algoritam. C# sintaksa za njih (`if`, `switch` izraz, petlje) je i u vodiču, pogl. 4.
 
 ## Pojmovi
 
@@ -352,7 +352,7 @@ minutes: 35
 ---
 # 0.4 Funkcije
 
-Funkcija (u C#-u metoda) je imenovan deo koda koji prima ulaz, radi jednu stvar i vraća rezultat. Dobra funkcija ima ime koje kaže šta radi, malo parametara i jednu odgovornost. Tako se kod čita kao rečenice i lako testira.
+Funkcija (u C#-u metoda) je imenovan deo koda koji prima ulaz, radi jednu stvar i vraća rezultat. Dobra funkcija ima ime koje kaže šta radi, malo parametara i jednu odgovornost. Tako se kod čita kao rečenice i lako testira. U vodiču su metode, podrazumevani i imenovani argumenti u pogl. 4, a delegati i lambde u pogl. 6.
 
 ## Pojmovi
 
@@ -461,7 +461,7 @@ minutes: 40
 ---
 # 0.5 Nizovi i liste
 
-Niz je blok memorije sa elementima istog tipa jedan do drugog, pa se svakom pristupa preko indeksa za isto vreme. Lista (`List<T>`) je niz koji sam raste kad se napuni. Na intervjuima je velik deo zadataka zapravo rad sa nizom: pronađi, prebroj, obrni, spoji.
+Niz je blok memorije sa elementima istog tipa jedan do drugog, pa se svakom pristupa preko indeksa za isto vreme. Lista (`List<T>`) je niz koji sam raste kad se napuni. Na intervjuima je velik deo zadataka zapravo rad sa nizom: pronađi, prebroj, obrni, spoji. Kolekcije u .NET-u (`List`, `Dictionary`, `HashSet`) i LINQ su u vodiču, pogl. 6.
 
 ## Pojmovi
 
@@ -693,7 +693,7 @@ minutes: 35
 ---
 # 0.7 Big-O složenost
 
-Big-O opisuje kako raste vreme (ili memorija) kad raste ulaz. Ne meri sekunde, nego oblik rasta: da li je za duplo više podataka posao isti, dvostruk ili četvorostruk. Na intervjuu se posle svakog rešenja pita „koja je složenost i može li bolje?”.
+Big-O opisuje kako raste vreme (ili memorija) kad raste ulaz. Ne meri sekunde, nego oblik rasta: da li je za duplo više podataka posao isti, dvostruk ili četvorostruk. Na intervjuu se posle svakog rešenja pita „koja je složenost i može li bolje?”. Tabela složenosti .NET struktura je i u vodiču, pogl. 47.
 
 ## Pojmovi
 
@@ -819,7 +819,7 @@ minutes: 50
 ---
 # 0.8 Strukture podataka
 
-Struktura podataka je način da se podaci rasporede tako da su česte operacije brze. Pravi izbor strukture je često cela poenta rešenja: isti zadatak sa listom je O(n²), sa hash tabelom O(n).
+Struktura podataka je način da se podaci rasporede tako da su česte operacije brze. Pravi izbor strukture je često cela poenta rešenja: isti zadatak sa listom je O(n²), sa hash tabelom O(n). Isto poređenje za .NET kolekcije je u vodiču, pogl. 6 i 47.
 
 ## Pojmovi
 
@@ -932,7 +932,7 @@ minutes: 60
 ---
 # 0.9 Algoritmi
 
-Algoritam je tačan postupak za rešavanje problema. Za posao ne moraš da znaš stotine algoritama, ali live coding na intervjuu skoro uvek proverava nekoliko istih obrazaca: pretragu, sortiranje, obilazak grafa i pamćenje međurezultata.
+Algoritam je tačan postupak za rešavanje problema. Za posao ne moraš da znaš stotine algoritama, ali live coding na intervjuu skoro uvek proverava nekoliko istih obrazaca: pretragu, sortiranje, obilazak grafa i pamćenje međurezultata. Kako se zadatak radi uživo, korak po korak, i pet rešenih primera (two sum, zagrade, anagrami...) su u vodiču, pogl. 47.
 
 ## Pojmovi
 
