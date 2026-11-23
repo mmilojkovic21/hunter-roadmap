@@ -1,0 +1,4 @@
+{
+  // TypeScript 7 (web/) nema stari tsserver; editor ga koristi kroz ovo proširenje.
+  "recommendations": ["TypeScriptTeam.native-preview"]
+}

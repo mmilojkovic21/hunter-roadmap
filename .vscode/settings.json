@@ -1,0 +1,4 @@
+{
+  // Jezički servis TypeScript-a 7 (LSP) umesto ugrađenog iz VS Code-a, koji ne razume paket typescript@7.
+  "js/ts.experimental.useTsgo": true
+}
