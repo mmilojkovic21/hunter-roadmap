@@ -101,7 +101,7 @@ Materijal: kartice „Pitanja sa intervjua” iz paketa (203). Oblasti arene su 
 
 Dogovorene odluke: Sistem 2.0 izgled prvi (stranice Prijava/Registracija i arena se odmah prave u novom izgledu); nalozi odmah posle, pre arene (svaka nova tabela arene je odmah po korisniku; jedina tabela iz stavke 1, događaj preskakanja kazne, dobija `UserId` u stavci 2); intervali 1/3/7/14 dana; ponavljanje daje mali XP sa dnevnim limitom; simulacija je sa samoocenjivanjem; faza 3 ide pre faze 4 (deploy).
 
-1. **Sistem 2.0 izgled.** Po kanvasu, ekran „9 · Sistem 2.0 (predlog izgleda)”; originalan dizajn u žanru „sistem prozora”, bez logoa,
+1. ✅ **Sistem 2.0 izgled.** Po kanvasu, ekran „9 · Sistem 2.0 (predlog izgleda)”; originalan dizajn u žanru „sistem prozora”, bez logoa,
    likova, slika ili doslovnih elemenata iz serije.
    - Paneli kao staklo: poluprovidna pozadina, dvostruki obris (spoljni sjajni + unutrašnji tanki okvir), unutrašnji sjaj.
      `backdrop-filter` samo na nekoliko velikih prozora (performanse), ne na svakoj kartici.
@@ -127,6 +127,11 @@ Dogovorene odluke: Sistem 2.0 izgled prvi (stranice Prijava/Registracija i arena
      stranici (ne jedno po jedno kao na kanvasu), jer server ocenjuje tek pri predaji.
    - ✅ Korak 3c, Poglavlje: prozor POGLAVLJE sa koracima kao karticama-tabovima (`✓ +XP`, vežba `[x/N]`, Test kao ulaz u dungeon),
      sadržaj u `.card.glass`, vežba kao čeklista (pravi checkbox, `.check-list`), desno prozor NAGRADE (iz `ChapterView.StepXp`).
+   - ✅ Korak 3d, Kazneni zadatak: `components/PenaltyDialog.tsx` (pravi `<dialog>` + `showModal()`, bljeskovi na `::backdrop`,
+     `.win-red` menja promenljive boje), otvara se jednom dnevno (localStorage `hunter.penalty.seen.<paket>`), crvena tabla ga ponovo otvara.
+     Pravilo: `StreakRules.Current(..., brokenOn)`; događaj `PenaltySkips` (migracija `AddPenaltySkips`), `POST /api/penalty/skip`
+     (uklanja nezavršena ponavljanja; prazan zadatak se ne „završava”). E2E `kazna.e2e.ts` podmeće status preko `page.route`.
+     Žeton odlaganja sa kanvasa ide uz Inventar (stavka 11). „Nove lekcije su zaključane” se ne prikazuje: lekcije nisu zaključane.
    - **Ostali ekrani po kanvasu (red „Sistem 2.0 — ostali ekrani i novi prozori”):**
      - „10 · Mapa veština”: regioni kao gate-ovi (dugmad sa rangom u rombu i % očišćeno), poglavlja kao pločice sa stanjem
        ✓ očišćeno / ▸ u toku / ○ novo, Boss gate panel na dnu regiona, desno prozor „DETALJI” sa koracima i XP-om.

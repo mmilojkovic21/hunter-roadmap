@@ -45,6 +45,7 @@ public sealed class HunterApiFactory : WebApplicationFactory<Program>, IAsyncLif
         await db.StatPoints.ExecuteDeleteAsync();
         await db.BossAttempts.ExecuteDeleteAsync();
         await db.RegionClears.ExecuteDeleteAsync();
+        await db.PenaltySkips.ExecuteDeleteAsync();
         await db.StepCompletions.ExecuteDeleteAsync();
         await db.TestAttempts.ExecuteDeleteAsync();
         await db.Packs.Where(p => p.Id != SeedPackId).ExecuteDeleteAsync();
@@ -68,6 +69,7 @@ public sealed class HunterApiFactory : WebApplicationFactory<Program>, IAsyncLif
         var yesterday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(yesterdayAt, zone).DateTime);
 
         db.StepCompletions.Add(new StepCompletion { PackId = SeedPackId, ChapterId = "1", Step = "Test", CompletedAt = yesterdayAt });
+        db.XpEvents.Add(new XpEvent { PackId = SeedPackId, ChapterId = "1", Reason = "Test", Amount = 80, CreatedAt = yesterdayAt });   // juče je bilo učenja (niz)
         db.TestAttempts.Add(new TestAttempt
         {
             PackId = SeedPackId, ChapterId = "1", CorrectCount = 1, Total = 2, Percent = 50, Passed = true,

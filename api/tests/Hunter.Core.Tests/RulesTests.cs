@@ -112,6 +112,18 @@ public class StreakRulesTests
     [Fact]
     public void Current_GapBeforeYesterday_IsZero() =>
         Assert.Equal(0, StreakRules.Current([Today.AddDays(-2)], Today));
+
+    [Fact]
+    public void Current_PenaltySkippedToday_BreaksStreakImmediately() =>
+        Assert.Equal(0, StreakRules.Current([Today.AddDays(-1), Today.AddDays(-2), Today.AddDays(-3)], Today, brokenOn: Today));
+
+    [Fact]
+    public void Current_LearningAfterSkip_StartsNewStreakFromSkipDay() =>
+        Assert.Equal(2, StreakRules.Current([Today, Today.AddDays(-1), Today.AddDays(-2), Today.AddDays(-3)], Today, brokenOn: Today.AddDays(-1)));
+
+    [Fact]
+    public void Current_OldSkipBeforeStreak_ChangesNothing() =>
+        Assert.Equal(2, StreakRules.Current([Today, Today.AddDays(-1)], Today, brokenOn: Today.AddDays(-10)));
 }
 
 public class ChapterRulesTests

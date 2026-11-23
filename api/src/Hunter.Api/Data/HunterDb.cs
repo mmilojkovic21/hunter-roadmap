@@ -113,6 +113,18 @@ public class RegionClear
     public DateTimeOffset ClearedAt { get; set; }
 }
 
+/// <summary>
+/// Preskočen kazneni zadatak (događaj). Niz se računa iz XP događaja, a ovaj red ga prekida
+/// od dana preskakanja (StreakRules.Current, brokenOn). Jednom po paketu i danu.
+/// </summary>
+public class PenaltySkip
+{
+    public long Id { get; set; }
+    public required string PackId { get; set; }
+    public DateOnly Day { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
 /// <summary>Jedan slobodan poen dodeljen statistici paketa. Potrošeni poeni = broj ovih redova.</summary>
 public class StatPoint
 {
@@ -146,6 +158,7 @@ public class HunterDb(DbContextOptions<HunterDb> options) : DbContext(options)
     public DbSet<StatPoint> StatPoints => Set<StatPoint>();
     public DbSet<BossAttempt> BossAttempts => Set<BossAttempt>();
     public DbSet<RegionClear> RegionClears => Set<RegionClear>();
+    public DbSet<PenaltySkip> PenaltySkips => Set<PenaltySkip>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -177,6 +190,7 @@ public class HunterDb(DbContextOptions<HunterDb> options) : DbContext(options)
         b.Entity<StatPoint>(e => e.HasIndex(x => x.PackId));
         b.Entity<BossAttempt>(e => e.HasIndex(x => new { x.PackId, x.RegionCode }));
         b.Entity<RegionClear>(e => e.HasIndex(x => new { x.PackId, x.RegionCode }).IsUnique());
+        b.Entity<PenaltySkip>(e => e.HasIndex(x => new { x.PackId, x.Day }).IsUnique());
         b.Entity<UserSettings>().HasData(new UserSettings { Id = 1 });
     }
 }

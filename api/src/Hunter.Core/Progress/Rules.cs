@@ -96,13 +96,17 @@ public static class QuizGrader
 
 public static class StreakRules
 {
-    /// <summary>Broj uzastopnih dana sa aktivnošću, zaključno sa danas (ili juče, ako danas još nije bilo učenja).</summary>
-    public static int Current(IEnumerable<DateOnly> activeDays, DateOnly today)
+    /// <summary>
+    /// Broj uzastopnih dana sa aktivnošću, zaključno sa danas (ili juče, ako danas još nije bilo učenja).
+    /// <paramref name="brokenOn"/> je dan poslednjeg preskočenog kaznenog zadatka: preskakanje odmah prekida niz,
+    /// pa se dani pre njega ne računaju. Sam taj dan se računa ako na njemu ima učenja (nov niz kreće od njega).
+    /// </summary>
+    public static int Current(IEnumerable<DateOnly> activeDays, DateOnly today, DateOnly? brokenOn = null)
     {
         var days = activeDays.ToHashSet();
         var day = days.Contains(today) ? today : today.AddDays(-1);
         var streak = 0;
-        while (days.Contains(day))
+        while (days.Contains(day) && (brokenOn is null || day >= brokenOn))
         {
             streak++;
             day = day.AddDays(-1);

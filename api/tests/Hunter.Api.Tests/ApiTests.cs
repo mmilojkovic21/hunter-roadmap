@@ -261,6 +261,34 @@ public sealed class ApiTests(HunterApiFactory factory) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Skipping_penalty_removes_review_tasks_and_breaks_streak()
+    {
+        await factory.SeedPenaltyAsync(yesterdayCompleted: false);
+        await CompleteAsync(Chapter, Step.Lesson);   // juče (seed) + danas = niz od 2 dana
+        var before = await StatusAsync();
+        Assert.Equal(2, before.Streak);
+
+        var response = await _client.PostAsync("/api/penalty/skip", null);
+        var result = await response.Content.ReadFromJsonAsync<PenaltySkipResult>(Json);
+        var after = await StatusAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(before.Streak, result!.StreakBefore);
+        Assert.DoesNotContain(after.DailyQuest!.Tasks, t => t.Review);
+        Assert.Equal(1, after.Streak);   // niz je prekinut; današnji korak je prvi dan novog niza
+        var again = await _client.PostAsync("/api/penalty/skip", null);
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);   // nema više šta da se preskoči
+    }
+
+    [Fact]
+    public async Task Skip_without_active_penalty_is_rejected()
+    {
+        var response = await _client.PostAsync("/api/penalty/skip", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Passing_review_test_today_completes_review_task()
     {
         await factory.SeedPenaltyAsync(yesterdayCompleted: false);

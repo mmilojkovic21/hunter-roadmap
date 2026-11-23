@@ -93,6 +93,13 @@ public static class Endpoints
             return result is not null ? TypedResults.Ok(result) : TypedResults.BadRequest(error!);
         });
 
+        // Preskakanje kaznenog zadatka: odmah prekida niz (StreakRules), druge kazne nema.
+        api.MapPost("/penalty/skip", async Task<Results<Ok<PenaltySkipResult>, Conflict<string>>> (ProgressService s, CancellationToken ct) =>
+        {
+            var (result, error) = await s.SkipPenaltyAsync(ct);
+            return result is not null ? TypedResults.Ok(result) : TypedResults.Conflict(error!);
+        });
+
         // ---------- podešavanja ----------
         api.MapGet("/settings", async (HunterDb db, CancellationToken ct) =>
         {

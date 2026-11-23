@@ -192,6 +192,32 @@ namespace Hunter.Api.Data.Migrations
                     b.ToTable("Packs");
                 });
 
+            modelBuilder.Entity("Hunter.Api.Data.PenaltySkip", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PackId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PackId", "Day")
+                        .IsUnique();
+
+                    b.ToTable("PenaltySkips");
+                });
+
             modelBuilder.Entity("Hunter.Api.Data.RegionClear", b =>
                 {
                     b.Property<long>("Id")

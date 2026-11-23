@@ -49,6 +49,8 @@ export interface TestResultView {
   xp: XpResult; firstPass: boolean;
 }
 export interface AllocatePointResult { freePoints: number; stat: StatView }
+/** Preskočen kazneni zadatak: niz pre prekida i da li je time završen dnevni zadatak. */
+export interface PenaltySkipResult { streakBefore: number; questCompleted: boolean }
 export interface BossView { attemptId: number; regionCode: string; regionTitle: string; passPct: number; xpReward: number; questions: PublicQuestion[] }
 export interface BossResultView { grade: TestResultView["grade"]; xp: XpResult; firstClear: boolean }
 export interface Settings { activePackId: string | null; theme: Theme; glow: boolean; reduceMotion: boolean; dailyGoalMinutes: number; penaltyEnabled: boolean; scanLines: boolean }
@@ -92,6 +94,7 @@ export const api = {
     return request<PackSummary>("/packs", { method: "POST", body: form });
   },
   activatePack: (id: string) => request<void>(`/packs/${encodeURIComponent(id)}/activate`, { method: "POST" }),
+  skipPenalty: () => request<PenaltySkipResult>("/penalty/skip", { method: "POST" }),
   allocatePoint: (statKey: string) => request<AllocatePointResult>(`/stats/${encodeURIComponent(statKey)}/points`, { method: "POST" }),
   startBoss: (regionCode: string) => request<BossView>(`/regions/${encodeURIComponent(regionCode)}/boss`, { method: "POST" }),
   submitBoss: (attemptId: number, answers: number[]) => request<BossResultView>(`/boss/${attemptId}`, json("POST", { answers })),

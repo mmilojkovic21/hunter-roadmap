@@ -81,9 +81,7 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
         var quest = await TodayQuestAsync(ctx, ct);
 
         var now = clock.GetUtcNow();
-        var events = await db.XpEvents.AsNoTracking().Where(x => x.CreatedAt >= now.AddDays(-400))
-            .Select(x => new { x.CreatedAt, x.Amount }).ToListAsync(ct);
-        var byDay = events.GroupBy(e => LocalDay(e.CreatedAt)).ToDictionary(g => g.Key, g => g.Sum(e => e.Amount));
+        var byDay = await XpByDayAsync(now, ct);
         var today = LocalDay(now);
         var activity = Enumerable.Range(0, 84).Select(i => today.AddDays(i - 83))
             .Select(d => new ActivityDay(d, byDay.GetValueOrDefault(d))).ToList();
@@ -94,7 +92,7 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
 
         return new StatusView(
             Summary(ctx.Entity, ctx.Loaded, true), level, RankRules.FromCompletion(pct), next?.Next, next?.AtPct ?? 100,
-            pct, doneCount, refs.Count, StreakRules.Current(byDay.Keys, today), byDay.GetValueOrDefault(today),
+            pct, doneCount, refs.Count, await StreakAsync(byDay, today, ct), byDay.GetValueOrDefault(today),
             settings.DailyGoalMinutes, stats, await FreePointsAsync(level, ct), current.Ref, currentLevel, current.Place?.Region.Title,
             quest is null ? null : await QuestViewAsync(ctx, quest, ct), weak, activity);
     }
@@ -168,6 +166,45 @@ public sealed class ProgressService(HunterDb db, PackCatalog catalog, TimeProvid
                 .Where(a => a.PackId == ctx.Entity.Id && a.Passed && a.CreatedAt >= q.CreatedAt)
                 .Select(a => a.ChapterId).Distinct().ToListAsync(ct)).ToHashSet()
             : new HashSet<string>();
+
+    private async Task<Dictionary<DateOnly, int>> XpByDayAsync(DateTimeOffset now, CancellationToken ct)
+    {
+        var events = await db.XpEvents.AsNoTracking().Where(x => x.CreatedAt >= now.AddDays(-400))
+            .Select(x => new { x.CreatedAt, x.Amount }).ToListAsync(ct);
+        return events.GroupBy(e => LocalDay(e.CreatedAt)).ToDictionary(g => g.Key, g => g.Sum(e => e.Amount));
+    }
+
+    /// <summary>Niz dana: XP po danima, prekinut poslednjim preskočenim kaznenim zadatkom (bilo kog paketa, kao i XP).</summary>
+    private async Task<int> StreakAsync(Dictionary<DateOnly, int> byDay, DateOnly today, CancellationToken ct)
+    {
+        var brokenOn = await db.PenaltySkips.AsNoTracking().MaxAsync(x => (DateOnly?)x.Day, ct);
+        return StreakRules.Current(byDay.Keys, today, brokenOn);
+    }
+
+    /// <summary>
+    /// Preskače današnji kazneni zadatak: nezavršeni zadaci ponavljanja se uklanjaju iz današnjeg dnevnog zadatka,
+    /// a upisuje se događaj koji odmah prekida niz. Druge kazne nema; ako je ostatak zadatka već urađen, zadatak se završava.
+    /// </summary>
+    public async Task<(PenaltySkipResult? Result, string? Error)> SkipPenaltyAsync(CancellationToken ct)
+    {
+        var ctx = await LoadAsync(ct);
+        if (ctx is null) return (null, "Nema aktivnog paketa.");
+        var quest = await TodayQuestAsync(ctx, ct);
+        if (quest is null) return (null, "Danas nema kaznenog zadatka.");
+        var reviewed = await ReviewedAsync(ctx, quest, ct);
+        var open = quest.Tasks.Where(t => t.IsReview && !IsDone(ctx, t, reviewed)).ToList();
+        if (open.Count == 0) return (null, "Danas nema kaznenog zadatka.");
+
+        var now = clock.GetUtcNow();
+        var today = LocalDay(now);
+        var before = await StreakAsync(await XpByDayAsync(now, ct), today, ct);
+        foreach (var t in open) quest.Tasks.Remove(t);
+        db.PenaltySkips.Add(new PenaltySkip { PackId = ctx.Entity.Id, Day = today, CreatedAt = now });
+        // Zadatak koji je bio samo kazna ostaje prazan; prazan se ne „završava” (nema poena za preskakanje).
+        var questCompleted = quest.Tasks.Count > 0 && await MarkQuestIfDoneAsync(ctx, quest, now, ct);
+        await db.SaveChangesAsync(ct);   // uklanjanje, događaj i završetak zadatka idu zajedno
+        return (new PenaltySkipResult(before, questCompleted), null);
+    }
 
     /// <summary>Označava zadatak završenim kad je sve urađeno. True samo u trenutku završetka; čuva pozivalac.</summary>
     private async Task<bool> MarkQuestIfDoneAsync(Ctx ctx, DailyQuest? quest, DateTimeOffset now, CancellationToken ct)

@@ -1,11 +1,12 @@
 import { Link } from "react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type StatusView } from "../api";
+import { api, type DailyQuestTaskView, type StatusView } from "../api";
 import { ErrorBox, Loading, STATUS_LABEL } from "../components/common";
 import { Icon } from "../components/Icon";
 import { useCountUp, useRankChanged, useSeenNumbers } from "../components/Fx";
 import { Window } from "../components/Window";
+import { PenaltyDialog } from "../components/PenaltyDialog";
 import { heatLevel, STEP_LABEL } from "../lib/quiz";
 
 const HEAT_ALPHA = [0, 0.25, 0.45, 0.7, 1];
@@ -31,6 +32,37 @@ function RankBadge({ packId, rank }: { packId: string; rank: string }) {
       <span aria-hidden="true">{rank}</span>
       {changed && <i className="rank-wave" aria-hidden="true" />}
     </div>
+  );
+}
+
+/** Lokalni datum (YYYY-MM-DD), isti oblik kao u boot ekranu. */
+const localToday = () => new Date().toLocaleDateString("sv");
+
+/**
+ * Aktivan kazneni zadatak: crveni prozor se sam otvori jednom dnevno, a posle „Prihvati” ili Esc
+ * ostaje crvena tabla sa dugmetom za ponovno otvaranje. Šta je viđeno pamti pregledač (udobnost, ne stanje igre).
+ */
+function PenaltyGate({ packId, reviews }: { packId: string; reviews: DailyQuestTaskView[] }) {
+  const key = `hunter.penalty.seen.${packId}`;
+  const [open, setOpen] = useState(() => {
+    try { return localStorage.getItem(key) !== localToday(); } catch { return true; }
+  });
+  const close = () => {
+    setOpen(false);
+    try { localStorage.setItem(key, localToday()); } catch { /* prozor će se samo ponovo otvoriti */ }
+  };
+  return (
+    <>
+      {open && <PenaltyDialog tasks={reviews} onClose={close} />}
+      <section className="penalty" aria-labelledby="pen-h">
+        <h2 id="pen-h" className="penalty-title">[ KAZNA ] KAZNENI ZADATAK AKTIVAN</h2>
+        <span className="penalty-text">
+          Jučerašnji dnevni zadatak nije završen. Pre nove lekcije ponovi slabe tačke:
+          {" "}{reviews.length === 1 ? "1 test" : `${reviews.length} testa`} (~{reviews.reduce((sum, t) => sum + t.minutes, 0)} min), na vrhu dnevnog zadatka.
+        </span>
+        <div><button type="button" className="btn" onClick={() => setOpen(true)}>Otvori prozor kazne</button></div>
+      </section>
+    </>
   );
 }
 
@@ -225,15 +257,7 @@ export function StatusPage() {
         <QuestWindow quest={quest} penaltyWarning={penaltyWarning} />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {penaltyActive && (
-            <section className="penalty" aria-labelledby="pen-h">
-              <h2 id="pen-h" className="penalty-title">[ KAZNA ] KAZNENI ZADATAK AKTIVAN</h2>
-              <span className="penalty-text">
-                Jučerašnji dnevni zadatak nije završen. Pre nove lekcije ponovi slabe tačke:
-                {" "}{reviews.length === 1 ? "1 test" : `${reviews.length} testa`} (~{reviews.reduce((sum, t) => sum + t.minutes, 0)} min), na vrhu dnevnog zadatka.
-              </span>
-            </section>
-          )}
+          {penaltyActive && <PenaltyGate packId={s.pack.id} reviews={reviews.filter((t) => !t.done)} />}
           <section className="card" aria-labelledby="dungeon-h">
             <div className="row between">
               <h2 id="dungeon-h" style={{ fontSize: 20 }}>Trenutni dungeon</h2>

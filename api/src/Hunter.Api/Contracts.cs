@@ -85,3 +85,6 @@ public sealed record BossResultView(GradeResult Grade, XpResult Xp, bool FirstCl
 public sealed record TestResultView(GradeResult Grade, XpResult Xp, bool FirstPass);
 
 public sealed record SettingsView(string? ActivePackId, string Theme, bool Glow, bool ReduceMotion, int DailyGoalMinutes, bool PenaltyEnabled, bool ScanLines);
+
+/// <summary>Preskočen kazneni zadatak: niz pre prekida (za „NIZ PREKINUT · X → 0”) i da li je time završen dnevni zadatak.</summary>
+public sealed record PenaltySkipResult(int StreakBefore, bool QuestCompleted);

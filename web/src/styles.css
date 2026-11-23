@@ -428,3 +428,29 @@ h1, h2, h3 { font-family: var(--display); margin: 0; letter-spacing: 0.02em; }
 .interview-card { border: 1px solid rgba(var(--accent-rgb), 0.25); background: rgba(var(--glass-rgb), 0.6); padding: 4px 16px; }
 .interview-card summary { display: flex; align-items: center; min-height: 48px; cursor: pointer; font-weight: 600; color: var(--bright); }
 .interview-card p { margin: 0 0 14px; line-height: 1.6; color: #dce3f2; }
+
+/* ---------- kazneni zadatak (Sistem 2.0, kanvas „13 · Kazneni zadatak”) ----------
+   Crveni prozor nezavisno od teme: prozor sistema sa promenjenim promenljivama boje. */
+.win-red { --accent: #ff6b81; --accent-rgb: 255, 107, 129; --glass-rgb: 28, 8, 14; --label: #ffa3b1; }
+.penalty-dialog { width: min(620px, calc(100% - 32px)); max-width: none; padding: 0; border: none; background: transparent; color: var(--text); overflow: visible; animation: notice-open 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.3s both; }
+/* Pozadina dijaloga: tri crvena bljeska (alarm), pa ostaje tamna. */
+@keyframes penalty-alarm { 0%, 100% { background: rgba(4, 2, 6, 0.72); } 15%, 45%, 75% { background: rgba(255, 42, 74, 0.4); } 30%, 60%, 90% { background: rgba(40, 6, 12, 0.7); } }
+.penalty-dialog::backdrop { background: rgba(4, 2, 6, 0.72); animation: penalty-alarm 1.2s linear both; }
+/* Prozor iznad cele stranice: sjaj boje je poseban sloj preko neprozirne podloge. Gradijent sa providnim vrhom
+   (kao na .win) bi ovde propustio tekst stranice kroz gornji deo prozora i oborio kontrast. */
+.penalty-dialog .win { background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.14), transparent 70%), rgba(var(--glass-rgb), 0.97); }
+.penalty-lead { margin: 0; text-align: center; font-size: 16px; line-height: 1.6; color: #f3d3da; }
+.penalty-tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.penalty-tasks li { display: flex; align-items: center; gap: 14px; min-height: 44px; border-bottom: 1px dashed rgba(255, 107, 129, 0.25); font-size: 15px; color: #fbe4e9; }
+.penalty-prog { font-family: var(--mono); font-size: 14px; font-weight: 700; color: #ffb3c1; }
+.penalty-time { display: flex; flex-direction: column; align-items: center; }
+.penalty-time strong { font-family: var(--display); font-size: 34px; font-weight: 700; color: #fff; text-shadow: 0 0 14px rgba(255, 107, 129, 0.9); }
+.penalty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; padding-top: 4px; }
+.penalty-result { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; font-size: 15px; color: #f3d3da; animation: fx-in 0.4s ease both; }
+.penalty-result strong { font-family: var(--display); font-size: 22px; font-weight: 700; letter-spacing: 0.14em; color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  .penalty-dialog, .penalty-result { animation: fx-fade 150ms ease-out both; }
+  .penalty-dialog::backdrop { animation: none; }
+}
+[data-motion="reduce"] .penalty-dialog { animation: fx-fade 150ms ease-out both !important; }
+[data-motion="reduce"] .penalty-dialog::backdrop { animation: none !important; }
