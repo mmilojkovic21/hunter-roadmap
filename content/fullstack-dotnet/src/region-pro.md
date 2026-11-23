@@ -61,6 +61,16 @@ public Result Pozajmi(Member clan, Book knjiga, int brojDana)
 - **Boy scout rule:** ostavi fajl malo čistiji nego što si ga zatekao.
 - **Refaktoriši u malim koracima**, testovi posle svakog koraka; refaktorisanje i nova funkcija ne idu u isti commit.
 
+## Dublje
+
+**Refaktorisanje bez testova: karakterizacioni testovi.** Stari kod često nema testove, a ne znaš ni šta je „ispravno” ponašanje. Prvo napišeš testove koji beleže šta kod **sada** radi (pozoveš metodu, zapišeš stvarni izlaz kao očekivani), pa tek onda menjaš strukturu. Ako test padne posle refaktorisanja, promenio si ponašanje, svesno ili ne. Ovaj pristup opisuje Michael Feathers u knjizi *Working Effectively with Legacy Code*.
+
+**Strangler fig za velike delove.** Umesto da se ceo stari modul prepiše odjednom, nov kod se gradi pored starog, saobraćaj se postepeno prebacuje (endpoint po endpoint), a stari deo se briše kad više nikome ne treba. Rizik je mali u svakom koraku, a posao se može prekinuti u bilo kom trenutku bez polovičnog stanja.
+
+**Pravila stila u buildu, ne u review-u.** `.editorconfig` opisuje stil (imena, `var`, zagrade), a `<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>` uz odgovarajuću ozbiljnost pravila čini da build padne kad se stil prekrši. Tako se u code review-u ne raspravlja o razmacima, nego o logici (P8).
+
+**Merenje složenosti.** Ciklomatska složenost broji nezavisne puteve kroz metodu (svaki `if`, `case`, `&&`). Analizatori (npr. CA1502) i alati u IDE-u je prijavljuju; metoda sa velikom složenošću je kandidat za guard clauses i Extract Method, ali broj je signal, ne cilj.
+
 ## Lab
 
 1. Uzmi najdužu metodu u Biblioteci (ili napiši namerno lošu od 60 linija) i napiši testove koji pokrivaju njeno ponašanje.
@@ -118,6 +128,7 @@ Kad objašnjava ZAŠTO (poslovno pravilo, zaobilaženje greške u biblioteci, od
 ## Izvori
 - [Refactoring Guru: refaktorisanje i code smells](https://refactoring.guru/refactoring)
 - [Microsoft Learn: .NET analizatori koda](https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/overview)
+- [Martin Fowler: Strangler Fig](https://martinfowler.com/bliki/StranglerFigApplication.html)
 =====
 ---
 id: "P2"
@@ -172,13 +183,35 @@ public class KesiraniKatalog(IKatalog unutrasnji, HybridCache kes) : IKatalog
 
 ### MediatR i licence
 
-Mediator obrazac (MediatR) je čest u CQRS projektima, ali je MediatR 2025. prešao na komercijalnu licencu za firme. Mnogi timovi danas kontroler direktno vezuju za servis ili koriste jednostavan sopstveni dispatcher; tvoj vodič (pogl. 13) objašnjava i kad mediator uopšte ne treba.
+Mediator obrazac (MediatR) je čest u CQRS projektima, ali je MediatR 2025. prešao na dvojnu licencu: besplatna Community licenca važi za firme sa godišnjim prihodom ispod 5 miliona dolara (i bez spoljnog kapitala preko 10 miliona), a ostali plaćaju komercijalnu. Mnogi timovi danas kontroler direktno vezuju za servis ili koriste jednostavan sopstveni dispatcher; tvoj vodič (pogl. 13) objašnjava i kad mediator uopšte ne treba.
 
 ### Anti-obrasci
 
 - Obrazac bez problema (Factory za klasu koja ima jednu implementaciju).
 - God object: klasa koja zna i radi sve.
 - Service locator (`provider.GetService<T>()` usred koda umesto konstruktora).
+
+## Dublje
+
+**Strategy preko keyed servisa (.NET 8+).** Umesto ručnog biranja iz `IEnumerable<T>`, DI može da registruje više implementacija pod ključem:
+
+```csharp
+builder.Services.AddKeyedSingleton<IKazna, StandardnaKazna>("standard");
+builder.Services.AddKeyedSingleton<IKazna, StudentskaKazna>("student");
+
+app.MapGet("/kazna/{tip}/{dana:int}", (string tip, int dana, IServiceProvider sp) =>
+    sp.GetRequiredKeyedService<IKazna>(tip).Obracunaj(dana));               // ključ poznat tek pri zahtevu
+app.MapGet("/kazna-student/{dana:int}",
+    (int dana, [FromKeyedServices("student")] IKazna k) => k.Obracunaj(dana));  // ključ poznat unapred
+```
+
+Kad je ključ poznat unapred, `[FromKeyedServices]` drži zavisnost vidljivom u potpisu; `GetRequiredKeyedService` usred koda je opet service locator, pa se koristi samo na granici (endpoint, fabrika).
+
+**Decorator bez ručnog ožičavanja.** Biblioteka Scrutor dodaje `services.Decorate<INotifier, LogujuciNotifier>()`: postojeća registracija `INotifier` postaje „unutrašnja”, a svi koji traže `INotifier` dobijaju dekorator. Redosled više `Decorate` poziva određuje redosled slojeva, kao kod middleware-a.
+
+**Observer bez spoljne biblioteke.** Domain event (npr. `PozajmicaKreirana`) entitet doda u svoju listu, a posle `SaveChanges` aplikacija ih prosledi registrovanim handlerima. Najvažnije pravilo: događaji koji šalju email ili poruku idu tek posle uspešnog upisa (ili kroz outbox, C4), nikad pre COMMIT-a.
+
+**Template Method i zašto se ređe koristi.** Osnovna klasa definiše korake, a naslednici popunjavaju delove. Radi, ali vezuje nasleđivanjem (pogl. 5); u .NET-u se isto češće postiže kompozicijom (Strategy za promenljivi korak).
 
 ## Lab
 
@@ -228,15 +261,17 @@ Middleware pipeline i `DelegatingHandler` kod `HttpClient`-a: svaki sloj obavija
 > Zavisnosti treba da se vide u konstruktoru.
 
 ### 5. Šta važi za MediatR danas?
-- [x] Prešao je na komercijalnu licencu za firme, pa ga timovi biraju svesno
+- [x] Prešao je na komercijalnu licencu (uz besplatnu za male firme), pa ga timovi biraju svesno
 - [ ] Zabranjen je u ASP.NET Core
 - [ ] Zamenio ga je EF Core
 - [ ] Deo je .NET 10
-> Licenca je postala deo odluke o arhitekturi.
+> Licenca (i da li firma ispunjava uslove za besplatnu) postala je deo odluke o arhitekturi.
 
 ## Izvori
 - [Refactoring Guru: dizajn obrasci](https://refactoring.guru/design-patterns)
 - [Scrutor (dekoratori u DI)](https://github.com/khellang/Scrutor)
+- [Microsoft Learn: keyed servisi u DI](https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection)
+- [MediatR: licence (Community i komercijalna)](https://mediatr.io/)
 =====
 ---
 id: "P3"
@@ -248,7 +283,7 @@ minutes: 60
 ---
 # P3 OWASP Top 10 u praksi
 
-OWASP Top 10 je lista najčešćih rizika web aplikacija. Verzija 2025 je zvanično objavljena u januaru 2026. Vodič (pogl. 15) pokriva prijavu, CSRF, XSS i rate limit; ovde je cela lista sa odbranom u tvom stacku. Oglasi sve češće traže poznavanje OWASP-a i bezbednog kodiranja.
+OWASP Top 10 je lista najčešćih rizika web aplikacija. Lista 2025 je predstavljena u novembru 2025. i danas je važeća. Vodič (pogl. 15) pokriva prijavu, CSRF, XSS i rate limit; ovde je cela lista sa odbranom u tvom stacku. Oglasi sve češće traže poznavanje OWASP-a i bezbednog kodiranja.
 
 ## Pojmovi
 
@@ -289,6 +324,16 @@ db.Books.FromSqlRaw("SELECT * FROM books WHERE title = '" + naslov + "'"); // RA
 - React enkoduje tekst sam; opasno je samo `dangerouslySetInnerHTML` (ako mora: sanitizacija, npr. DOMPurify).
 - Tokeni ne idu u `localStorage` (XSS ih čita); HttpOnly kolačić (vodič, pogl. 15).
 - Frontend provere su udobnost; sva pravila važe na serveru.
+
+## Dublje
+
+**Overposting (mass assignment).** Ako endpoint vezuje telo zahteva direktno na entitet, napadač može da pošalje i polja koja forma nema (`"isAdmin": true`, `"tenantId": …`). Odbrana je ulazni DTO sa tačno onim poljima koja korisnik sme da menja, pa ručno ili mapiranjem prenos u entitet. Zato kontroleri primaju `CreateLoanRequest`, a ne `Loan` (pogl. 11).
+
+**SSRF u praksi.** Svaka funkcija gde server poziva adresu koju je zadao korisnik (webhook URL, „uvezi sliku sa linka”, adresa prodavnice) može da se iskoristi za pozive ka internoj mreži (`http://localhost:8080/admin`, `169.254.169.254` metapodaci clouda). Odbrana: dozvoljene šeme (samo `https`), razrešavanje DNS-a i odbijanje privatnih i lokalnih adresa, i provera **posle** preusmerenja. U OWASP 2025 ovo je deo A01.
+
+**Content-Security-Policy sa nonce-om.** CSP kaže browseru odakle sme da učita skripte. Najjača varijanta zabranjuje inline skripte, osim onih sa jednokratnom vrednošću (nonce) koju server generiše po odgovoru: `script-src 'self' 'nonce-…'`. Za SPA koja se servira kao statički fajlovi obično je dovoljno `script-src 'self'`, bez `'unsafe-inline'`.
+
+**Tajne u repou.** GitHub secret scanning sa *push protection* odbija push koji sadrži prepoznat ključ (AWS, Azure, Stripe…). Tajna koja je jednom stigla u istoriju smatra se procurelom i menja se, i kad se commit obriše (pogl. 34).
 
 ## Lab
 
@@ -349,6 +394,9 @@ Napad kroz zavisnost (paket) umesto kroz tvoj kod. Odbrana: malo zavisnosti, loc
 - [OWASP Top 10:2025](https://owasp.org/Top10/2025/)
 - [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/)
 - [Microsoft Learn: Bezbednost u ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/security/)
+- [OWASP: SSRF cheat sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html)
+- [OWASP: Mass Assignment cheat sheet](https://cheatsheetseries.owasp.org/cheatsheets/Mass_Assignment_Cheat_Sheet.html)
+- [GitHub Docs: push protection](https://docs.github.com/en/code-security/secret-scanning/introduction/about-push-protection)
 =====
 ---
 id: "P4"
@@ -407,6 +455,24 @@ public class Spajanje
 2. Izmeri trenutno stanje (k6 + tragovi iz C7).
 3. Nađi najveći deo vremena (trag zahteva, EF log).
 4. Promeni jednu stvar, izmeri ponovo.
+
+## Dublje
+
+**Keširanje celog odgovora (output cache).** Za endpoint koji vraća isti sadržaj mnogim korisnicima (javni katalog) ASP.NET Core može da sačuva ceo odgovor:
+
+```csharp
+builder.Services.AddOutputCache();
+app.UseOutputCache();
+app.MapGet("/katalog", (...) => ...).CacheOutput(p => p.Expire(TimeSpan.FromSeconds(30)));
+```
+
+Drugi zahtev u roku od 30 sekundi ne izvršava handler. Podrazumevano se keširaju samo GET i HEAD odgovori sa statusom 200, i ne keširaju se odgovori na prijavljene zahteve ni oni koji postavljaju kolačiće, što štiti od toga da jedan korisnik dobije tuđi odgovor. Ključ keša se proširuje sa `SetVaryByQuery`, `SetVaryByHeader` i `VaryByValue`; ako se podrazumevana pravila menjaju da bi se keširali podaci po firmi, firma mora biti deo ključa. Za takve podatke je češće bolji keš podataka (C3) nego keš celog odgovora.
+
+**GC podešavanje u kontejneru.** ASP.NET Core koristi Server GC (po jedan hip po jezgru, za propusnost). Od .NET 9 je uz njega podrazumevano uključen DATAS, koji prilagođava veličinu hipa stvarnom opterećenju, pa API sa malo saobraćaja ne drži nepotrebno mnogo memorije. Ako kontejner ima limit memorije, .NET ga poštuje; `dotnet-counters` pokazuje veličinu hipa i broj GC-ova po generaciji.
+
+**Manje alokacija u vrućem kodu.** `ArrayPool<T>.Shared` iznajmljuje nizove umesto da pravi nove, `string.Create` i `Span<T>` prave string bez međukopija, a `StringBuilder` se ponovo koristi. To ima smisla tek kad merenje (BenchmarkDotNet, kolona *Allocated*) pokaže da je baš ta petlja problem; u običnom kodu čitljivost je važnija.
+
+**EF upiti koji se stalno ponavljaju.** EF kešira prevod LINQ-a u SQL, ali `EF.CompileAsyncQuery` preskače i proveru keša za vrlo česte upite. Češće veći dobitak daju `AsNoTracking`, projekcija u DTO i `AsSplitQuery` kod više `Include`-a (pogl. 45).
 
 ## Lab
 
@@ -468,6 +534,8 @@ Jedan upit učita listu, pa po jedan dodatni upit za svaku stavku (npr. autora).
 - [Microsoft Learn: dotnet-counters](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/dotnet-counters)
 - [Microsoft Learn: EF Core performanse](https://learn.microsoft.com/en-us/ef/core/performance/)
 - [k6](https://grafana.com/docs/k6/latest/)
+- [Microsoft Learn: output caching](https://learn.microsoft.com/en-us/aspnet/core/performance/caching/output)
+- [Microsoft Learn: DATAS (GC)](https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/datas)
 =====
 ---
 id: "P5"
@@ -489,7 +557,7 @@ Tailwind je CSS pristup u kom stilove pišeš malim klasama direktno u markupu (
 | Responsive prefiks | `md:flex` važi od srednjeg ekrana naviše (mobile first) |
 | Stanja | `hover:`, `focus-visible:`, `disabled:`, `dark:` |
 | Tema | boje, razmaci i fontovi kao CSS promenljive (dizajn tokeni) |
-| shadcn/ui | komponente zasnovane na Radix UI-ju (tastatura, ARIA), stilizovane Tailwind-om |
+| shadcn/ui | komponente nad bibliotekom primitiva (tastatura, ARIA), stilizovane Tailwind-om; od jula 2026. podrazumevano Base UI, a Radix i React Aria su i dalje podržani |
 
 ### Podešavanje uz Vite (Tailwind v4)
 
@@ -519,7 +587,7 @@ export default defineConfig({ plugins: [react(), tailwindcss()] });
 ### shadcn/ui
 
 ```bash
-npx shadcn@latest init
+npx shadcn@latest init               # podrazumevano Base UI; --base radix za Radix
 npx shadcn@latest add button dialog table form
 ```
 
@@ -529,6 +597,21 @@ Komponente se pojave u `src/components/ui/`. Nisu npm zavisnost: menjaš ih slob
 
 - Dobijaš: fokus u dijalogu, zatvaranje na Escape, ARIA atributi, rad tastaturom.
 - Sam: `label` za svako polje, kontrast teksta (bar 4.5:1), dugmad koja su `<button>`, alt tekst za slike, vidljiv fokus.
+
+## Dublje
+
+**Konfiguracija u CSS-u (Tailwind v4).** Nema `tailwind.config.js` za većinu projekata: tokeni se pišu u `@theme`, i svaki postaje CSS promenljiva (`--color-brand`) i klasa (`bg-brand`). Fajlovi sa klasama se nalaze automatski. Tamna tema po klasi (umesto po podešavanju sistema) se uključuje jednom linijom:
+
+```css
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));   /* dark: važi kad je klasa .dark na pretku */
+```
+
+**Spajanje klasa bez sukoba.** Komponenta ima podrazumevane klase, a pozivalac dodaje svoje: `p-4` i `p-2` zajedno daju nepredvidljiv rezultat. shadcn/ui zato koristi pomoćnu funkciju `cn()` (biblioteke `clsx` i `tailwind-merge`), koja spoji uslove i izbaci klasu koju pobeđuje kasnija: `cn("p-4", uslov && "p-2")` daje `p-2`.
+
+**Varijante komponente.** Umesto `if`-ova za stil, varijante se opišu jednom (npr. bibliotekom `class-variance-authority` koju shadcn koristi): `variant: default | destructive | outline`, `size: sm | md | lg`. Dugme se tada koristi kao `<Button variant="destructive" size="sm">`.
+
+**Primitive ispod komponenti.** shadcn/ui je sloj stila nad bibliotekom „bez izgleda” (headless) koja rešava pristupačnost: fokus, tastaturu, ARIA. Od jula 2026. novi projekti podrazumevano koriste Base UI (iste ljude koji su pravili Radix), a Radix i React Aria su i dalje podržani. Kod postojećeg projekta važi „ne menjaj biblioteku bez razloga”: zamena primitiva menja ponašanje svake komponente.
 
 ## Lab
 
@@ -589,6 +672,8 @@ Komponente se kopiraju u tvoj kod umesto da se instaliraju kao paket: potpuna ko
 - [Tailwind CSS dokumentacija](https://tailwindcss.com/docs)
 - [shadcn/ui](https://ui.shadcn.com/)
 - [web.dev: pristupačnost](https://web.dev/learn/accessibility)
+- [Tailwind CSS: tamni režim i @custom-variant](https://tailwindcss.com/docs/dark-mode)
+- [shadcn/ui: Base UI kao podrazumevan (jul 2026)](https://ui.shadcn.com/docs/changelog/2026-07-base-ui-default)
 =====
 ---
 id: "P6"
@@ -638,6 +723,16 @@ test("član pozajmljuje slobodnu knjigu", async ({ page }) => {
 - Lokatori po ulozi i vidljivom tekstu, ne po CSS klasama (menjaju se pri redizajnu, P5).
 - Svaki test pravi svoje podatke i ne zavisi od drugog testa.
 - Nikad `waitForTimeout(3000)`; čeka se stanje, ne vreme.
+
+## Dublje
+
+**Lažiranje mreže.** `page.route("**/api/status", r => r.fulfill({ json: … }))` vraća unapred zadat odgovor, pa se testira retko stanje (prazna lista, greška 500, kazneni zadatak) bez pripreme baze. Ova aplikacija tako testira kazneni zadatak (`kazna.e2e.ts`). Pravi tokovi i dalje idu kroz pravi API; lažirani odgovori su za stanja koja je teško napraviti.
+
+**API kroz `request`.** Fiksture `request` šalje HTTP zahteve bez browsera: brza priprema podataka (napravi korisnika, završi poglavlje) pre testa koji onda proverava samo UI. Spor korak kroz interfejs se ne ponavlja u svakom testu.
+
+**Izolacija i paralelizam.** Svaki test dobija nov *browser context* (svoje kolačiće i storage), pa se testovi mogu izvršavati paralelno. Testovi koji namerno zavise jedan od drugog označavaju se `test.describe.serial`, i to treba da bude izuzetak. Na CI-ju se veliki skup deli na mašine sa `--shard=1/4`.
+
+**Trace na CI-ju.** Preporuka je `retries: 1` i `trace: 'on-first-retry'` u `playwright.config.ts`: trag se snima samo kad test padne pa se ponavlja, što čuva vreme i prostor, a za svaki pad postoji `trace.zip` za `npx playwright show-trace`. Test koji prođe tek iz drugog pokušaja je *flaky* i treba ga popraviti, ne prihvatiti.
 
 ## Lab
 
@@ -697,6 +792,8 @@ Zbog čekanja na fiksno vreme, zavisnosti između testova i deljenih podataka. R
 ## Izvori
 - [Playwright dokumentacija](https://playwright.dev/docs/intro)
 - [Playwright: dobre prakse](https://playwright.dev/docs/best-practices)
+- [Playwright: trace viewer i on-first-retry](https://playwright.dev/docs/trace-viewer)
+- [Playwright: lažiranje mreže](https://playwright.dev/docs/mock)
 =====
 ---
 id: "P7"
@@ -726,7 +823,7 @@ Next.js je React framework koji dodaje rutiranje po fajlovima i renderovanje na 
 // app/knjige/[id]/page.tsx: server komponenta, async, bez useEffect-a
 export default async function Knjiga({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const res = await fetch(`${process.env.API_URL}/api/books/${id}`, { next: { revalidate: 60 } });
+  const res = await fetch(`${process.env.API_URL}/api/books/${id}`, { next: { revalidate: 60 } });  // prethodni model keširanja
   if (!res.ok) notFound();
   const knjiga = await res.json();
   return (
@@ -759,7 +856,27 @@ export function DugmePozajmi({ id }: { id: number }) {
 
 - `"use client"` na vrhu svega poništava prednosti server komponenti.
 - Tajne (`API_KEY`) smeju samo u server kodu; u klijent stižu samo promenljive sa prefiksom `NEXT_PUBLIC_`.
-- Keš i revalidacija: znaj kada se stranica ponovo pravi (`revalidate`, `revalidatePath`).
+- Keš i revalidacija: Next.js 16 ima dva modela. Novi, Cache Components (`cacheComponents: true`), kešira ono što označiš sa `"use cache"` uz `cacheLife` i `cacheTag`, a najavljen je kao podrazumevan u sledećoj glavnoj verziji; prethodni koristi `fetch` sa `next: { revalidate }` i `revalidatePath`. U postojećem projektu proveri koji model koristi.
+
+## Dublje
+
+**Dva modela keširanja u Next.js 16.** Novi model (**Cache Components**, `cacheComponents: true` u `next.config.ts`) kešira tačno ono što označiš direktivom `"use cache"`, sa trajanjem (`cacheLife("hours")`) i oznakom za ručno poništavanje (`cacheTag("knjige")`, pa `revalidateTag`). Sve što nije keširano renderuje se po zahtevu. Prethodni model kešira preko opcija `fetch`-a (`next: { revalidate: 60 }`) i `revalidatePath`. Next.js najavljuje Cache Components kao podrazumevan u sledećoj glavnoj verziji, pa je za nov kod bolji izbor.
+
+```tsx
+async function ListaKnjiga() {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("knjige");
+  const res = await fetch(`${process.env.API_URL}/api/books`);
+  return <Knjige podaci={await res.json()} />;
+}
+```
+
+**Server Actions su javni endpointi.** Svaka izvezena Server Action može se pozvati direktnim POST zahtevom, i kad je nijedna forma ne koristi. Zato u svakoj akciji važi isto što i u API-ju: provera ko je korisnik, da li sme, i validacija ulaza (Zod), bez oslanjanja na to što je dugme sakriveno.
+
+**`server-only` paket.** Modul koji čita bazu ili tajne počinje sa `import "server-only"`; ako ga neko slučajno uveze u klijent komponentu, build pada umesto da tajna završi u browseru.
+
+**BFF obrazac sa .NET API-jem.** Next.js često služi kao „backend za frontend”: server komponente zovu .NET API sa serverskim tokenom, a browser vidi samo Next.js. Tako API ključ i interni API nisu izloženi, ali svaki poziv ide kroz dodatni sloj, pa se meri latencija.
 
 ## Lab
 
@@ -819,6 +936,8 @@ Kad je sadržaj javan i bitni su SEO i brz prvi prikaz. Za aplikaciju iza prijav
 ## Izvori
 - [Next.js dokumentacija](https://nextjs.org/docs)
 - [Next.js: server i klijent komponente](https://nextjs.org/docs/app/getting-started/server-and-client-components)
+- [Next.js: keširanje (Cache Components)](https://nextjs.org/docs/app/getting-started/caching-and-revalidating)
+- [Next.js: bezbednost podataka i Server Actions](https://nextjs.org/docs/app/guides/data-security)
 =====
 ---
 id: "P8"
@@ -838,11 +957,11 @@ Na intervjuu za medior poziciju pola pitanja nije o kodu, nego o tome kako radi�
 
 | Element | Šta je |
 |---|---|
-| Sprint | period od 1–4 nedelje sa ciljem |
+| Sprint | period fiksne dužine, mesec dana ili kraće, sa ciljem sprinta |
 | Product Owner | određuje prioritete (backlog) |
 | Scrum Master | uklanja prepreke, vodi proces |
 | Planning | tim bira posao za sprint |
-| Daily | 15 minuta: šta je urađeno, šta sledi, šta blokira |
+| Daily | 15 minuta za razvojni tim: napredak ka cilju sprinta i plan za sledeći dan (tri pitanja „juče, danas, blokade” su čest format, ali ga Scrum Guide ne propisuje) |
 | Review / Retro | prikaz urađenog / šta poboljšati u načinu rada |
 | Definition of Done | kad je zadatak zaista gotov (testovi, review, deploy na test) |
 
@@ -875,6 +994,26 @@ Conventional Commits: `feat: rezervacija knjige`, `fix: duplo slanje emaila`, `r
 ### Neslaganje
 
 Argumenti, podaci i kompromis; kad tim odluči, podržavaš odluku („disagree and commit”). Lične primedbe nikad u komentaru na kod.
+
+## Dublje
+
+**Kako se meri isporuka: DORA metrike.** Istraživački program DORA (Google Cloud) prati performanse isporuke kroz pet metrika:
+
+| Grupa | Metrika | Šta meri |
+|---|---|---|
+| Protok | change lead time | od commit-a do produkcije |
+| Protok | deployment frequency | koliko često se isporučuje |
+| Protok | failed deployment recovery time | koliko traje oporavak od loše isporuke |
+| Nestabilnost | change fail rate | udeo isporuka koje traže hitnu intervenciju |
+| Nestabilnost | deployment rework rate | udeo neplaniranih isporuka zbog incidenta |
+
+Mere tim i proces, ne pojedince. Mali PR-ovi, CI i trunk-based rad poboljšavaju i protok i stabilnost istovremeno.
+
+**Zaštita glavne grane.** Branch protection (ili rulesets) traži prolaz CI-ja i bar jedan odobren review pre spajanja u `main`, i zabranjuje direktan push. Fajl `CODEOWNERS` automatski traži review od ljudi odgovornih za deo koda (npr. `/src/Billing/ @tim-naplata`).
+
+**Feature flag umesto duge grane.** Nedovršena funkcija se spaja u `main` iza prekidača koji je isključen u produkciji. Grana ostaje kratka (manje konflikata), a uključivanje je odluka bez novog deploya. Cena: flagovi koji ostanu zauvek postaju tehnički dug, pa se brišu kad je funkcija uključena svima.
+
+**Blameless postmortem.** Posle incidenta se piše šta se desilo, zašto je sistem to dozvolio i šta se menja (test, alarm, proces), bez traženja krivca. Na intervjuu je to dobar odgovor na „greška u produkciji”: šta si naučio i šta je posle toga promenjeno.
 
 ## Lab
 
@@ -938,6 +1077,8 @@ Delim ga na manje delove, procenjujem ono što znam, a za nepoznato predlažem k
 - [Scrum Guide](https://scrumguides.org/scrum-guide.html)
 - [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
 - [Google: kako se radi code review](https://google.github.io/eng-practices/review/)
+- [DORA: metrike isporuke](https://dora.dev/guides/dora-metrics/)
+- [GitHub Docs: CODEOWNERS](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners)
 =====
 ---
 id: "P9"
@@ -988,6 +1129,26 @@ Strane firme i agencije (Toggl, Luxoft, Deel, Malt klijenti) intervjue rade na e
 ### STAR na engleskom
 
 "**S**ituation: At ITM we had duplicate invoices after a timeout. **T**ask: I had to find the cause and fix it without downtime. **A**ction: I added an idempotency key to the endpoint and a unique index… **R**esult: no duplicates since, and we added the pattern to other endpoints."
+
+## Dublje
+
+**Lažni prijatelji koji zbunjuju na intervjuu.**
+
+| Engleski | Znači | Nije |
+|---|---|---|
+| eventually | na kraju, vremenom | „eventualno” (= possibly, if needed) |
+| actually | zapravo | „aktuelno” (= current, up to date) |
+| concurrency | istovremenost (niti, zahtevi) | „konkurencija” na tržištu (= competition) |
+| sympathetic | saosećajan | „simpatičan” (= nice, likeable) |
+| to control | upravljati | „kontrolisati” u smislu proveriti (= to check, to verify) |
+
+„We'll eventually migrate” znači da će se migracija desiti, ne da je možda bude.
+
+**Kako zvuči obrazloženje odluke.** Na engleskim intervjuima se ceni struktura „opcije → kriterijum → izbor → cena”: *“We considered A and B. The main constraint was X, so we chose A. The downside is Y, which we mitigated by Z.”* Isti obrazac radi za arhitekturu, biblioteku ili kompromis.
+
+**Pitanja o ponašanju počinju sa „Tell me about a time when…”.** Odgovor je STAR priča u prošlom vremenu i u prvom licu jednine („I added…”, ne „we added…”), jer pitanje je šta si TI uradio. „We” je u redu za kontekst tima, ali akcija treba da bude tvoja.
+
+**Procena naglas.** *“Roughly a hundred thousand requests a day is about one per second on average, so a single instance is fine; I'd plan for ten times that at peak.”* Brojevi izgovoreni sa „roughly”, „about”, „order of magnitude” pokazuju da znaš da je procena gruba, a ipak korisna (pogl. 44).
 
 ## Lab
 
@@ -1047,3 +1208,4 @@ Iskren primer, šta si naučio i šta sada radiš drugačije. Pokazuje zrelost; 
 ## Izvori
 - [Tech Interview Handbook: behavioral pitanja](https://www.techinterviewhandbook.org/behavioral-interview/)
 - [Cambridge Dictionary](https://dictionary.cambridge.org/)
+- [Cambridge Dictionary: eventually](https://dictionary.cambridge.org/dictionary/english/eventually)

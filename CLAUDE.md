@@ -126,7 +126,8 @@ Za poglavlja vodiča lekcija je u PDF-u (nije u repozitorijumu): proveravaju se 
   pogl. 44 sticky sessions za SignalR trebaju na više servera i uz Redis backplane, osim WebSockets-only + SkipNegotiation
   ili Azure SignalR; pogl. 15 tabela OWASP prati listu 2021 (u 2025 SSRF je u A01, nove su A03 Supply Chain i
   A10 Exceptional Conditions); pogl. 38 akcije `@v4` su zastarele (v7/v6/v7).
-- ⬜ `region-pro.md` (pune lekcije)
+- ✅ region Pro (`region-pro.md`, paket 1.2.4): MediatR Community licenca (< 5 mil. $), OWASP 2025 predstavljen
+  nov. 2025, shadcn/ui od jula 2026. podrazumevano Base UI, Next.js 16 i Cache Components, Daily Scrum po Scrum Guide-u.
 
 ## Pune lekcije za poglavlja vodiča (u toku, zahtev 23. 11. 2026)
 
@@ -138,7 +139,7 @@ provereno u najnovijim zvaničnim izvorima; greške nađene usput ispravljaju se
   Puno poglavlje nema `externalRef` (to znači „lekcija van aplikacije”). Postojeći test i pitanja se zadržavaju i proveravaju.
 - Postupak po delu: pročitaj poglavlje u PDF-u → proveri tvrdnje (izvor + URL) → kod iz lekcije i vežbe pokreni →
   napiši blok → proveri linkove → verzija → build, testovi, e2e → commit.
-- „Dublje” u 31 poglavlje dodataka (nisu ga imala): ✅ region 0, ✅ C (paket 1.2.2), ✅ AI (1.2.3) · ⬜ Pro (uz proveru regiona)
+- „Dublje” u 31 poglavlje dodataka (nisu ga imala): ✅ region 0, ✅ C (paket 1.2.2), ✅ AI (1.2.3), ✅ Pro (1.2.4)
 - ✅ Deo I: 1, 2 (paket 1.2.0)
 - ✅ Deo II temelji: 3–7 (paket 1.2.1; u vodiču ispravljeno: .NET 11 i kraj .NET 8/9, STS dve godine, LOH 85.000 B)
 - ⬜ Deo II: 8–12 · 13–17 · 18, 19
