@@ -307,7 +307,110 @@ Klijent šalje jedinstven idempotency key u zaglavlju; server pamti ključ i rez
 =====
 ---
 id: 3
+subtitle: "SDK, runtime, CLR, IL i JIT, projekat, NuGet, verzije"
+minutes: 45
 ---
+# 3 .NET platforma i alati
+
+.NET je platforma za pravljenje aplikacija: **jezik** (najčešće C#), **runtime** koji izvršava kod (CLR) i velika **standardna biblioteka** (tekst, fajlovi, mreža, kolekcije). Radi na Windowsu, Linuxu i macOS-u i otvorenog je koda. Ovo poglavlje objašnjava šta se dešava između `dotnet build` i pokrenutog programa i koji alati se koriste svaki dan.
+
+## Pojmovi
+
+### Od koda do izvršavanja
+
+```
+C# kod (.cs) --Roslyn kompajler--> IL u .dll --JIT u CLR-u, pri izvršavanju--> mašinski kod
+             dotnet build                       dotnet App.dll
+```
+
+Kompajler pravi **IL** (Intermediate Language), koji ne zavisi od procesora. **JIT** (Just-In-Time) ga prevodi u mašinski kod za procesor na kome program radi, i to metodu po metodu, pri prvom pozivu. Zato ista `.dll` radi i na x64 i na ARM-u. **CLR** (Common Language Runtime) pored toga upravlja memorijom (GC), izuzecima, nitima i proverom tipova.
+
+| Način prevođenja | Kad | Cena |
+|---|---|---|
+| JIT (podrazumevano) | pri izvršavanju, metodu po metodu | malo sporiji start; JIT zna stvarni procesor i može da optimizuje „vruće” metode (tiered compilation) |
+| ReadyToRun | deo unapred, JIT dopuni | brži start, veći fajlovi |
+| Native AOT | sve unapred, jedan izvršni fajl | najbrži start i manja memorija, ali deo refleksije i dinamičkog koda ne radi |
+
+### SDK i runtime
+
+| | SDK | Runtime |
+|---|---|---|
+| Za šta | razvoj: kompajler, `dotnet build/test/publish`, šabloni | samo pokretanje gotove aplikacije |
+| Docker image | `mcr.microsoft.com/dotnet/sdk:10.0` (build faza) | `mcr.microsoft.com/dotnet/aspnet:10.0` (konačni image) |
+
+### Projekat, solution, paket
+
+| Pojam | Šta je |
+|---|---|
+| Projekat (`.csproj`) | jedna izlazna celina (aplikacija ili biblioteka): ciljni framework, reference, paketi |
+| Solution (`.slnx`, stariji `.sln`) | spisak projekata koji idu zajedno; od .NET 10 SDK `dotnet new sln` pravi `.slnx` (XML) |
+| Referenca na projekat | projekat A koristi kod projekta B; kružne reference nisu dozvoljene |
+| NuGet paket | tuđa biblioteka (EF Core, xUnit), kao npm za .NET; `PackageReference` u `.csproj`, `dotnet restore` je preuzima |
+| Namespace | „prezime” klase, da se imena ne sudare: `Biblioteka.Domain.Book` |
+| Assembly | izlaz builda jednog projekta (`.dll`) |
+
+```xml
+<!-- Biblioteka.Api.csproj -->
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>          <!-- upozorenja za moguće null -->
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Biblioteka.Domain\Biblioteka.Domain.csproj" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+  </ItemGroup>
+</Project>
+```
+
+### Komande
+
+```
+dotnet new console -n Zdravo        # nov projekat iz šablona (console, classlib, webapi, xunit…)
+dotnet new sln -n Biblioteka        # solution (.slnx)
+dotnet sln add Zdravo               # dodaj projekat u solution
+dotnet run                          # build + pokretanje
+dotnet build / dotnet test          # samo build / svi testovi u solutionu
+dotnet add package Shouldly         # NuGet paket
+dotnet add reference ../Domain      # referenca na drugi projekat
+dotnet publish -c Release           # spremi za produkciju
+dotnet list package --vulnerable    # paketi sa poznatim ranjivostima
+```
+
+### Verzije i podrška
+
+Nova glavna verzija izlazi svakog novembra. **Parne su LTS** (tri godine podrške), **neparne STS** (dve godine). Stanje u novembru 2026: .NET 10 (LTS, novembar 2025, podrška do novembra 2028) i .NET 11 (STS, novembar 2026, takođe do novembra 2028); .NET 8 i 9 su izgubili podršku 10. 11. 2026. Za produkciju se obično bira LTS. Svaka verzija .NET-a donosi i novu verziju C#-a (C# 14 uz .NET 10, C# 15 uz .NET 11).
+
+### Prvi program
+
+```csharp
+// Program.cs: "top-level statements", bez klase i metode Main
+var ime = "Ana";
+Console.WriteLine($"Zdravo, {ime}!");   // Zdravo, Ana!
+```
+
+## Dublje
+
+**Šta radi JIT kad metoda postane „vruća”.** Prvi prevod je brz i manje optimizovan (tier 0). Kad se metoda pozove mnogo puta, JIT je prevede ponovo, optimizovano (tier 1), uz podatke o stvarnom izvršavanju. Zato se prvi zahtevi posle starta API-ja izvršavaju sporije, a merenja performansi (BenchmarkDotNet) prvo „zagreju” kod.
+
+**.NET Framework i moderni .NET.** Stari .NET Framework (do 4.8.1) radi samo na Windowsu i dobija samo bezbednosne zakrpe. Moderni .NET (nekad „.NET Core”, od verzije 5 samo „.NET”) je otvorenog koda, radi svuda i u njemu se razvija sve novo.
+
+**Gde su paketi.** `dotnet restore` preuzima pakete u globalni folder (`~/.nuget/packages`), pa se ne nalaze u repou. `packages.lock.json` (uključuje se sa `RestorePackagesWithLockFile`) zaključava tačne verzije i tranzitivne zavisnosti, kao `package-lock.json` u npm-u.
+
+**Garbage Collector u jednoj rečenici.** Objekti na hipu do kojih ne vodi nijedna živa referenca se oslobađaju automatski, po generacijama (detaljno u pogl. 7).
+
+## Lab
+
+1. Proveri šta je instalirano: `dotnet --info` i `dotnet --list-sdks`; zapiši verziju SDK-a i runtime-a.
+2. Napravi solution `dotnet new sln -n Biblioteka`, projekte `dotnet new classlib -n Biblioteka.Domain` i `dotnet new console -n Biblioteka.App`, dodaj ih u solution i dodaj referencu iz `App` na `Domain`.
+3. U `Domain` napiši klasu `Book` sa naslovom, a u `App` napravi knjigu i ispiši naslov; pokreni `dotnet run --project Biblioteka.App`.
+4. Dodaj paket `dotnet add Biblioteka.App package Humanizer` i ispiši `"pozajmica_knjige".Humanize()`; otvori `.csproj` i nađi `PackageReference`.
+5. Pokreni `dotnet build -c Release` i pronađi `.dll` u `bin/Release/net10.0`; pokreni ga sa `dotnet Biblioteka.App.dll`.
+6. Pokušaj kružnu referencu (iz `Domain` na `App`) i zapiši poruku koju build javi.
+
+**Gotovo je kad:** solution sa dva projekta i jednim NuGet paketom se builda i pokreće, i umeš da objasniš put od `.cs` do mašinskog koda i razliku između SDK-a i runtime-a.
+
 ## Pitanja sa intervjua
 
 **P: Šta je CLR i šta radi JIT?**
@@ -317,7 +420,16 @@ CLR (Common Language Runtime) je izvršno okruženje .NET-a: učitava sklopove, 
 SDK služi za razvoj: kompajler, `dotnet build`, `dotnet test`, šabloni. Runtime je samo ono što treba za pokretanje gotove aplikacije. Zato Docker build koristi SDK image, a finalni image samo runtime (`aspnet`).
 
 **P: Kako radi Garbage Collector u .NET-u, ukratko?**
-GC automatski oslobađa objekte na hipu do kojih više ne vodi nijedna referenca. Deli ih u generacije (0, 1, 2): većina objekata umre mlada, pa GC najčešće čisti samo generaciju 0, što je brzo. Veliki objekti (preko ~85 KB) idu na Large Object Heap.
+GC automatski oslobađa objekte na hipu do kojih više ne vodi nijedna referenca. Deli ih u generacije (0, 1, 2): većina objekata umre mlada, pa GC najčešće čisti samo generaciju 0, što je brzo. Objekti od 85.000 bajtova i više idu na Large Object Heap.
+
+**P: .NET Framework ili moderni .NET?**
+Stari .NET Framework radi samo na Windowsu i dobija samo zakrpe; moderni .NET (5 i noviji) je otvorenog koda, radi na Linuxu, macOS-u i u kontejnerima, i u njemu se razvija sve novo.
+
+**P: Šta je LTS i koju verziju bi izabrao za novi projekat?**
+LTS (Long Term Support) verzije su parne i imaju tri godine podrške, STS neparne i dve godine. Za produkciju obično LTS, danas .NET 10 (podrška do novembra 2028); STS kad su potrebne nove mogućnosti i tim redovno podiže verzije.
+
+**P: JIT ili Native AOT?**
+JIT je podrazumevan i podržava sve (refleksiju, dinamičko učitavanje). Native AOT daje brži start i manju memoriju (dobro za kontejnere koji se često pokreću i za CLI alate), ali traži kod bez dinamičke refleksije; deo biblioteka ga ne podržava.
 
 ## Test
 
@@ -333,7 +445,7 @@ GC automatski oslobađa objekte na hipu do kojih više ne vodi nijedna referenca
 - [ ] .NET 9
 - [x] .NET 8 i .NET 10
 - [ ] Sve verzije imaju istu podršku
-> Parne verzije (6, 8, 10) su LTS sa tri godine podrške. Neparne (STS) imaju kraću podršku, pa se za produkciju obično bira LTS.
+> Parne verzije (6, 8, 10) su LTS sa tri godine podrške, neparne (STS) sa dve. .NET 8 je podršku izgubio 10. 11. 2026, a .NET 10 je podržan do novembra 2028, pa je on danas izbor za produkciju.
 
 ### 3. Šta treba u Docker image-u u kome se aplikacija samo POKREĆE?
 - [ ] Ceo .NET SDK
@@ -355,10 +467,129 @@ GC automatski oslobađa objekte na hipu do kojih više ne vodi nijedna referenca
 - [x] Za preuzimanje i upravljanje bibliotekama (paketima) projekta
 - [ ] Za objavljivanje aplikacije na server
 > NuGet je menadžer paketa za .NET. Paketi se navode kao `PackageReference` u .csproj, a `dotnet restore` ih preuzima.
+
+## Izvori
+- [Microsoft Learn: uvod u .NET](https://learn.microsoft.com/en-us/dotnet/core/introduction)
+- [Microsoft Learn: proces izvršavanja (IL, JIT)](https://learn.microsoft.com/en-us/dotnet/standard/managed-execution-process)
+- [Microsoft Learn: tiered compilation](https://learn.microsoft.com/en-us/dotnet/core/runtime-config/compilation)
+- [Microsoft Learn: Native AOT](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)
+- [Microsoft Learn: dotnet CLI](https://learn.microsoft.com/en-us/dotnet/core/tools/)
+- [Microsoft Learn: PackageReference i lock fajl](https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files)
+- [.NET: politika podrške (LTS i STS)](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-core)
+- [endoflife.date: .NET verzije i rokovi](https://endoflife.date/dotnet)
 =====
 ---
 id: 4
+subtitle: "tipovi, decimal, uslovi, petlje, metode, null, pattern matching"
+minutes: 50
 ---
+# 4 C# osnove
+
+C# je **statički tipiziran** jezik: svaka promenljiva ima tip koji kompajler zna, pa mnoge greške puknu pri buildu, a ne kod korisnika. Ovo poglavlje je sintaksa koju koristiš u svakoj liniji: tipovi, uslovi, petlje, metode i rad sa `null`.
+
+## Pojmovi
+
+### Promenljive i osnovni tipovi
+
+| Tip | Za šta | Primer |
+|---|---|---|
+| `int`, `long` | celi brojevi (32 i 64 bita) | `int brojStrana = 320;` |
+| `decimal` | novac i tačne decimale | `decimal clanarina = 1200.50m;` |
+| `double` | naučni proračuni, merenja (približno) | `double ocena = 4.7;` |
+| `bool` | tačno / netačno | `bool dostupna = true;` |
+| `string`, `char` | tekst, jedan znak | `string naslov = "Hobit";` |
+| `DateTimeOffset` | trenutak u vremenu, sa pomakom od UTC | `DateTimeOffset.UtcNow` |
+| `Guid` | globalno jedinstven ID | `Guid.NewGuid()`, `Guid.CreateVersion7()` |
+
+```csharp
+var naslov = "Hobit";             // var: tip zaključi kompajler (string); i dalje je statički tip
+const int MaxPozajmica = 5;       // konstanta poznata pri kompajliranju
+string poruka = $"Knjiga {naslov} ima {320} strana";   // interpolacija
+
+Console.WriteLine(0.1 + 0.2);     // 0.30000000000000004 (double je binarni razlomak)
+Console.WriteLine(0.1m + 0.2m);   // 0.3 (decimal je u osnovi 10)
+Console.WriteLine(7 / 2);         // 3: deljenje celih brojeva odseca
+Console.WriteLine(7 / 2.0);       // 3.5
+```
+
+**Zašto `decimal` za novac:** `double` ne može tačno da zapiše 0.1, pa se greške zaokruživanja vide na računima. `decimal` je tačan za decimalne iznose (28–29 cifara); u bazi mu se dodeli preciznost, npr. `decimal(18,2)`. Napomena: ispis broja zavisi od kulture (u srpskoj je decimalni zarez, `0,3`), što je tema pogl. 27.
+
+### Uslovi i petlje
+
+```csharp
+if (brojPozajmica >= MaxPozajmica) Console.WriteLine("Dostignut limit");
+else if (brojPozajmica == 0) { /* ... */ }
+
+string opis = status switch          // switch izraz vraća vrednost
+{
+    "available" => "Na polici",
+    "loaned"    => "Pozajmljena",
+    _           => "Nepoznato",         // _ = sve ostalo
+};
+
+for (int i = 0; i < 3; i++) { }       // broji
+foreach (var knjiga in knjige) { }    // prođi kroz kolekciju
+while (imaJos) { }                    // dok važi uslov; break izlazi, continue ide na sledeći krug
+```
+
+### Metode
+
+```csharp
+static decimal Zakasnina(int danaKasni, decimal poDanu = 20m)   // parametar sa podrazumevanom vrednošću
+{
+    if (danaKasni <= 0) return 0;       // "guard": rani izlaz za poseban slučaj
+    return danaKasni * poDanu;
+}
+var iznos  = Zakasnina(3);                   // 60
+var iznos2 = Zakasnina(3, poDanu: 50m);      // imenovani argument: 150
+static int Dupla(int x) => x * 2;            // telo u jednom izrazu
+```
+
+### Null i nullable
+
+`null` znači „nema vrednosti”. Pristup članu na `null` baca `NullReferenceException`, najčešću grešku u .NET-u. Uz **nullable reference types** (`<Nullable>enable</Nullable>`, podrazumevano u novim projektima) tip kaže da li sme biti null, a kompajler upozorava:
+
+```csharp
+string naslov = "Hobit";       // nikad null
+string? napomena = null;       // sme biti null; kompajler upozori pre upotrebe bez provere
+int? ocena = null;             // i vrednosni tipovi mogu biti nullable (Nullable<int>)
+
+int duzina = napomena?.Length ?? 0;     // ?. ne zove ako je null; ?? daje zamenu
+if (napomena is not null) { }           // posle provere kompajler zna da nije null
+```
+
+Nullable reference types su samo provera pri kompajliranju; u izvršavanju se ništa ne menja.
+
+### Pattern matching
+
+```csharp
+if (obj is Book b) { }                               // provera tipa + nova promenljiva
+if (putanja is { Length: > 0 } p) { }                // "nije null i dužina > 0"
+var kategorija = strana switch { < 100 => "kratka", < 400 => "srednja", _ => "duga" };
+if (status is "loaned" or "overdue") { }
+```
+
+## Dublje
+
+**Prekoračenje.** `int.MaxValue + 1` u podrazumevanom (unchecked) kontekstu tiho postaje `-2147483648`. U `checked` bloku (ili sa `<CheckForOverflowUnderflow>`) baca `OverflowException`. Za brojače koji mogu da porastu koristi `long`.
+
+**`const` i `readonly`.** `const` je vrednost poznata pri kompajliranju i „ugrađuje” se u kod koji je koristi (promena u biblioteci traži ponovni build pozivaoca). `readonly` polje se postavlja jednom, u konstruktoru, i može zavisiti od izvršavanja.
+
+**Novije mogućnosti koje ćeš videti.** Raw string literali (`"""..."""`) za SQL i JSON bez escapovanja; `required` svojstva (C# 11) koja moraju da se postave pri pravljenju objekta; collection expressions (C# 12) `int[] a = [1, 2, 3];`; u C# 14 dodela uz null-conditional (`kupac?.Adresa = nova;`) i `field` u svojstvima.
+
+**Datumi.** Za trenutak u vremenu koristi `DateTimeOffset` u UTC; `DateTime.Now` zavisi od zone servera. U kodu koji se testira vreme se čita iz `TimeProvider` (pogl. 8), ne direktno.
+
+## Lab
+
+1. Napravi konzolni projekat i ispiši `0.1 + 0.2`, `0.1m + 0.2m`, `7 / 2` i `7 / 2.0`; objasni svaki rezultat.
+2. Napiši `Zakasnina(int danaKasni, decimal poDanu = 20m)` i pozovi je sa podrazumevanom vrednošću i imenovanim argumentom.
+3. Napiši `switch` izraz koji status pozajmice (`"active"`, `"returned"`, `"overdue"`) pretvara u tekst za korisnika, sa `_` granom.
+4. Uključi `<Nullable>enable</Nullable>`, napiši metodu koja prima `string? napomena` i vraća dužinu bez upozorenja kompajlera (`?.` i `??`).
+5. Ispiši `int.MaxValue + 1` običnim i `checked` sabiranjem i uhvati `OverflowException`.
+6. Napiši metodu `Kategorija(int strana)` sa pattern matching-om (`< 100`, `< 400`, `_`) i proveri je za 50, 320 i 900 strana.
+
+**Gotovo je kad:** program se builda bez upozorenja, ispisuje očekivane vrednosti i umeš da objasniš zašto je `decimal` za novac, šta radi `??` i šta se desi pri prekoračenju `int`-a.
+
 ## Pitanja sa intervjua
 
 **P: Koja je razlika između value i reference tipova?**
@@ -369,6 +600,15 @@ Svaka „izmena” stringa pravi novi string. To ga čini bezbednim za deljenje 
 
 **P: Zašto se za novac koristi decimal, a ne double?**
 double je binarni razlomak i ne može tačno da zapiše 0.1, pa sabiranje cena daje greške zaokruživanja (0.1 + 0.2 != 0.3). decimal je decimalni tip sa 28-29 cifara preciznosti, napravljen za finansijske proračune.
+
+**P: var: da li je C# onda dinamički?**
+Ne. `var` samo prepušta kompajleru da zaključi tip; tip je i dalje fiksan od kompajliranja. Dinamički je `dynamic`, koji se retko koristi.
+
+**P: const ili readonly?**
+`const` je vrednost poznata pri kompajliranju (broj, string) i ugrađuje se u kod pozivaoca. `readonly` polje se postavlja jednom, u konstruktoru, i može da zavisi od izvršavanja (npr. vrednost iz konfiguracije).
+
+**P: Kako izbegavaš NullReferenceException?**
+Nullable reference types (kompajler upozorava), provera ulaza na granici (guard), `?.` i `??`, i dizajn u kome objekat ne može da postoji u neispravnom stanju (obavezni podaci kroz konstruktor ili `required`).
 
 ## Test
 
@@ -418,10 +658,146 @@ Console.WriteLine(p1.X);
 - [ ] string.Concat u svakoj iteraciji
 - [ ] Pretvaranjem u char[] posle svakog dodavanja
 > Pošto je string nepromenljiv, `+=` u petlji svaki put pravi novi string i kopira sve do tada. StringBuilder dopisuje u bafer, pa je linearan.
+
+## Izvori
+- [Microsoft Learn: obilazak C#-a](https://learn.microsoft.com/en-us/dotnet/csharp/tour-of-csharp/)
+- [Microsoft Learn: float, double, decimal](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/floating-point-numeric-types)
+- [Microsoft Learn: nullable reference types](https://learn.microsoft.com/en-us/dotnet/csharp/nullable-references)
+- [Microsoft Learn: pattern matching](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/functional/pattern-matching)
+- [Microsoft Learn: checked i unchecked](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/checked-and-unchecked)
+- [Microsoft Learn: šta je novo u C# 14](https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/csharp-14)
 =====
 ---
 id: 5
+subtitle: "klasa, enkapsulacija, nasleđivanje, interfejs, struct, record, stack i heap"
+minutes: 55
 ---
+# 5 Objektno programiranje
+
+**Klasa** je nacrt: opisuje koje podatke nešto ima i šta ume. **Objekat** je jedan konkretan primerak napravljen po nacrtu. Klasa `Book`, objekat „Hobit”. Dobar objekat čuva svoja pravila: ne može da se dovede u neispravno stanje, ma ko ga koristio.
+
+## Pojmovi
+
+### Klasa, svojstva, konstruktor
+
+```csharp
+public class Book
+{
+    public Guid Id { get; }                          // samo za čitanje
+    public string Title { get; private set; }        // čita svako, menja samo klasa
+    public int AvailableCopies { get; private set; }
+
+    public Book(string title, int copies)            // konstruktor pravi ispravan objekat
+    {
+        if (string.IsNullOrWhiteSpace(title)) throw new ArgumentException("Naslov je obavezan.");
+        Id = Guid.NewGuid();
+        Title = title.Trim();
+        AvailableCopies = copies;
+    }
+
+    public void Lend()                               // ponašanje + pravilo
+    {
+        if (AvailableCopies == 0) throw new InvalidOperationException("Nema slobodnih primeraka.");
+        AvailableCopies--;
+    }
+}
+
+var hobit = new Book("Hobit", copies: 2);
+hobit.Lend();                         // AvailableCopies = 1
+// hobit.AvailableCopies = 10;        ← ne kompajlira se: setter je private
+```
+
+### Četiri stuba OOP-a
+
+| Stub | Značenje | U primeru |
+|---|---|---|
+| Enkapsulacija | stanje je skriveno, menja se samo kroz metode koje čuvaju pravila | `private set` + `Lend()`: niko ne postavlja negativan broj primeraka |
+| Apstrakcija | spolja se vidi šta objekat radi, ne kako | pozivaš `Lend()`, ne znaš kako se broji |
+| Nasleđivanje | klasa preuzima članove druge klase i dodaje svoje | `Book : LibraryItem` |
+| Polimorfizam | isti poziv, ponašanje po stvarnom tipu | `item.LoanDays()` daje 14 za knjigu, 7 za film |
+
+```csharp
+public abstract class LibraryItem(string title)      // primary constructor (C# 12)
+{
+    public string Title { get; } = title;
+    public abstract int LoanDays();                  // svaki naslednik MORA da implementira
+}
+public class Movie(string title) : LibraryItem(title)
+{
+    public override int LoanDays() => 7;
+}
+
+LibraryItem[] items = [new Book("Hobit", 1), new Movie("Ko to tamo peva")];
+foreach (var it in items) Console.WriteLine($"{it.Title}: {it.LoanDays()}");   // 14, pa 7
+```
+
+`virtual` znači „naslednik sme da prepiše”, `abstract` „naslednik mora”, `override` „ovde prepisujem”, `sealed` „ne može dalje da se nasleđuje”.
+
+### Interfejs
+
+Interfejs je **ugovor**: kaže koje metode postoje, ne kako rade. Klasa nasleđuje najviše jednu klasu, a implementira koliko god interfejsa. Kod koji zavisi od interfejsa ne zna koja je implementacija iza njega, pa se ona menja, npr. u testu (pogl. 9 i 17).
+
+```csharp
+public interface INotifier { Task SendAsync(string to, string message); }
+public class EmailNotifier : INotifier { /* pravi email */ }
+public class FakeNotifier : INotifier { /* u testu samo zapamti poruku */ }
+```
+
+| | Apstraktna klasa | Interfejs |
+|---|---|---|
+| Stanje (polja) | da | ne |
+| Implementacija | delimična | ugovor (od C# 8 može podrazumevana implementacija, retko se koristi) |
+| Koliko po klasi | jedna | više |
+| Kad | srodne klase dele kod i stanje | zamenljivost, testiranje, granice slojeva |
+
+### Modifikatori i static
+
+`public` svima, `private` samo klasi, `protected` klasi i naslednicima, `internal` unutar istog projekta (assembly-ja). `static` član pripada samoj klasi, ne objektu (`Math.Max`, fabričke metode `Loan.Start(...)`).
+
+### Vrednosni i referentni tipovi, stack i heap
+
+**Vrednosni** tipovi (`int`, `decimal`, `bool`, `Guid`, `DateTimeOffset`, `struct`, `enum`) čuvaju samu vrednost i kopiraju se pri dodeli. **Referentni** (`class`, `string`, nizovi, `record`) čuvaju referencu na objekat na hipu: `var b = hobit;` kopira referencu, pa obe promenljive menjaju isti objekat.
+
+```csharp
+var p1 = new PointClass { X = 1 }; var p2 = p1; p2.X = 7;   // p1.X je 7 (ista referenca)
+var s1 = new PointStruct { X = 1 }; var s2 = s1; s2.X = 7;  // s1.X je 1 (kopija)
+```
+
+Lokalne promenljive vrednosnog tipa obično žive na steku (oslobađaju se izlaskom iz metode), a objekti na hipu, koji čisti GC (pogl. 7). Tačnije: gde vrednost živi zavisi od toga gde je deklarisana (vrednosno polje klase je na hipu, unutar objekta).
+
+### record, struct, enum
+
+```csharp
+public enum LoanStatus { Active, Returned, Overdue }
+
+public record BookDto(Guid Id, string Title, int Available);   // svojstva, konstruktor, jednakost po vrednosti
+var a = new BookDto(id, "Hobit", 1);
+var b = a with { Available = 0 };                // kopija sa izmenom; a ostaje isti
+bool isti = a == new BookDto(id, "Hobit", 1);    // true: record se poredi po vrednostima
+```
+
+Pravilo palca: **class** za stvari sa identitetom (knjiga ostaje ista i kad promeni naslov), **record** za podatke koji se prenose i porede po vrednosti (DTO, komande), **struct** samo za male nepromenljive vrednosti (`record struct`, npr. novčani iznos).
+
+## Dublje
+
+**Kompozicija pre nasleđivanja.** Nasleđivanje („je vrsta od”) pravi čvrstu vezu: izmena osnovne klase lomi naslednike, a hijerarhije postaju duboke. Kompozicija („ima”): klasa dobije zavisnost kroz konstruktor i koristi je. `LoanService` ne nasleđuje `EmailNotifier`, nego dobija `INotifier`. Zato je kompozicija podrazumevani izbor, a nasleđivanje za prave „je vrsta od” odnose sa malo nivoa.
+
+**Jednakost.** Klasa se podrazumevano poredi po referenci (dva objekta sa istim podacima nisu jednaka), record po vrednostima svih svojstava. Ako klasi treba jednakost po vrednosti, prepisuju se `Equals` i `GetHashCode` zajedno; inače se ne ponaša ispravno u `Dictionary` i `HashSet` (pogl. 45).
+
+**Bogat model.** Pravila u samom objektu (privatni setteri, provera u konstruktoru, metode sa imenom iz domena) znače da se pravilo ne može zaobići sa drugog mesta. To je osnova pogl. 13 (bogat i anemičan model).
+
+**Interfejs sa podrazumevanom implementacijom (C# 8).** Omogućava da se ugovoru doda metoda bez lomljenja postojećih implementacija. Koristi se u bibliotekama; u aplikacionom kodu je retko potreban.
+
+## Lab
+
+1. Napiši klasu `Book` sa `private set`, proverom naslova u konstruktoru i metodama `Lend()` i `Return()`; `Return()` ne sme da poveća broj iznad ukupnog broja primeraka.
+2. Napiši apstraktnu klasu `LibraryItem` sa `abstract int LoanDays()` i naslednike `Book` (14), `Movie` (7) i `EBook` (30); prođi kroz listu `LibraryItem` i ispiši rok za svaki.
+3. Napiši interfejs `INotifier` i dve implementacije (`ConsoleNotifier`, `FakeNotifier` koji pamti poruke u listi); klasa `ReminderService` ih dobija kroz konstruktor.
+4. Napravi `record BookDto` i pokaži `with` i jednakost po vrednosti; isto uradi sa klasom i uporedi rezultat `==`.
+5. Napravi `struct` i `class` sa poljem `X`, kopiraj ih i izmeni kopiju; zapiši šta se desilo sa originalom i zašto.
+
+**Gotovo je kad:** `hobit.AvailableCopies = 10` se ne kompajlira, `ReminderService` radi sa obe implementacije bez izmene, a umeš da objasniš razliku između klase, recorda i strukture na svom primeru.
+
 ## Pitanja sa intervjua
 
 **P: Koja je razlika između apstraktne klase i interfejsa?**
@@ -432,6 +808,12 @@ Isti poziv radi različito zavisno od stvarnog tipa objekta. Npr. `IPaymentProvi
 
 **P: Šta znači „composition over inheritance”?**
 Umesto da ponašanje dobijaš nasleđivanjem (duboke hijerarhije, krhke osnovne klase), sastavljaš ga od manjih objekata koje dobiješ kroz konstruktor. Kompozicija je fleksibilnija i lakše se testira, jer se delovi zamenjuju.
+
+**P: Objasni četiri stuba OOP-a.**
+Enkapsulacija (stanje skriveno iza metoda koje čuvaju pravila), apstrakcija (vidi se šta, ne kako), nasleđivanje (preuzimanje članova osnovne klase), polimorfizam (isti poziv, ponašanje po stvarnom tipu).
+
+**P: class, struct ili record?**
+class: referentni tip sa identitetom. struct: vrednosni tip koji se kopira, za male nepromenljive vrednosti. record: jednakost po vrednosti i `with`, za DTO-ove i komande (record class je referentni, record struct vrednosni).
 
 ## Test
 
@@ -476,10 +858,120 @@ Console.WriteLine(z.Glas());
 - [ ] Kada želiš da tip bude value tip
 - [ ] Nikada, interfejs je uvek bolji
 > Apstraktna klasa može da drži zajednička polja i konstruktor. Za čist ugovor bez stanja, ili kad tip treba više ugovora, bolji je interfejs.
+
+## Izvori
+- [Microsoft Learn: objektno programiranje u C#-u](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/tutorials/oop)
+- [Microsoft Learn: interfejsi](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/types/interfaces)
+- [Microsoft Learn: record](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/record)
+- [Microsoft Learn: vrednosni tipovi](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/value-types)
+- [Microsoft Learn: primary constructors](https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/tutorials/primary-constructors)
 =====
 ---
 id: 6
+subtitle: "List, Dictionary, HashSet, generici, delegati, lambda, LINQ"
+minutes: 50
 ---
+# 6 Kolekcije, generici, LINQ
+
+Skoro svaki posao u kodu je rad sa grupom podataka: lista knjiga, rečnik članova po ID-ju, skup već viđenih poruka. Pravi izbor kolekcije odlučuje da li je kod O(n) ili O(n²), a LINQ omogućava da se nad njom piše upit umesto petlje.
+
+## Pojmovi
+
+### Kolekcije
+
+| Tip | Šta je | Kad |
+|---|---|---|
+| `T[]` (niz) | fiksna dužina | poznat broj elemenata |
+| `List<T>` | niz koji raste (kapacitet se udvostručuje: 4, 8, 16…) | najčešća kolekcija |
+| `Dictionary<K,V>` | ključ → vrednost, pretraga prosečno O(1) | „nađi po ID-ju” bez petlje |
+| `HashSet<T>` | skup bez duplikata, provera O(1) | „da li je već viđen” |
+| `Queue<T>` / `Stack<T>` | prvi unutra prvi napolje / poslednji prvi | redovi, istorija, zagrade |
+
+```csharp
+var knjige = new List<Book> { hobit, gospodarPrstenova };
+knjige.Add(new Book("Silmarilion", 1));
+var poId = knjige.ToDictionary(k => k.Id);                  // Dictionary<Guid, Book>
+if (poId.TryGetValue(id, out var nadjena)) { }              // bez izuzetka ako nema ključa
+var vidjeni = new HashSet<int>();
+vidjeni.Add(5);  // true
+vidjeni.Add(5);  // false: već postoji
+```
+
+### Generici
+
+Generik je tip ili metoda sa **tipom kao parametrom**: `List<Book>` i `List<Member>` su ista klasa, a kompajler ipak ne dozvoljava da u listu knjiga ubaciš člana. Bez generika bi sve bilo `object`, sa greškama tek pri izvršavanju i boxing-om vrednosnih tipova.
+
+```csharp
+public record PagedResult<T>(IReadOnlyList<T> Items, int TotalCount, int Page, int PageSize);
+
+// ograničenje: T mora biti klasa koja implementira IHasId
+static T? FindById<T>(IEnumerable<T> items, Guid id) where T : class, IHasId
+    => items.FirstOrDefault(x => x.Id == id);
+```
+
+Ograničenja: `class` (referentni tip), `struct` (vrednosni), `new()` (konstruktor bez parametara), `notnull`, ime interfejsa ili osnovne klase.
+
+### Delegati i lambda
+
+Delegat je tip koji predstavlja **funkciju kao vrednost**: može se sačuvati u promenljivu i proslediti. Lambda je kratak zapis takve funkcije.
+
+```csharp
+Func<int, int> dupla = x => x * 2;                       // prima int, vraća int
+Action<string> ispisi = s => Console.WriteLine(s);       // ne vraća ništa
+Func<Book, bool> dostupna = b => b.AvailableCopies > 0;  // predikat
+```
+
+### LINQ
+
+```csharp
+var naslovi = knjige
+    .Where(k => k.AvailableCopies > 0)      // filtriraj
+    .OrderBy(k => k.Title)                  // sortiraj (stabilno)
+    .Select(k => k.Title)                   // preslikaj
+    .ToList();                              // tek sad se izvršava
+
+int ukupno = knjige.Sum(k => k.AvailableCopies);
+bool imaHobita = knjige.Any(k => k.Title == "Hobit");
+var poAutoru = knjige.GroupBy(k => k.Author).Select(g => new { Autor = g.Key, Broj = g.Count() });
+```
+
+**Odloženo izvršavanje:** `Where`, `OrderBy`, `Select` samo opisuju upit. Izvršava se tek kad se traži rezultat (`ToList`, `Count`, `foreach`), i to **svaki put** iznova:
+
+```csharp
+var dostupne = knjige.Where(k => k.AvailableCopies > 0);
+knjige.Add(new Book("Na Drini ćuprija", 2));
+dostupne.Count();   // uključuje i novu knjigu: filter se izvršio tek sada
+```
+
+| | `IEnumerable<T>` | `IQueryable<T>` |
+|---|---|---|
+| Gde se izvršava | u memoriji, u C#-u | prevodi se (npr. u SQL) i izvršava u bazi |
+| Lambda je | delegat: kod | expression tree: kod kao podatak koji provajder čita i prevodi |
+| Zamka | prerano `.ToList()` nad bazom povuče celu tabelu | metoda koju provajder ne ume da prevede baca grešku |
+
+`First` vraća prvi i baca izuzetak ako nema nijednog; `Single` traži tačno jedan i baca izuzetak i kad ih ima više; `...OrDefault` varijante vraćaju podrazumevanu vrednost umesto izuzetka kad nema nijednog.
+
+## Dublje
+
+**Zašto je `Dictionary` O(1).** Ključ se pretvori u broj (`GetHashCode`), broj odredi „kantu”, a u kanti se poredi `Equals`. Ako svi ključevi imaju isti heš, sve je u jednoj kanti i pretraga postaje O(n). Zato ključ ne sme da se menja posle ubacivanja (pogl. 45).
+
+**Višestruko nabrajanje.** Upit koji se prođe dvaput izvršava se dvaput; nad bazom (`IQueryable`) to su dva SQL upita. Ako rezultat treba više puta, materijalizuj ga jednom (`ToList`). Analizatori (CA1851) i ReSharper upozoravaju na to.
+
+**`IReadOnlyList<T>` kao povratni tip.** Pozivalac zna da ima `Count` i indeks, a ne može da menja kolekciju. Za parametar metode je obično dovoljan najopštiji tip koji ti treba (`IEnumerable<T>`).
+
+**`yield return`** pravi lenju sekvencu: elementi se prave jedan po jedan, tek kad ih neko traži. Tako rade i LINQ operatori.
+
+## Lab
+
+1. Napravi listu od 5 knjiga i LINQ-om ispiši naslove dostupnih, sortirane po naslovu; zatim broj primeraka po autoru (`GroupBy`).
+2. Pokaži odloženo izvršavanje: napravi upit, dodaj knjigu u listu, pa pozovi `Count()`; zatim ponovi sa `ToList()` pre dodavanja i uporedi.
+3. Napiši predikat sa brojačem (`k => { n++; return ...; }`) i pozovi `Count()` dvaput; zapiši koliko puta je predikat pozvan.
+4. Pretvori listu u `Dictionary` po ID-ju i nađi knjigu sa `TryGetValue`; zatim izmeri razliku između `List.Contains` i `HashSet.Contains` za 100.000 elemenata (`Stopwatch`).
+5. Napiši generičku metodu `FindById<T>` sa ograničenjem `where T : class, IHasId` i upotrebi je za knjige i članove.
+6. Pozovi `Single()` nad nizom od dva elementa i nad praznim nizom; zapiši izuzetke i uporedi sa `FirstOrDefault()`.
+
+**Gotovo je kad:** umeš na svom primeru da pokažeš odloženo izvršavanje i višestruko nabrajanje, a za svaku kolekciju iz tabele znaš kada je prava i koja je složenost pretrage.
+
 ## Pitanja sa intervjua
 
 **P: Šta je odloženo izvršavanje (deferred execution) u LINQ-u?**
@@ -490,6 +982,12 @@ IQueryable gradi stablo izraza koje EF prevodi u SQL, pa se filter izvršava u b
 
 **P: Kada koristiš Dictionary, a kada List?**
 List za redosled i prolazak kroz sve elemente; pretraga po vrednosti je O(n). Dictionary za brzu pretragu po ključu, prosečno O(1). Ako u petlji tražiš elemente po ID-ju, napravi Dictionary jednom pre petlje.
+
+**P: Func, Action, Predicate?**
+Delegati: `Func` vraća vrednost, `Action` ne vraća ništa, `Predicate<T>` vraća bool (LINQ koristi `Func<T, bool>`).
+
+**P: Zašto generici, a ne object?**
+Provera tipova pri kompajliranju (u listu knjiga ne može član), bez kastovanja i bez boxing-a vrednosnih tipova, pa je kod i bezbedniji i brži.
 
 ## Test
 
@@ -535,10 +1033,108 @@ var skupi = db.Proizvodi.AsEnumerable().Where(p => p.Cena > 1000).ToList();
 - [ ] T mora implementirati IComparable
 - [ ] T ne sme biti string
 > Ograničenja (constraints) sužavaju tipove koje generik prima. `new()` traži konstruktor bez parametara, `struct` value tip, a `IComparable<T>` interfejs.
+
+## Izvori
+- [Microsoft Learn: kolekcije](https://learn.microsoft.com/en-us/dotnet/standard/collections/)
+- [Microsoft Learn: generici](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/types/generics)
+- [Microsoft Learn: ograničenja generika](https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/generics/constraints-on-type-parameters)
+- [Microsoft Learn: LINQ](https://learn.microsoft.com/en-us/dotnet/csharp/linq/)
+- [Microsoft Learn: odloženo izvršavanje](https://learn.microsoft.com/en-us/dotnet/standard/linq/deferred-execution-lazy-evaluation)
+- [Microsoft Learn: CA1851 višestruko nabrajanje](https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1851)
 =====
 ---
 id: 7
+subtitle: "try/catch, rezultat umesto izuzetka, GC, using, async/await, CancellationToken"
+minutes: 55
 ---
+# 7 Izuzeci, resursi, async
+
+Tri stvari koje razdvajaju kod koji radi na laptopu od koda koji izdrži produkciju: kako se prijavljuju greške, kako se oslobađaju resursi (konekcije, fajlovi) i kako server opslužuje mnogo korisnika istovremeno bez blokiranja niti.
+
+## Pojmovi
+
+### Izuzeci
+
+```csharp
+try
+{
+    hobit.Lend();
+}
+catch (InvalidOperationException ex)       // hvata samo ovu vrstu
+{
+    logger.LogWarning(ex, "Pozajmica nije uspela");
+}
+finally
+{
+    // izvrši se uvek, i kad je bilo izuzetka
+}
+```
+
+- Izuzetak „putuje” naviše kroz pozive dok ga neko ne uhvati; ako niko, pada zahtev (u ASP.NET Core-u globalni handler vrati 500) ili ceo program.
+- Hvata se samo ono što znaš da obradiš; `catch (Exception)` svuda sakriva bagove.
+- `throw;` ponovo baca isti izuzetak sa originalnim stack trace-om; `throw ex;` ga resetuje na mesto ponovnog bacanja.
+- Izuzeci su skupi i nevidljivi u potpisu metode. Zato se **očekivane greške** (pogrešan unos, knjiga ne postoji) često vraćaju kao **rezultat**, a izuzeci ostaju za ono što „ne sme da se desi” (bug, pala baza).
+
+```csharp
+// Rezultat umesto izuzetka za očekivanu grešku
+public record LendResult(Loan? Loan, string? ErrorCode)
+{
+    public bool Succeeded => Loan is not null;
+}
+```
+
+### Memorija: GC i IDisposable
+
+**Garbage Collector** sam oslobađa objekte na hipu do kojih ne vodi nijedna živa referenca. Deli ih po **generacijama** (0, 1, 2): većina objekata umre mlada, pa se generacija 0 čisti često i brzo; ko preživi ide u 1, pa u 2. Objekti od 85.000 bajtova i više idu na Large Object Heap, koji se čisti ređe.
+
+GC ne zna za **neupravljane resurse** (konekcije na bazu, fajlove, sokete). Njih oslobađa `Dispose()`, a `using` garantuje da se pozove i kad padne izuzetak (prevodi se u `try/finally`):
+
+```csharp
+using var fajl = File.OpenRead("knjige.csv");                          // Dispose na kraju opsega
+await using var tx = await db.Database.BeginTransactionAsync(ct);       // asinhrono oslobađanje
+```
+
+### Sinhrono i asinhrono
+
+Rad sa bazom i mrežom je uglavnom **čekanje** (I/O). Sinhroni kod drži nit zauzetom dok čeka. Asinhroni kod nit vraća u **thread pool** dok traje čekanje, pa ista nit opslužuje druge zahteve. Server sa malo niti tako opslužuje mnogo istovremenih korisnika. Async ne ubrzava jedan zahtev; povećava propusnost.
+
+```csharp
+public async Task<Book?> FindAsync(Guid id, CancellationToken ct)
+{
+    return await db.Books.SingleOrDefaultAsync(b => b.Id == id, ct);
+}
+
+var book = await FindAsync(id, ct);                                  // čeka bez blokiranja
+await Task.WhenAll(PosaljiEmail(a, ct), PosaljiEmail(b, ct));        // oba istovremeno: ~vreme najdužeg
+```
+
+- Kompajler od `async` metode pravi **state machine**: svaki `await` je tačka gde se metoda „pauzira” i kasnije nastavlja, možda na drugoj niti.
+- `Task` / `Task<T>` predstavlja posao koji će se završiti (kao obećanje).
+- **Nikad `.Result` ili `.Wait()` u web kodu:** blokira nit; u okruženjima sa `SynchronizationContext`-om (stari ASP.NET, desktop UI) pravi deadlock, a u ASP.NET Core-u pod opterećenjem iscrpljuje niti. „Async do kraja.”
+- `CancellationToken`: kooperativno otkazivanje. Kad korisnik zatvori stranicu, token se otkaže i upit u bazi se prekine. Prosleđuje se kroz svaki poziv.
+- `async void` samo za event handlere: izuzetak iz njega ruši proces, a pozivalac ne može da ga sačeka.
+
+## Dublje
+
+**Async nije paralelizam.** Za računanje (CPU) async ne pomaže, jer nema čekanja; tu se koristi paralelizam (`Parallel.ForEach`, više niti) ili red poslova van zahteva. `Task.Run` u kontroleru samo prebaci posao na drugu nit iz istog pool-a i ne ubrzava ništa (pogl. 45).
+
+**`Task.WhenAll` i izuzeci.** Ako više zadataka padne, `await Task.WhenAll(...)` baci prvi izuzetak, a svi su u `task.Exception.InnerExceptions`. `WhenAll` nad istim `DbContext`-om ne sme: DbContext ne podržava dve istovremene operacije (pogl. 45).
+
+**`ValueTask`** izbegava alokaciju kad je rezultat često odmah poznat (keš); sme da se `await`-uje samo jednom. **`IAsyncEnumerable<T>`** sa `await foreach` čita veliki broj redova deo po deo, bez učitavanja svega u memoriju.
+
+**Kad baciti izuzetak.** Na granici sistema (kontroler, poruka iz reda) jedan globalni handler pretvara neuhvaćene izuzetke u 500 bez detalja korisniku i sa detaljima u logu (pogl. 11). U domenu: izuzetak za narušeno pravilo koje pozivalac nije smeo da prekrši (programerska greška), rezultat za ono što korisnik legitimno može da pokuša.
+
+## Lab
+
+1. Napiši tri metode `Nivo1 → Nivo2 → Nivo3`, gde `Nivo3` baca `InvalidOperationException`; uhvati ga u `Nivo1` jednom sa `throw;`, a jednom sa `throw ex;`, i u oba slučaja ispiši `StackTrace`: u kom se vidi `Nivo3`?
+2. Napiši `LendResult` i metodu `Lend(Book? book)` koja za nepostojeću knjigu vraća grešku `book.not_found` umesto izuzetka.
+3. Napiši klasu koja implementira `IDisposable` i ispisuje „Dispose”; upotrebi je sa `using` i baci izuzetak unutar bloka: da li se Dispose ipak ispisao?
+4. Napiši `Cekaj(int ms) => Task.Delay(ms)`; izmeri tri poziva redom (`await` jedan za drugim) i sa `Task.WhenAll`.
+5. Napravi `CancellationTokenSource(100)` i prosledi token u `Task.Delay(5000, token)`; uhvati `OperationCanceledException`.
+6. U malom ASP.NET Core endpointu primi `CancellationToken ct` kao parametar, prosledi ga u `Task.Delay(10000, ct)`, uhvati `OperationCanceledException`, zapiši upozorenje u log i ponovo baci (`throw;`); pozovi ga sa `curl --max-time 1` i proveri da se upozorenje pojavilo posle jedne sekunde.
+
+**Gotovo je kad:** stack trace pokazuje razliku `throw;` i `throw ex;`, `WhenAll` traje koliko najduži poziv, a otkazivanje prekida čekanje bez rušenja programa.
+
 ## Pitanja sa intervjua
 
 **P: Da li async/await pravi novu nit?**
@@ -549,6 +1145,15 @@ Pozivalac ne može da sačeka takvu metodu niti da uhvati njen izuzetak; neuhva�
 
 **P: Zašto ne treba pozivati `.Result` ili `.Wait()` na Task-u?**
 Blokira nit dok se Task ne završi. U okruženjima sa SynchronizationContext-om (stari ASP.NET, UI) to može da izazove deadlock, a u ASP.NET Core-u troši niti iz pool-a i obara propusnost. Koristi await do kraja („async all the way”).
+
+**P: Kada izuzetak, a kada rezultat?**
+Rezultat za očekivane poslovne greške (validacija, ne postoji, nema primeraka), jer su deo normalnog toka i vide se u potpisu metode. Izuzetak za ono što ne bi smelo da se desi (bug, pala baza, narušen ugovor).
+
+**P: Čemu služi using?**
+Garantuje da se Dispose pozove na kraju opsega, i kad padne izuzetak (prevodi se u try/finally). Tako se konekcija ili fajl oslobađaju odmah, a ne „nekad” kad GC dođe.
+
+**P: Task ili Thread?**
+Thread je nit operativnog sistema. Task je posao koji će se završiti i koji može, ali ne mora, da drži nit; I/O operacija dok čeka ne drži nijednu.
 
 ## Test
 
@@ -586,6 +1191,15 @@ Blokira nit dok se Task ne završi. U okruženjima sa SynchronizationContext-om 
 - [ ] Da spreči izuzetke
 - [ ] Da zaključa resurs od drugih niti
 > ASP.NET Core daje token koji se otkaže kad klijent prekine vezu. Prosleđen do EF-a i HttpClient-a, prekida posao koji više nikome ne treba.
+
+## Izvori
+- [Microsoft Learn: dobre prakse za izuzetke](https://learn.microsoft.com/en-us/dotnet/standard/exceptions/best-practices-for-exceptions)
+- [Microsoft Learn: osnove GC-a](https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/fundamentals)
+- [Microsoft Learn: Large Object Heap](https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/large-object-heap)
+- [Microsoft Learn: using i IDisposable](https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/using-objects)
+- [Microsoft Learn: asinhrono programiranje](https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/)
+- [Microsoft Learn: otkazivanje (CancellationToken)](https://learn.microsoft.com/en-us/dotnet/standard/threading/cancellation-in-managed-threads)
+- [Microsoft Learn: ASP.NET Core dobre prakse (bez blokiranja)](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/best-practices)
 =====
 ---
 id: 8

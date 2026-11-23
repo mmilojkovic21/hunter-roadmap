@@ -139,7 +139,8 @@ provereno u najnovijim zvaničnim izvorima; greške nađene usput ispravljaju se
 - Postupak po delu: pročitaj poglavlje u PDF-u → proveri tvrdnje (izvor + URL) → kod iz lekcije i vežbe pokreni →
   napiši blok → proveri linkove → verzija → build, testovi, e2e → commit.
 - ✅ Deo I: 1, 2 (paket 1.2.0)
-- ⬜ Deo II: 3–7 · 8–12 · 13–17 · 18, 19
+- ✅ Deo II temelji: 3–7 (paket 1.2.1; u vodiču ispravljeno: .NET 11 i kraj .NET 8/9, STS dve godine, LOH 85.000 B)
+- ⬜ Deo II: 8–12 · 13–17 · 18, 19
 - ⬜ Deo III: 20–23 · 24–27 · 28, 29 · 30, 31
 - ⬜ Deo IV: 32–34 · 35–37 · 38, 39 · 40, 41
 - ⬜ Deo V i VI: 42, 43 · 44–47 · 48, 49
