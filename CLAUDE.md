@@ -117,6 +117,9 @@ Dogovorene odluke: Sistem 2.0 izgled prvi (stranice Prijava/Registracija i arena
    - ✅ Korak 1, zajednički delovi: font Rajdhani (`--display`), tokeni `--glass-rgb`/`--label`/`--bright` po temi, scena u Layout-u
      (`.scene`: mreža, vinjeta, scan linije), `components/Window.tsx` (`.win*`, `glass` = zamućenje samo za velike prozore),
      meni sa `▸`, postojeći paneli (`.sys`, `.card`, `.quest`, `.notice`) u staklu. Podešavanje `ScanLines` (migracija `AddScanLines`, `data-scan`).
+   - ✅ Korak 2, Status: prozori „STATUS” (`StatusWindow`) i „DNEVNI ZADATAK” (`QuestWindow`, upozorenje o kazni u njemu) u `StatusPage.tsx`.
+     Odbrojavanje: `lib/countUp.ts` (čista funkcija, testovi) + `useCountUp`; početna vrednost je ono što je korisnik poslednji put
+     video (`useSeenNumbers`, localStorage `hunter.seen.<paket>`), pa se posle završenog koraka XP odbroji od stare vrednosti.
    - **Ostali ekrani po kanvasu (red „Sistem 2.0 — ostali ekrani i novi prozori”):**
      - „10 · Mapa veština”: regioni kao gate-ovi (dugmad sa rangom u rombu i % očišćeno), poglavlja kao pločice sa stanjem
        ✓ očišćeno / ▸ u toku / ○ novo, Boss gate panel na dnu regiona, desno prozor „DETALJI” sa koracima i XP-om.

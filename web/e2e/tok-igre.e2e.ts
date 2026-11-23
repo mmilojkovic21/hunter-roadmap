@@ -37,9 +37,9 @@ test.describe.serial("tok igre", () => {
     await expect(page.getByRole("status").filter({ hasText: "dungeon očišćen" })).toBeVisible();
   });
 
-  test("poslednji zadatak dana: poruka sistema DNEVNI ZADATAK ZAVRŠEN", async ({ page }) => {
+  test("poslednji zadatak dana: poruka sistema DNEVNI ZADATAK ZAVRŠEN", async ({ page, request }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "[ ! ] DNEVNI ZADATAK STIGAO" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Dnevni zadatak" })).toBeVisible();
     await expect(page.getByText("3/4 ·")).toBeVisible();
 
     await page.goto("/chapters/0.2");
@@ -51,6 +51,11 @@ test.describe.serial("tok igre", () => {
 
     await page.goto("/");
     await expect(page.getByText("Zadatak završen! Osvojen 1 slobodan poen.")).toBeVisible();
+
+    // Prozor STATUS: XP i slobodni poeni se odbroje od viđene vrednosti i stanu tačno na vrednost sa API-ja.
+    const status = await (await request.get("/api/status")).json();
+    await expect(page.locator(".status-xp-val")).toHaveText(`${status.level.xpIntoLevel} / ${status.level.xpForNextLevel}`);
+    await expect(page.locator(".status-points strong")).toHaveText(String(status.freePoints));
   });
 
   test("očišćen region: sjaj na mapi, novi rang, boss gate i DUNGEON CLEARED", async ({ page, request }) => {

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { countUpAt } from "../lib/countUp";
 
 // Animacije sistema (faza 2, stavka 8). Izgled i keyframes su u styles.css („Animacije sistema”).
 // Okidač je uvek podatak sa API-ja (levelUp, firstClear, promenjen rang, novo očišćeno poglavlje),
@@ -114,4 +115,52 @@ export function useNewlyCleared(packId: string | undefined, doneIds: string[] | 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [packId, signature]);
   return fresh;
+}
+
+// ---------- brojke koje se odbrojavaju (Sistem 2.0) ----------
+
+/** Smanjeni pokreti: podešavanje u aplikaciji (data-motion) ILI sistemsko prefers-reduced-motion. */
+function motionReduced() {
+  return document.documentElement.dataset.motion === "reduce" || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/**
+ * Prikazana vrednost koja se odbrojava do `value`. Prvi put kreće od `from` (npr. ono što je korisnik
+ * poslednji put video), posle od trenutno prikazane. Uz smanjene pokrete odmah prikazuje `value`.
+ * `delayMs` sačeka da se prozor otvori pre brojanja.
+ */
+export function useCountUp(value: number, from: number = value, delayMs = 300): number {
+  const shownRef = useRef(from);
+  const [shown, setShown] = useState(from);
+  useEffect(() => {
+    const start = shownRef.current;
+    const show = (v: number) => { shownRef.current = v; setShown(v); };
+    if (start === value || motionReduced()) { show(value); return; }
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const v = countUpAt(start, value, now - t0 - delayMs);
+      show(v);
+      if (v !== value) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, delayMs]);
+  return shown;
+}
+
+/**
+ * Brojke koje je korisnik poslednji put video na statusu (localStorage, kao rang), da bi se posle
+ * završenog koraka XP i poeni odbrojali od stare vrednosti. Čita se jednom pri otvaranju stranice,
+ * a upisuje svaki put kad stignu nove vrednosti. Bez zapisa (prvi put) nema odbrojavanja.
+ */
+export function useSeenNumbers<T extends object>(key: string, current: T): T | null {
+  const [seen] = useState(() => read<T>(key));
+  const signature = JSON.stringify(current);
+  useEffect(() => {
+    write(key, current);
+    // current je opisan potpisom; novi objekat iste sadržine ne treba ponovo da se upisuje.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, signature]);
+  return seen;
 }
