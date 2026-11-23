@@ -143,7 +143,8 @@ provereno u najnovijim zvaničnim izvorima; greške nađene usput ispravljaju se
 - ✅ Deo I: 1, 2 (paket 1.2.0)
 - ✅ Deo II temelji: 3–7 (paket 1.2.1; u vodiču ispravljeno: .NET 11 i kraj .NET 8/9, STS dve godine, LOH 85.000 B)
 - ✅ Deo II srednji: 8–12 (paket 1.2.5; u vodiču ispravljen SQL iz EF-a: LIKE umesto strpos)
-- ⬜ Deo II: 13–17 · 18, 19
+- ✅ Deo II napredni: 13–17 (paket 1.2.6; u vodiču: Repeatable Read u Postgresu sprečava fantome, PKCE po RFC 9700)
+- ⬜ Deo II: 18, 19
 - ⬜ Deo III: 20–23 · 24–27 · 28, 29 · 30, 31
 - ⬜ Deo IV: 32–34 · 35–37 · 38, 39 · 40, 41
 - ⬜ Deo V i VI: 42, 43 · 44–47 · 48, 49

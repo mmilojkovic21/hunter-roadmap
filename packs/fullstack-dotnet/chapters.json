@@ -2585,17 +2585,27 @@
   {
     "id": "13",
     "title": "Arhitektura i SOLID",
-    "subtitle": "",
-    "minutes": 30,
-    "externalRef": "PDF vodič „Od nule do posla”, poglavlje 13",
-    "intro": "",
-    "lessonMarkdown": "",
-    "deeperMarkdown": "",
-    "exercise": null,
+    "subtitle": "slojevi, Clean Architecture, SOLID, bogat i anemičan model, obrasci",
+    "minutes": 55,
+    "externalRef": null,
+    "intro": "Kad aplikacija raste, pitanje više nije „kako da radi”, nego „kako da ostane laka za menjanje”. Arhitektura određuje gde ide koji kod i ko sme da zavisi od koga, tako da se poslovna pravila mogu menjati i testirati bez baze, frameworka i spoljnih servisa.",
+    "lessonMarkdown": "### Slojevi i Clean Architecture\n\nZavisnosti idu **samo ka unutra**: spoljni sloj sme da zna za unutrašnji, nikad obrnuto.\n\n| Sloj | Šta je u njemu | Primer (Biblioteka) |\n|---|---|---|\n| Domain | entiteti i pravila, bez zavisnosti | `Book.Lend()`: nema pozajmice bez slobodnog primerka |\n| Application | slučajevi korišćenja, interfejsi ka spolja | `LoanService.LendAsync`, `INotifier`, `ILibraryDb` |\n| Infrastructure | tehnika: baza, email, HTTP ka spolja | `LibraryDb` (EF Core), `EmailNotifier` |\n| Web | HTTP ulaz, konfiguracija, DI | `LoansController`, `Program.cs` |\n\n**Kako onda servis piše u bazu?** Application definiše interfejs (`INotifier`, `ILibraryDb`), Infrastructure ga implementira, a DI ih spaja pri pokretanju. To je **inverzija zavisnosti**. Kad je svaki sloj poseban projekat, pravilo proverava kompajler: Domain projekat nema referencu ni na EF Core ni na ASP.NET. Portovi i adapteri (heksagonalna arhitektura) je ista ideja: jezgro definiše „port”, a spoljni „adapteri” ga implementiraju.\n\n### SOLID\n\n| Princip | Ukratko | Primer |\n|---|---|---|\n| Single Responsibility | klasa ima jedan razlog za promenu | `LoanService` pozajmljuje, `ReminderService` šalje podsetnike |\n| Open/Closed | proširuje se dodavanjem, ne menjanjem | nov način obaveštavanja = nova implementacija `INotifier` |\n| Liskov Substitution | naslednik sme da zameni roditelja bez iznenađenja | `FakeNotifier` ne baca izuzetke koje pravi ne bi |\n| Interface Segregation | mali, usko namenjeni interfejsi | `INotifier` samo šalje, ne čita poštu |\n| Dependency Inversion | zavisi od apstrakcije | servis traži `INotifier`, ne `EmailNotifier` |\n\n### Anemičan i bogat model\n\n```csharp\n// Anemičan: samo podaci; pravilo je u servisu i lako se zaobiđe na drugom mestu\npublic class Book { public int AvailableCopies { get; set; } }\nbook.AvailableCopies -= 1;\n\n// Bogat: podaci + pravila; jedini način promene\npublic class Book\n{\n    public int AvailableCopies { get; private set; }\n    public void Lend()\n    {\n        if (AvailableCopies == 0) throw new InvalidOperationException(\"Nema slobodnih primeraka.\");\n        AvailableCopies--;\n    }\n}\n```\n\nBogat model ne može da se dovede u neispravno stanje: privatni setteri, provere u konstruktoru i **fabričke metode sa imenom** (`Loan.Start(...)`, `Loan.Return(...)`) umesto javnog konstruktora sa deset parametara. Objekte koji se ne menjaju (zapis u istoriji) najbolje je praviti nepromenljivim.\n\n### Obrasci koje treba prepoznati\n\n| Obrazac | Ideja | Napomena |\n|---|---|---|\n| Repository / Unit of Work | kolekcija entiteta / skup izmena koje se čuvaju zajedno | `DbSet` i `DbContext` to već jesu |\n| CQRS | odvojeni modeli za pisanje i čitanje | korisno kad se čitanje i pisanje jako razlikuju |\n| Mediator (MediatR) | kontroler šalje poruku, handler je obradi | dodaje indirekciju; od 2025. i pitanje licence (P2) |\n| Event sourcing | stanje se izvodi iz niza događaja | savršena istorija, ali složeno |\n| Factory, Strategy, Adapter | pravljenje objekata, zamenljivo ponašanje, prilagođavanje | česti i u malim projektima (P2) |",
+    "deeperMarkdown": "**Vertical slice umesto horizontalnih foldera.** Unutar projekta kod se može organizovati po vrsti (`Controllers/`, `Services/`, `Models/`) ili po funkciji (`Loans/`, `Members/`, `Reports/`), gde je sve za jednu funkciju na jednom mestu. Organizacija po funkciji smanjuje skakanje kroz foldere i drži izmenu u jednom delu koda; slojevi i pravilo zavisnosti i dalje važe.\n\n**Arhitektonski testovi.** Pravilo „Domain ne zavisi od Infrastructure” može da se proveri testom (biblioteke kao NetArchTest ili ArchUnitNET čitaju reference sklopova), pa prekršaj padne u CI-ju, a ne u code review-u. Kad su slojevi odvojeni projekti, deo toga radi već kompajler.\n\n**Value object.** Pojam bez identiteta koji se poredi po vrednosti (`Money(Iznos, Valuta)`, `Email`): pravi se samo ispravan (validacija u konstruktoru), nepromenljiv je i nosi ponašanje (`Money.Add` odbija sabiranje različitih valuta). U C#-u je prirodno `record`. Leči „primitive obsession” (P1).\n\n**Koliko arhitekture.** Clean arhitektura ima cenu: više projekata, interfejsa i mapiranja. Za mali CRUD od par tabela jedan projekat sa jasnim folderima je ispravan izbor; slojevi se uvode kad pravila postanu složena ili kad delovi moraju da se menjaju nezavisno. Na intervjuu se ceni obrazloženje, ne broj slojeva.",
+    "exercise": {
+      "steps": [
+        "Napravi solution sa projektima `Biblioteka.Domain`, `Biblioteka.Application`, `Biblioteka.Infrastructure` i `Biblioteka.Web` i dodaj reference samo ka unutra.",
+        "U Domain napiši bogat `Book` (`Lend`, `Return`) i `Loan.Start(...)`; napiši unit testove za pravila, bez ijednog paketa.",
+        "U Application napiši `ILibraryDb` i `INotifier` i `LoanService` koji ih koristi; u Infrastructure implementacije (EF Core i konzolni notifier); poveži ih u `Program.cs`.",
+        "Pokušaj da iz Domain-a referenciraš EF Core i zapiši zašto je to prekršaj; ukloni.",
+        "Napravi value object `Email` sa validacijom i upotrebi ga u `Member`.",
+        "Napiši kratak test (ručno preko `typeof(Book).Assembly.GetReferencedAssemblies()` ili bibliotekom) koji pada ako Domain referencira Infrastructure."
+      ],
+      "done": "Domain se builda bez ijednog NuGet paketa, pravila imaju unit testove, a zamena konzolnog notifier-a email notifier-om menja samo Infrastructure i jednu liniju u `Program.cs`."
+    },
     "cards": [
       {
         "q": "Objasni SOLID ukratko.",
-        "a": "S: klasa ima jedan razlog za promenu. O: proširuješ ponašanje novim kodom, ne menjanjem postojećeg. L: podtip mora da radi svuda gde i osnovni tip. I: mali, specifični interfejsi umesto jednog velikog. D: zavisi od apstrakcija, a konkretne implementacije se ubacuju spolja (DI)."
+        "a": "S: klasa ima jedan razlog za promenu. O: proširuješ ponašanje novim kodom, ne menjanjem postojećeg. L: podtip mora da radi svuda gde i osnovni tip. I: mali, specifični interfejsi umesto jednog velikog. D: zavisi od apstrakcija, a konkretne implementacije se ubacuju spolja."
       },
       {
         "q": "Šta je suština Clean (Onion) arhitekture?",
@@ -2604,6 +2614,14 @@
       {
         "q": "Da li treba repository iznad EF Core-a?",
         "a": "Zavisi. DbContext je već Unit of Work, a DbSet repository, pa generički repository često samo sakrije korisne mogućnosti EF-a. Specifičan repository ima smisla kad želiš da izoluješ složene upite ili domen od EF-a. Bitno je da umeš da obrazložiš izbor."
+      },
+      {
+        "q": "Anemičan ili bogat model?",
+        "a": "Bogat: entitet čuva svoje invarijante (privatni setteri, metode sa pravilima), pa pravilo ne može da se zaobiđe sa drugog mesta u kodu. Anemičan model drži pravila u servisima, gde se lako ponove ili zaborave."
+      },
+      {
+        "q": "Kada CQRS i MediatR?",
+        "a": "CQRS kad čitanje i pisanje imaju vrlo različite potrebe (složeni izveštaji naspram jednostavnih komandi) ili različito skaliraju. MediatR je samo alat za slanje poruka handlerima; u malom timu i projektu je višak indirekcije, a od 2025. i pitanje licence."
       }
     ],
     "test": [
@@ -2668,18 +2686,45 @@
         "why": "Servis zavisi od IEmailSender, a ne od SmtpEmailSender. DI kontejner je alat koji to sprovodi, ali načelo je o smeru zavisnosti."
       }
     ],
-    "sources": []
+    "sources": [
+      {
+        "title": "Microsoft Learn: arhitekture web aplikacija (Clean Architecture)",
+        "url": "https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures"
+      },
+      {
+        "title": "Microsoft Learn: principi arhitekture (SOLID, DI)",
+        "url": "https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/architectural-principles"
+      },
+      {
+        "title": "Martin Fowler: Anemic Domain Model",
+        "url": "https://martinfowler.com/bliki/AnemicDomainModel.html"
+      },
+      {
+        "title": "Martin Fowler: CQRS",
+        "url": "https://martinfowler.com/bliki/CQRS.html"
+      }
+    ]
   },
   {
     "id": "14",
     "title": "Transakcije i konkurentnost",
-    "subtitle": "",
-    "minutes": 30,
-    "externalRef": "PDF vodič „Od nule do posla”, poglavlje 14",
-    "intro": "",
-    "lessonMarkdown": "",
-    "deeperMarkdown": "",
-    "exercise": null,
+    "subtitle": "ACID, izgubljena izmena, FOR UPDATE, xmin, atomski UPDATE, deadlock, izolacija, indeksi",
+    "minutes": 60,
+    "externalRef": null,
+    "intro": "Server opslužuje mnogo korisnika istovremeno. Kad dva zahteva menjaju isti podatak u isto vreme, bez zaštite jedan „pregazi” drugog. Ovo je tema koja na intervjuu odvaja juniora od mediora, i jedina u kojoj greška ne pukne u testu sa jednim korisnikom.",
+    "lessonMarkdown": "### Transakcija i ACID\n\n| | Značenje | Primer |\n|---|---|---|\n| Atomicity | sve ili ništa | pozajmica i smanjenje primeraka zajedno |\n| Consistency | ograničenja uvek važe | jedinstven email, strani ključevi |\n| Isolation | istovremene transakcije se ne mešaju (koliko, zavisi od nivoa) | dvoje ne pozajme poslednji primerak |\n| Durability | potvrđeno ostaje i posle pada | zapis u WAL log baze pre potvrde |\n\n```csharp\nawait using var tx = await db.Database.BeginTransactionAsync(ct);\n// ... više čitanja i izmena ...\nawait db.SaveChangesAsync(ct);\nawait tx.CommitAsync(ct);          // bez Commit-a, Dispose radi Rollback\n```\n\n### Izgubljena izmena (lost update): izmereno\n\nDeset istovremenih zahteva pokušava da pozajmi **jedini** primerak knjige (Postgres, EF Core 10):\n\n| Pristup | Rezultat |\n|---|---|\n| pročitaj → proveri → upiši, bez zaštite | **10 pozajmica**, stanje 0: devet je izmišljeno |\n| `SELECT … FOR UPDATE` u transakciji | 1 pozajmica; ostali čekaju, pa vide 0 |\n| atomski `UPDATE … WHERE Available > 0` | 1 uspelo od 10 |\n| optimistički token (`xmin`) | 1 pozajmica, 9 × `DbUpdateConcurrencyException` |\n\n```csharp\n// pesimistički: zaključaj red do kraja transakcije\nvar book = await db.Books\n    .FromSql($\"SELECT *, xmin FROM \\\"Books\\\" WHERE \\\"Id\\\" = {id} FOR UPDATE\")   // xmin: SELECT * ga ne vraća\n    .SingleAsync(ct);\n\n// atomski: provera i izmena u jednoj naredbi\nvar ok = await db.Books.Where(b => b.Id == id && b.Available > 0)\n    .ExecuteUpdateAsync(s => s.SetProperty(b => b.Available, b => b.Available - 1), ct) == 1;\n\n// optimistički: Npgsql mapira uint svojstvo sa IsRowVersion() na sistemsku kolonu xmin\nmodelBuilder.Entity<Book>().Property(b => b.Version).IsRowVersion();\n```\n\n| | Pesimističko | Optimističko |\n|---|---|---|\n| Ideja | zaključaj pre čitanja, drugi čeka | ne zaključavaj; pri upisu proveri da se red nije promenio |\n| Pri sukobu | samo čekanje | `DbUpdateConcurrencyException`: ponovi ili javi korisniku |\n| Dobro za | česte sukobe na istom redu (zalihe) | retke sukobe (dva admina menjaju isto podešavanje) |\n\n### Deadlock\n\nTransakcija 1 drži red A i čeka B, transakcija 2 drži B i čeka A. Baza otkrije ciklus i jednu prekine greškom. Prevencija: **uvek zaključavaj istim redosledom** (npr. sortirano po ID-ju), drži transakcije kratkim i nikad ne zovi spoljni HTTP servis unutar transakcije.\n\n### Upsert bez trke\n\nDva zahteva istovremeno provere „ne postoji” i oba upišu, pa drugi padne na jedinstvenom indeksu. U Postgresu: `INSERT … ON CONFLICT (kolone) DO NOTHING` (ili `DO UPDATE`), pa čitanje. Deset istovremenih pokušaja upiše tačno jedan red, bez izuzetka.\n\n### Nivoi izolacije\n\n| Nivo | Sprečava | Napomena |\n|---|---|---|\n| Read Committed | prljavo čitanje | podrazumevan u PostgreSQL-u i SQL Serveru; svaki upit vidi poslednje potvrđeno |\n| Repeatable Read | + neponovljivo čitanje | u PostgreSQL-u snapshot cele transakcije, sprečava i fantome; u SQL Serveru radi zaključavanjem i fantomi su mogući |\n| Serializable | + sve anomalije: kao da idu jedna za drugom | najsigurniji; u Postgresu transakcija može da padne sa greškom serijalizacije, pa se ponavlja |\n\n### Indeksi\n\nIndeks (najčešće B-stablo) je sortirana struktura koja ubrzava pretragu sa O(n) na O(log n), ali usporava upis i zauzima prostor. Redosled kolona u složenom indeksu je bitan: indeks na `(A, B)` pomaže upitu po A i po A+B, ali ne samo po B. `EXPLAIN ANALYZE` pokazuje da li upit koristi indeks (pogl. 47). Jedinstven indeks je i pravilo (nema duplikata) i ubrzanje.",
+    "deeperMarkdown": "**Zašto xmin, a ne kolona verzije.** U Postgresu svaki red ima sistemsku kolonu `xmin` (ID transakcije koja je poslednja upisala red), koja se menja pri svakoj izmeni. Npgsql je koristi kao token konkurentnosti bez dodatne kolone i bez trigera. Zamka: `SELECT *` ne vraća sistemske kolone, pa sirov SQL za entitet sa tokenom mora da navede `xmin` eksplicitno (`SELECT *, xmin …`), inače EF prijavi da kolona ne postoji.\n\n**Ponavljanje posle konflikta.** `DbUpdateConcurrencyException` nosi entitete koji su pali (`ex.Entries`); tipično se ponovo učitaju trenutne vrednosti (`entry.ReloadAsync()`), primeni izmena i pokuša još jednom, ili se korisniku vrati 409 sa porukom „neko je u međuvremenu promenio podatak”. Za pozadinske poslove ponavljanje je automatsko; za formu korisnik odlučuje.\n\n**Advisory lock za posao, ne za red.** Kad treba da samo jedna instanca radi neki posao (sinhronizacija prodavnice), Postgres ima `pg_advisory_xact_lock(ključ)`: zaključavanje po broju, bez reda u tabeli, koje se oslobađa sa transakcijom. Za tačnost podataka i dalje važi zaključavanje reda ili atomski UPDATE.\n\n**Konkurentnost unutar procesa.** `lock` ne dozvoljava `await` unutar bloka (nastavak može na drugoj niti); za asinhrono međusobno isključivanje koristi se `SemaphoreSlim(1, 1)` sa `WaitAsync`. Oba važe samo za jedan proces: sa više instanci zaštita mora biti u bazi.",
+    "exercise": {
+      "steps": [
+        "Pokreni Postgres u Dockeru i napravi `Books(Id, Title, Available)` sa jednim primerkom; napiši metodu koja čita knjigu, proverava `Available > 0`, čeka 20 ms i smanjuje.",
+        "Pozovi je 10 puta istovremeno (`Task.WhenAll`, svaki poziv sa svojim `DbContext`-om) i zapiši broj pozajmica: to je izgubljena izmena.",
+        "Ponovi sa `SELECT *, xmin … FOR UPDATE` u transakciji, zatim sa atomskim `ExecuteUpdateAsync`, zatim sa `IsRowVersion()` i hvatanjem `DbUpdateConcurrencyException`; popuni tabelu kao u lekciji.",
+        "Napravi tabelu sa `UNIQUE(channel, external)` i 10 istovremenih `INSERT … ON CONFLICT DO NOTHING`; proveri da je upisan jedan red.",
+        "Izazovi deadlock sa dve transakcije koje zaključavaju dva reda obrnutim redosledom (dva `psql` prozora) i zapiši poruku baze; zatim zaključaj istim redosledom.",
+        "Napiši integracioni test (Testcontainers) koji šalje 10 istovremenih prijema i proverava da je stanje tačno 10."
+      ],
+      "done": "tvoja tabela pokazuje grešku bez zaštite i ispravno ponašanje za tri vrste zaštite, a test sa paralelnim zahtevima pada kad ukloniš zaključavanje."
+    },
     "cards": [
       {
         "q": "Šta znači ACID?",
@@ -2687,11 +2732,23 @@
       },
       {
         "q": "Kako sprečavaš „izgubljeno ažuriranje” kad dva korisnika istovremeno menjaju isti zapis?",
-        "a": "Optimistička konkurentnost: entitet ima token verzije (u SQL Serveru rowversion, u Postgres-u xmin ili kolona verzije). UPDATE uključuje staru verziju u WHERE; ako je neko u međuvremenu izmenio red, menja se 0 redova i EF baca DbUpdateConcurrencyException, pa korisniku javiš da osveži podatke."
+        "a": "Optimistička konkurentnost: entitet ima token verzije (u SQL Serveru rowversion, u Postgres-u xmin ili kolona verzije). UPDATE uključuje staru verziju u WHERE; ako je neko u međuvremenu izmenio red, menja se 0 redova i EF baca DbUpdateConcurrencyException, pa se ponovo učita ili javi korisniku. Za česte sukobe: pesimističko zaključavanje ili atomski UPDATE."
       },
       {
         "q": "Zašto `lock` ne radi sa await i šta koristiš umesto njega?",
-        "a": "lock je vezan za nit, a posle await nastavak može da radi na drugoj niti, pa kompajler ne dozvoljava await unutar lock-a. Za asinhrono zaključavanje koristi se SemaphoreSlim(1, 1) sa WaitAsync. I jedno i drugo važi samo za jedan proces; između instanci treba zaključavanje u bazi."
+        "a": "lock je vezan za nit, a posle await nastavak može da radi na drugoj niti, pa kompajler ne dozvoljava await unutar lock-a. Za asinhrono zaključavanje koristi se SemaphoreSlim(1, 1) sa WaitAsync. I jedno i drugo važi samo za jedan proces; između instanci treba zaključavanje u bazi (ili Redisu)."
+      },
+      {
+        "q": "Optimističko ili pesimističko zaključavanje?",
+        "a": "Optimističko kad su sukobi retki i ponavljanje je jeftino; pesimističko kad su sukobi česti na istom redu (zalihe popularnog artikla), jer bi optimističko stalno padalo i ponavljalo se."
+      },
+      {
+        "q": "Kako izbegavaš deadlock?",
+        "a": "Zaključavam redove uvek istim redosledom (npr. sortirano po ID-ju), držim transakcije kratkim i bez spoljnih poziva unutar njih; ako se ipak desi, baza prekine jednu transakciju, a kod je ponovi."
+      },
+      {
+        "q": "Kad indeks šteti?",
+        "a": "Kad se tabela mnogo piše a malo čita po toj koloni, ili kad je selektivnost mala (kolona sa dve vrednosti), pa baza ionako čita veliki deo tabele."
       }
     ],
     "test": [
@@ -2756,22 +2813,53 @@
         "why": "Baza otkrije ciklus i jednu transakciju prekine. Smanjuje se tako što sve transakcije zaključavaju redove istim redom i traju kratko."
       }
     ],
-    "sources": []
+    "sources": [
+      {
+        "title": "PostgreSQL: nivoi izolacije",
+        "url": "https://www.postgresql.org/docs/current/transaction-iso.html"
+      },
+      {
+        "title": "PostgreSQL: eksplicitno zaključavanje i advisory lock",
+        "url": "https://www.postgresql.org/docs/current/explicit-locking.html"
+      },
+      {
+        "title": "PostgreSQL: INSERT ON CONFLICT",
+        "url": "https://www.postgresql.org/docs/current/sql-insert.html"
+      },
+      {
+        "title": "Microsoft Learn: konflikti konkurentnosti u EF Core",
+        "url": "https://learn.microsoft.com/en-us/ef/core/saving/concurrency"
+      },
+      {
+        "title": "Npgsql: konkurentnost i xmin",
+        "url": "https://www.npgsql.org/efcore/modeling/concurrency.html"
+      }
+    ]
   },
   {
     "id": "15",
     "title": "Bezbednost",
-    "subtitle": "",
-    "minutes": 30,
-    "externalRef": "PDF vodič „Od nule do posla”, poglavlje 15",
-    "intro": "",
-    "lessonMarkdown": "",
-    "deeperMarkdown": "",
-    "exercise": null,
+    "subtitle": "autentifikacija i autorizacija, cookie i JWT, CSRF, XSS, heširanje, rate limit, OAuth i OIDC",
+    "minutes": 60,
+    "externalRef": null,
+    "intro": "**Autentifikacija**: „ko si?”. **Autorizacija**: „šta smeš?”. U ASP.NET Core-u prvo rešava Identity (nalozi, lozinke, cookie ili token), a drugo politike i `[Authorize]`. Pored toga, svaki API mora da se brani od lažnih zahteva sa drugih sajtova (CSRF), ubačenih skripti (XSS), pogađanja lozinki i curenja tajni.",
+    "lessonMarkdown": "### Prijava sa cookie-jem\n\n1. Browser pošalje `POST /api/auth/login` sa emailom i lozinkom.\n2. Server nađe korisnika i proveri **heš lozinke** (lozinka se nikad ne čuva).\n3. Odgovor postavi cookie (`HttpOnly`, `Secure`, `SameSite`) koji sadrži šifrovane **claims** (ID, uloga).\n4. Svaki sledeći zahtev nosi cookie; server ga dešifruje ključem i dobije `HttpContext.User`, bez upita u bazu.\n\n**Security stamp** je vrednost na korisniku koja se menja pri promeni lozinke ili uloge; cookie se periodično proverava (podrazumevano na 30 minuta), pa stara sesija prestane da važi.\n\n### Cookie ili token (JWT)\n\n| | Cookie | Bearer token |\n|---|---|---|\n| Ko šalje | browser automatski | klijent ručno, zaglavlje `Authorization` |\n| Čuvanje | HttpOnly cookie, JavaScript ga ne vidi | u aplikaciji (secure storage na telefonu) |\n| Glavni rizik | CSRF (šalje se sam) | krađa tokena (localStorage + XSS) |\n| Opoziv | security stamp, kratka provera | kratak rok + refresh token |\n| Za koga | web u browseru | mobilne aplikacije, server-server |\n\n**JWT je potpisan, ne šifrovan:** `header.payload.signature`, Base64. Payload `{\"sub\":\"42\",\"role\":\"Librarian\",\"exp\":…}` pročita svako ko ima token; potpis samo garantuje da nije izmenjen. Zato u njemu nema tajni.\n\n### Autorizacija\n\n```csharp\nbuilder.Services.AddAuthorizationBuilder()\n    .AddPolicy(\"Librarian\", p => p.RequireRole(\"Librarian\", \"Admin\"));\n\n[Authorize(Policy = \"Librarian\")]\n[HttpDelete(\"api/books/{id:guid}\")]\n```\n\nPored uloga postoji i **autorizacija nad podatkom**: član sme da vidi samo svoje pozajmice. To proverava server, za svaki zahtev (najčešće filterom u upitu); skrivanje dugmeta u UI-ju je samo udobnost.\n\n### CSRF i XSS\n\n- **CSRF** (Cross-Site Request Forgery): tuđi sajt natera browser žrtve da pošalje zahtev sa njenim cookie-jem. Odbrana: `SameSite` cookie (browser ne šalje cookie uz POST sa tuđeg sajta) i **antiforgery token** koji samo naš JavaScript može da pročita i vrati u zaglavlju. Bearer token nije ugrožen: browser ga ne dodaje sam.\n- **XSS** (Cross-Site Scripting): tuđi skript se izvrši na tvom sajtu, npr. naslov knjige `<script>…` prikazan bez escapovanja. React escapuje tekst; opasni su `dangerouslySetInnerHTML` i sirov HTML. CSP zaglavlje je drugi sloj (P3).\n\n### Heširanje, šifrovanje, potpis\n\n- **Heširanje** je jednosmerno: lozinke (spor algoritam sa solju: PBKDF2, bcrypt, Argon2) i jednokratni tokeni (čuva se samo heš). ASP.NET Identity koristi PBKDF2 sa 100.000 iteracija; isti unos daje različit heš jer je so nasumična.\n- **Šifrovanje** je dvosmerno, sa ključem: tajne koje moramo ponovo da pročitamo (API ključ drugog servisa). U ASP.NET-u: **Data Protection** API; ključevi se čuvaju i backupuju odvojeno od koda.\n- **Potpis** (HMAC, RSA) dokazuje ko je poslao i da sadržaj nije menjan (webhook, pogl. 16).\n\n### Ograničenje broja zahteva (rate limiting)\n\nPrijava, registracija i „zaboravljena lozinka” se zovu hiljadu puta pri napadu. Rate limiter broji zahteve po ključu (IP, korisnik, firma) i višak odbija sa `429 Too Many Requests`, uz `Retry-After`:\n\n```csharp\nbuilder.Services.AddRateLimiter(o =>\n{\n    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;\n    o.OnRejected = (ctx, _) =>                         // Retry-After se ne postavlja sam\n    {\n        if (ctx.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retry))\n            ctx.HttpContext.Response.Headers.RetryAfter = ((int)retry.TotalSeconds).ToString(CultureInfo.InvariantCulture);\n        return ValueTask.CompletedTask;\n    };\n    o.AddPolicy(\"login\", ctx => RateLimitPartition.GetFixedWindowLimiter(\n        ctx.Connection.RemoteIpAddress?.ToString() ?? \"none\",\n        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));\n});\napp.UseRateLimiter();\napp.MapPost(\"/login\", ...).RequireRateLimiting(\"login\");\n```\n\n| Algoritam | Kako broji |\n|---|---|\n| Fixed window | N zahteva po prozoru; na granici dva prozora može da prođe 2N |\n| Sliding window | prozor podeljen na delove koji klize; ravnomernije |\n| Token bucket | kantica se puni brzinom R; dozvoli kratak nalet, pa uspori |\n| Concurrency | najviše N zahteva u isto vreme |\n\nBrojač živi u memoriji procesa: na dva servera svaki broji za sebe (pogl. 44), a iza proxy-ja `RemoteIpAddress` je adresa proxy-ja dok se ne podese forwarded headers (pogl. 37). Za prijavu je rate limit samo jedan sloj: Identity ima i **lockout** (podrazumevano 5 pogrešnih lozinki zaključa nalog na 5 minuta, `lockoutOnFailure: true`), a treći sloj je dvofaktorska prijava.\n\n### OAuth 2.0 i OpenID Connect\n\n„Prijavi se preko Google-a” i „dozvoli aplikaciji X pristup nalogu na Y” rešavaju isti problem: aplikacija X ne sme da dobije lozinku za Y, nego dobija **token** sa ograničenim pravima (scope).\n\n1. Aplikacija preusmeri browser na `/authorize?…&state=…&code_challenge=…`.\n2. Korisnik se prijavi **kod Google-a** i odobri pristup.\n3. Google vrati browser na `/callback?code=jednokratni&state=…`.\n4. Aplikacija (server-server) zameni `code` + `code_verifier` za access token (i `id_token`).\n\n**OAuth 2.0** je autorizacija (access token za resurs); **OpenID Connect** je sloj iznad za autentifikaciju (`id_token`, JWT koji kaže ko je korisnik). `state` štiti povratak od CSRF-a. **PKCE** sprečava da neko ko presretne kod dobije token; prema RFC 9700 obavezan je za javne klijente (SPA, mobilne) i preporučen za serverske. Stari implicit flow (token direktno u adresi) se ne koristi.",
+    "deeperMarkdown": "**Antiforgery za SPA sa cookie-jem.** Server postavi čitljiv cookie (npr. `XSRF-TOKEN`), JavaScript ga pročita i pošalje u zaglavlju (`X-XSRF-TOKEN`) uz svaki zahtev koji menja podatke, a server uporedi. Napadački sajt ne može da pročita cookie tvog domena, pa ne može ni da pošalje zaglavlje. Ovako radi Zalihe (pogl. 18).\n\n**Ista poruka za „nema naloga” i „pogrešna lozinka”.** Različite poruke (i različito trajanje odgovora) otkrivaju koji emailovi postoje (user enumeration). Isto važi za „zaboravljenu lozinku”: odgovor je uvek „ako nalog postoji, poslali smo email”.\n\n**Kratak access token, dug refresh token.** Kod tokena se opoziv rešava kratkim rokom (npr. 15 minuta) i refresh tokenom koji se čuva na serveru i može da se opozove; refresh token se pri svakoj upotrebi menja novim (rotacija), pa ukradeni stari ne radi.\n\n**Najmanja prava i u bazi.** Aplikacija se u bazu prijavljuje nalogom koji sme samo ono što aplikaciji treba (bez prava na menjanje šeme u produkciji, ako migracije idu posebnim korakom). Ako napadač ipak dođe do SQL-a, šteta je manja.",
+    "exercise": {
+      "steps": [
+        "U Biblioteka API uključi ASP.NET Core Identity sa cookie-jem (`AddIdentityApiEndpoints`, `MapIdentityApi`) i proveri da `[Authorize]` endpoint vraća 401 bez prijave.",
+        "Dodaj politiku `Librarian` i endpoint za brisanje knjige; član dobija 403, bibliotekar 204.",
+        "Dodaj autorizaciju nad podatkom: `GET /api/my/loans` vraća samo pozajmice prijavljenog člana; napiši test da član A ne vidi pozajmice člana B.",
+        "Napravi `PasswordHasher` heš iste lozinke dvaput i uporedi; proveri tačnu i pogrešnu lozinku sa `VerifyHashedPassword`.",
+        "Dodaj rate limit na prijavu (3 pokušaja u minuti po IP-ju) sa `Retry-After` i proveri četvrti pokušaj `curl -i`-jem; uključi i lockout.",
+        "Dekodiraj payload jednog JWT-a (Base64Url) bez ključa i zapiši zašto u njemu ne sme biti tajni."
+      ],
+      "done": "prijavljen član ne može da vidi ni obriše ono što nije njegovo (testovi to dokazuju), a pogađanje lozinke dobija 429 i zaključan nalog."
+    },
     "cards": [
       {
         "q": "Kako se štitiš od SQL injection-a?",
-        "a": "Nikad ne lepiš korisnički unos u SQL string. Koristiš parametrizovane upite; EF Core i Dapper to rade sami, a i FromSqlInterpolated pretvara interpolaciju u parametre. Baza tada tretira unos kao podatak, ne kao kod."
+        "a": "Nikad ne lepiš korisnički unos u SQL string. Koristiš parametrizovane upite; EF Core i Dapper to rade sami, a i FromSql (interpolacija) pretvara vrednosti u parametre. Baza tada tretira unos kao podatak, ne kao kod."
       },
       {
         "q": "Kako se čuvaju lozinke?",
@@ -2780,6 +2868,22 @@
       {
         "q": "Šta je CORS i štiti li on API?",
         "a": "CORS je pravilo pregledača: JS sa jednog origina ne sme da čita odgovor sa drugog, osim ako server to dozvoli zaglavljima. Ne štiti API od curl-a, Postman-a ili drugog servera; to je zaštita korisnika u pregledaču. API se štiti autentifikacijom i autorizacijom."
+      },
+      {
+        "q": "Autentifikacija ili autorizacija?",
+        "a": "Autentifikacija utvrđuje ko si (prijava, cookie, token), autorizacija šta smeš (uloge, politike, vlasništvo nad podatkom). 401 je neuspela autentifikacija, 403 neuspela autorizacija."
+      },
+      {
+        "q": "Gde čuvati token u browseru?",
+        "a": "Najbolje u HttpOnly cookie-ju, koji JavaScript ne vidi; tada treba CSRF zaštita. localStorage je dostupan svakom skriptu na stranici, pa ga XSS ukrade."
+      },
+      {
+        "q": "Kako štitiš prijavu od pogađanja lozinke?",
+        "a": "Lockout naloga posle nekoliko promašaja, rate limit po IP-ju, ista poruka za „nema naloga” i „pogrešna lozinka”, i dvofaktorska prijava."
+      },
+      {
+        "q": "OAuth ili OpenID Connect, i zašto PKCE?",
+        "a": "OAuth daje pristup resursu (access token), OIDC dodaje ko je korisnik (id_token); za „prijavu preko Google-a” treba OIDC. PKCE vezuje zamenu koda za aplikaciju koja je počela prijavu, pa presretnut kod ne vredi; obavezan je za SPA i mobilne aplikacije."
       }
     ],
     "test": [
@@ -2844,18 +2948,57 @@
         "why": "CORS sprovodi pregledač. Postman ili drugi server ga ignorišu, pa API i dalje mora imati autentifikaciju."
       }
     ],
-    "sources": []
+    "sources": [
+      {
+        "title": "Microsoft Learn: bezbednost u ASP.NET Core",
+        "url": "https://learn.microsoft.com/en-us/aspnet/core/security/"
+      },
+      {
+        "title": "Microsoft Learn: podešavanje Identity-ja (lockout, PBKDF2)",
+        "url": "https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity-configuration"
+      },
+      {
+        "title": "Microsoft Learn: rate limiting",
+        "url": "https://learn.microsoft.com/en-us/aspnet/core/performance/rate-limit"
+      },
+      {
+        "title": "Microsoft Learn: antiforgery",
+        "url": "https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery"
+      },
+      {
+        "title": "Microsoft Learn: Data Protection",
+        "url": "https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/introduction"
+      },
+      {
+        "title": "RFC 9700: OAuth 2.0 Security Best Current Practice",
+        "url": "https://www.rfc-editor.org/rfc/rfc9700.html"
+      },
+      {
+        "title": "OWASP: Authentication Cheat Sheet",
+        "url": "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html"
+      }
+    ]
   },
   {
     "id": "16",
     "title": "Integracije i pozadinski poslovi",
-    "subtitle": "",
-    "minutes": 30,
-    "externalRef": "PDF vodič „Od nule do posla”, poglavlje 16",
-    "intro": "",
-    "lessonMarkdown": "",
-    "deeperMarkdown": "",
-    "exercise": null,
+    "subtitle": "pozivi ka spolja, otpornost, webhook i HMAC, idempotentnost, outbox, pozadinski poslovi",
+    "minutes": 55,
+    "externalRef": null,
+    "intro": "Aplikacija retko živi sama: zove druge servise (plaćanje, email, katalog) i prima njihove događaje. Mreža je spora i nepouzdana, pa se integracije **projektuju za kvar**: svaki poziv može da zakasni, padne ili stigne dvaput.",
+    "lessonMarkdown": "| | Mi zovemo njih (REST) | Oni javljaju nama (webhook) |\n|---|---|---|\n| Kako | HTTP zahtev ka njihovom API-ju | oni pošalju HTTP POST na našu adresu kad se nešto desi |\n| Kad | kad nama treba | odmah po događaju (push) |\n| Rizik | spori su ili ne rade | događaji stižu duplirani, kasno, van redosleda, ili ne stignu |\n\n### Otpornost izlaznih poziva\n\n- **Timeout:** nikad ne čekati beskonačno.\n- **Retry sa eksponencijalnim čekanjem** (i nasumičnim pomakom, jitter) za prolazne greške (mreža, 5xx, 429), nikad za 4xx.\n- **Circuit breaker:** posle niza grešaka prestani da zoveš servis neko vreme, da ga ne dotučeš i da ne čekaš uzalud.\n- **Bez spoljnog poziva u transakciji:** transakcija bi držala zaključavanja dok druga strana odgovara.\n\nU .NET-u to je jedna linija nad `IHttpClientFactory` (paket `Microsoft.Extensions.Http.Resilience`, zasnovan na Polly-ju):\n\n```csharp\nbuilder.Services.AddHttpClient<ShopClient>(c => c.BaseAddress = new Uri(\"https://prodavnica.example/\"))\n    .AddStandardResilienceHandler();     // timeout, retry sa backoff-om, circuit breaker, ukupni rok\n// endpoint koji dvaput vrati 503, pa 200: klijent vidi 200 posle 3 pokušaja\n```\n\n### Prijem webhooka\n\n1. **Proveri pošiljaoca:** potpis **HMAC** (heš tela sa zajedničkom tajnom), poređen u **konstantnom vremenu**. Obično poređenje staje na prvom različitom bajtu, pa napadač po vremenu odgovora može da pogađa potpis.\n2. **Sačuvaj i odmah odgovori 200**; obradu prepusti pozadinskom poslu. Pošiljalac čeka, i posle više neuspeha gasi webhook.\n3. **Obrada mora biti idempotentna:** isti događaj dvaput ne sme da promeni rezultat dvaput.\n4. **Periodično povlačenje** (pull) kao rezerva: hvata događaje koji nisu stigli.\n\n```csharp\nbool PotpisJeIspravan(byte[] telo, string potpisIzZaglavlja, byte[] tajna) =>\n    CryptographicOperations.FixedTimeEquals(\n        HMACSHA256.HashData(tajna, telo),\n        Convert.FromBase64String(potpisIzZaglavlja));\n// izmenjeno telo (\"processing\" → \"cancelled\") daje false\n```\n\n**Idempotentnost: ciljno stanje umesto prelaza.** Umesto „stigao događaj *otkazano* → vrati knjigu” (dvaput stigne, vrati dvaput), računa se „koliko ova porudžbina treba da drži **sada**” i primeni se samo razlika prema onome što već drži. Drugi isti događaj nađe razliku 0. Drugi način je pamćenje ID-ja obrađenih događaja uz jedinstveni indeks.\n\n### Outbox\n\nKako poslati poruku drugom sistemu tek kad se transakcija uspešno završi, a da se ne izgubi ako proces padne? Poruka se upiše u tabelu **u istoj transakciji** sa podacima, a poseban posao je pročita i pošalje, uz ponavljanje (region C4). Varijanta: podatak se samo **označi kao izmenjen**, a posao pošalje sve označene.\n\n### Pozadinski poslovi\n\n| Alat | Šta daje |\n|---|---|\n| `BackgroundService` | ugrađeno; petlja u pozadini, bez trajnog reda i ponovnih pokušaja |\n| Hangfire | trajni red u bazi, ponovni pokušaji, odloženi i cron poslovi, dashboard |\n| Quartz.NET | napredni rasporedi |\n| Red poruka (RabbitMQ, Azure Service Bus, Kafka) | obrada u drugim servisima, skaliranje, pub/sub (C4) |\n\n```csharp\nBackgroundJob.Enqueue<ReminderJob>(j => j.SendAsync(loanId, CancellationToken.None));                          // odmah\nBackgroundJob.Schedule<ReminderJob>(j => j.SendAsync(loanId, CancellationToken.None), TimeSpan.FromDays(13));  // kasnije\nRecurringJob.AddOrUpdate<OverdueJob>(\"overdue\", j => j.RunAsync(CancellationToken.None), \"0 6 * * *\");        // svaki dan u 6\n```\n\nHangfire ne poziva lambdu odmah: čita je kao **expression tree** (klasa, metoda, argumenti), sačuva u bazu i kasnije izvrši u svom DI scope-u. Zato su argumenti mali (ID-jevi), a podaci se čitaju iz baze kad posao krene. Posao mora biti idempotentan, jer se može izvršiti više puta.",
+    "deeperMarkdown": "**Šta standardni resilience handler radi, redom.** Spolja ka unutra: ograničenje broja istovremenih zahteva, ukupni rok za ceo poziv (sa svim ponavljanjima), retry (eksponencijalni backoff sa jitter-om, za 5xx, 408, 429 i mrežne greške), circuit breaker i rok za pojedinačni pokušaj. Podrazumevano: ukupni rok 30 s, 3 ponavljanja sa početnim čekanjem od 2 s, rok pokušaja 10 s; vrednosti se podešavaju u `AddStandardResilienceHandler(o => …)`; POST bez idempotency key-a ne treba automatski ponavljati.\n\n**`BackgroundService` i scope.** Pozadinski servis je singleton, pa `DbContext` dobija kroz `IServiceScopeFactory` (novi scope za svaki krug posla, pogl. 9) i poštuje `stoppingToken` pri gašenju. Izuzetak koji izađe iz `ExecuteAsync` podrazumevano zaustavlja ceo host (od .NET 6), pa se greške jednog kruga hvataju i loguju unutar petlje.\n\n**Webhook i bezbednost tela.** Potpis se računa nad **sirovim telom** zahteva, pre JSON deserijalizacije (drugi razmaci ili redosled polja daju drugi heš). Veličina tela se ograniči, a uz potpis često ide i vremenska oznaka u potpisanom sadržaju, da se star zahtev ne bi mogao ponovo poslati (replay).\n\n**Poruke unutar procesa.** Za red unutar jedne aplikacije (proizvođač i potrošač u istom procesu) postoji `System.Threading.Channels`: bezbedan za više niti, sa ograničenim kapacitetom i asinhronim čekanjem. Ne preživi restart, pa nije zamena za trajni red.",
+    "exercise": {
+      "steps": [
+        "Napravi lažni spoljni servis (endpoint koji prva dva poziva vrati 503, pa 200) i typed `HttpClient` ka njemu sa `AddStandardResilienceHandler()`; zapiši posle koliko pokušaja stiže 200.",
+        "Promeni lažni servis da uvek vraća 400 i proveri da se 400 ne ponavlja.",
+        "Napravi webhook endpoint koji čita sirovo telo, proverava HMAC-SHA256 potpis iz zaglavlja sa `FixedTimeEquals`, upisuje događaj u tabelu i vraća 200; neispravan potpis vraća 401.",
+        "Pošalji isti događaj dvaput i obezbedi da obrada promeni stanje samo jednom (jedinstven ID događaja ili ciljno stanje).",
+        "Napravi `BackgroundService` koji svakih 10 sekundi obrađuje neobrađene događaje (svoj scope i `DbContext` po krugu) i poštuje `stoppingToken`.",
+        "Bonus: zameni petlju Hangfire-om (`Enqueue` iz webhooka, `RecurringJob` za povlačenje) i otvori dashboard."
+      ],
+      "done": "prolazna greška se sama prebrodi, trajna se ne ponavlja, lažan potpis je odbijen, a duplirani događaj ne menja stanje dvaput."
+    },
     "cards": [
       {
         "q": "Zašto se HttpClient pravi preko IHttpClientFactory?",
@@ -2868,6 +3011,14 @@
       {
         "q": "Kako bezbedno ponavljaš poziv ka spoljnom servisu?",
         "a": "Retry sa eksponencijalnim čekanjem i jitter-om, samo za prolazne greške (timeout, 503), uz ukupni timeout i circuit breaker. Operacija mora biti idempotentna ili imati idempotency key, inače ponovljen POST napravi duplikat."
+      },
+      {
+        "q": "Kako obezbeđuješ webhook endpoint?",
+        "a": "HMAC potpis nad sirovim telom sa zajedničkom tajnom, poređenje u konstantnom vremenu, ograničena veličina tela, brz odgovor 200 i obrada u pozadini, idempotentno."
+      },
+      {
+        "q": "Zašto Hangfire, a ne BackgroundService?",
+        "a": "Trajan red koji preživi restart, ponovni pokušaji, odloženi i cron poslovi i pregled stanja. BackgroundService je dovoljan za jednostavne petlje kojima gubitak posla pri restartu ne smeta."
       }
     ],
     "test": [
@@ -2932,22 +3083,53 @@
         "why": "400 se neće popraviti ponavljanjem. Za 503 i timeout eksponencijalni backoff daje servisu vremena da se oporavi, a jitter sprečava da svi klijenti udare istovremeno."
       }
     ],
-    "sources": []
+    "sources": [
+      {
+        "title": "Microsoft Learn: otpornost HTTP aplikacija",
+        "url": "https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience"
+      },
+      {
+        "title": "Microsoft Learn: pozadinski servisi (BackgroundService)",
+        "url": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services"
+      },
+      {
+        "title": "Microsoft Learn: CryptographicOperations.FixedTimeEquals",
+        "url": "https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.cryptographicoperations.fixedtimeequals"
+      },
+      {
+        "title": "Microsoft Learn: System.Threading.Channels",
+        "url": "https://learn.microsoft.com/en-us/dotnet/core/extensions/channels"
+      },
+      {
+        "title": "Hangfire dokumentacija",
+        "url": "https://docs.hangfire.io/"
+      }
+    ]
   },
   {
     "id": "17",
     "title": "Testiranje",
-    "subtitle": "",
-    "minutes": 30,
-    "externalRef": "PDF vodič „Od nule do posla”, poglavlje 17",
-    "intro": "",
-    "lessonMarkdown": "",
-    "deeperMarkdown": "",
-    "exercise": null,
+    "subtitle": "piramida, unit test, lažne zavisnosti, TimeProvider, WebApplicationFactory, Testcontainers",
+    "minutes": 55,
+    "externalRef": null,
+    "intro": "Test je kod koji proverava kod. Cilj nije procenat pokrivenosti, nego da izmena koja nešto pokvari **odmah padne na testu**, pre korisnika. Dobar test je brz, ponovljiv i pada samo kad je ponašanje stvarno pokvareno.",
+    "lessonMarkdown": "### Piramida testova\n\n| Nivo | Šta proverava | Koliko |\n|---|---|---|\n| Unit | jedna klasa izolovano: domen, pravila, računanje; milisekunde | mnogo |\n| Integracioni | delovi zajedno: HTTP, middleware, baza; sekunde | manje |\n| E2E | ceo sistem kroz browser (Playwright, P6) | malo, za ključne tokove |\n\n### Unit test (xUnit + Shouldly)\n\n```csharp\npublic class BookTests\n{\n    [Fact]\n    public void Lend_LastCopy_LeavesZero()                 // Metoda_Situacija_OcekivaniRezultat\n    {\n        var book = new Book(\"Hobit\", copies: 1);            // Arrange\n        book.Lend();                                        // Act\n        book.AvailableCopies.ShouldBe(0);                   // Assert\n    }\n\n    [Theory]\n    [InlineData(\"\")]\n    [InlineData(\"   \")]\n    public void Constructor_EmptyTitle_Throws(string title) =>\n        Should.Throw<ArgumentException>(() => new Book(title, 1));\n}\n```\n\n### Lažne zavisnosti\n\n| Vrsta | Šta radi | Primer |\n|---|---|---|\n| Stub | vraća unapred zadat odgovor | „katalog servis vrati 404” |\n| Mock | proverava da je pozvan, i kako | `notifier.Received(1).SendAsync(...)` (NSubstitute) |\n| Fake | pojednostavljena prava implementacija | `FakeNotifier` čuva poruke u listi, `FakeTimeProvider` |\n\n```csharp\n[Fact]\npublic async Task SendDue_OneOverdue_SendsOneEmail()\n{\n    var sat = new FakeTimeProvider(new DateTimeOffset(2026, 11, 23, 9, 0, 0, TimeSpan.Zero));\n    var notifier = Substitute.For<INotifier>();\n    var service = new ReminderService(notifier, sat);\n\n    var poslato = await service.SendDueAsync([(\"ana@x.rs\", sat.GetUtcNow().AddDays(-1)), (\"bojan@x.rs\", sat.GetUtcNow().AddDays(3))]);\n\n    poslato.ShouldBe(1);\n    await notifier.Received(1).SendAsync(\"ana@x.rs\", Arg.Any<string>());\n    await notifier.DidNotReceive().SendAsync(\"bojan@x.rs\", Arg.Any<string>());\n}\n// sat.Advance(TimeSpan.FromDays(5)) \"pomera vreme\" bez čekanja\n```\n\n### Integracioni test\n\n- `WebApplicationFactory<Program>` pokreće **pravu aplikaciju** sa test serverom u memoriji; test šalje prave HTTP zahteve kroz ceo pipeline (u `Program.cs` treba `public partial class Program { }` da bi test video klasu).\n- `ConfigureTestServices` zameni spoljne zavisnosti (email, HTTP ka drugim servisima, sat) lažnim.\n- **Testcontainers** podigne pravu bazu (npr. PostgreSQL) u Dockeru za vreme testova. EF InMemory provajder nije relaciona baza: nema transakcija, zaključavanja ni ograničenja, pa bi testovi prolazili, a produkcija pucala.\n- **Fixture** (`IClassFixture`, `ICollectionFixture`): skupa priprema (kontejner baze) jednom za više testova; svaki test pravi svoje podatke.\n\n```csharp\npublic class ApiTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>\n{\n    [Fact]\n    public async Task Rok_WithFakeClock_Is14DaysLater()\n    {\n        var sat = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));\n        var client = factory.WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddSingleton<TimeProvider>(sat)))\n                            .CreateClient();\n        var odgovor = await client.GetFromJsonAsync<RokDto>(\"/rok\");\n        odgovor!.Istice.ShouldBe(new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero));\n    }\n}\n```\n\n### Dobre navike\n\n- Arrange / Act / Assert i ime koje kaže šta se proverava.\n- **Svaki ispravljen bug dobija test** koji ga reprodukuje: prvo test koji pada, pa ispravka.\n- TDD: test pre koda, crveno → zeleno → refaktorisanje.\n- Test ponašanja, ne implementacije: refaktorisanje ne treba da lomi testove.\n- Testovi su deterministični: bez pravog sata, slučajnosti i mreže.",
+    "deeperMarkdown": "**Biblioteke i licence (stanje 2026).** Šablon `dotnet new xunit` u .NET 10 SDK-u i dalje pravi xUnit v2; nova generacija je **xUnit v3** (paketi `xunit.v3`, šabloni `xunit.v3.templates`), u kojoj je test projekat izvršni program. FluentAssertions je od verzije 8 besplatan samo za open source i nekomercijalnu upotrebu (komercijalna upotreba traži licencu), pa mnogi timovi koriste **Shouldly** ili ostaju na v7. To je isto pitanje kao kod MediatR-a: licenca je deo izbora alata.\n\n**Testcontainers u praksi.** Kontejner se podigne jednom po kolekciji testova (`ICollectionFixture`), a izolacija se postiže podacima (svaki test pravi svoje entitete sa jedinstvenim ključevima) ili brisanjem stanja između testova (biblioteka Respawn). Pokretanje kontejnera po testu je sporo; deljena baza bez izolacije pravi testove koji zavise od redosleda.\n\n**Test konkurentnosti.** Greške iz pogl. 14 ne vide se sa jednim zahtevom. Test šalje deset istovremenih zahteva (`Task.WhenAll`) ka pravoj bazi i proverava da je rezultat tačan; bez zaključavanja pada. To je jedan od najvrednijih integracionih testova.\n\n**Pokrivenost.** `coverlet` (u šablonu) meri koje linije su izvršene u testovima. Korisna je da se nađu nepokriveni delovi, ali 100% pokrivenosti ne znači da su provere dobre: test bez `Assert`-a pokrije liniju i ne proveri ništa. Mutation testing (npr. Stryker.NET) menja kod i proverava da li testovi to primete.",
+    "exercise": {
+      "steps": [
+        "Napravi test projekat (`dotnet new xunit`), dodaj Shouldly i NSubstitute i napiši testove za `Book.Lend` (`[Fact]`) i prazan naslov (`[Theory]` sa dva ulaza).",
+        "Napiši `ReminderService` koji šalje podsetnike za istekle pozajmice; testiraj ga sa `FakeTimeProvider` (paket `Microsoft.Extensions.TimeProvider.Testing`) i NSubstitute mock-om, uključujući `sat.Advance(...)`.",
+        "Dodaj `Microsoft.AspNetCore.Mvc.Testing` i napiši integracioni test kroz `WebApplicationFactory<Program>` koji podmeće sat preko `ConfigureTestServices`.",
+        "Dodaj Testcontainers.PostgreSql sa `ICollectionFixture` i napiši test koji proverava jedinstven indeks (dupli email vraća grešku), što InMemory provajder ne bi uhvatio.",
+        "Napiši test sa 10 istovremenih zahteva za poslednji primerak; ukloni zaključavanje i proveri da test pada.",
+        "Pokreni `dotnet test --collect:\"XPlat Code Coverage\"` i pronađi jednu nepokrivenu granu koju vredi testirati."
+      ],
+      "done": "imaš unit, integracione i jedan test konkurentnosti koji prolaze, test sata ne zavisi od dana pokretanja, a uklanjanje zaključavanja obara test."
+    },
     "cards": [
       {
         "q": "Koja je razlika između unit i integracionog testa?",
-        "a": "Unit test proverava jednu jedinicu (metodu, klasu) izolovano, bez baze i mreže, i radi u milisekundama. Integracioni test proverava više delova zajedno, npr. ceo API sa pravom bazom (WebApplicationFactory + Testcontainers). Unit testova ima više, integracionih manje ali hvataju greške u spoju delova."
+        "a": "Unit test proverava jednu jedinicu (metodu, klasu) izolovano, bez baze i mreže, i radi u milisekundama. Integracioni test proverava više delova zajedno, npr. ceo API sa pravom bazom (WebApplicationFactory + Testcontainers). Unit testova ima više, integracionih manje."
       },
       {
         "q": "Zašto EF Core InMemory provider nije dobar za testiranje upita?",
@@ -2956,6 +3138,14 @@
       {
         "q": "Kako testiraš kod koji zavisi od trenutnog vremena?",
         "a": "Ne zove se DateTime.Now direktno, nego se ubacuje TimeProvider (u .NET 8+) ili sopstveni IClock. U testu se ubaci FakeTimeProvider postavljen na tačan trenutak, pa je test ponovljiv i ne zavisi od dana kad se pokreće."
+      },
+      {
+        "q": "Mock ili fake?",
+        "a": "Mock kad je bitna interakcija (poslat tačno jedan email); fake kad treba realno ponašanje (lista poslatih poruka, lažni sat). Previše mock-ova veže test za implementaciju, pa refaktorisanje lomi testove."
+      },
+      {
+        "q": "Kako testiraš konkurentnost?",
+        "a": "Više istovremenih zahteva (`Task.WhenAll`) protiv prave baze i provera da je rezultat tačan (npr. tačno jedna pozajmica poslednjeg primerka)."
       }
     ],
     "test": [
@@ -3020,7 +3210,32 @@
         "why": "Niži slojevi su brzi i precizni u otkrivanju uzroka, viši su sporiji i krhkiji, ali proveravaju ceo tok."
       }
     ],
-    "sources": []
+    "sources": [
+      {
+        "title": "Microsoft Learn: unit testovi sa xUnit",
+        "url": "https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-csharp-with-xunit"
+      },
+      {
+        "title": "Microsoft Learn: integracioni testovi u ASP.NET Core",
+        "url": "https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests"
+      },
+      {
+        "title": "Microsoft Learn: FakeTimeProvider",
+        "url": "https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.time.testing.faketimeprovider"
+      },
+      {
+        "title": "xUnit v3: početak",
+        "url": "https://xunit.net/docs/getting-started/v3/getting-started"
+      },
+      {
+        "title": "Testcontainers za .NET",
+        "url": "https://dotnet.testcontainers.org/"
+      },
+      {
+        "title": "FluentAssertions: licenca od verzije 8",
+        "url": "https://fluentassertions.com/"
+      }
+    ]
   },
   {
     "id": "18",
