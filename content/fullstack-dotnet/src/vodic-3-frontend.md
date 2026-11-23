@@ -691,7 +691,116 @@ const dodaj = () => { stavke.push("nova"); setStavke(stavke); };
 =====
 ---
 id: 24
+subtitle: "pravila hookova, useEffect i cleanup, useRef, memoizacija i React Compiler, context, custom hookovi"
+minutes: 50
 ---
+# 24 Hookovi
+
+Hookovi su funkcije koje počinju sa `use` i daju komponenti mogućnosti: stanje, efekte, reference, kontekst. Pravilo: pozivaju se **samo na vrhu komponente** (ili sopstvenog hooka), nikad u `if`-u, petlji ili posle ranog `return`-a, jer ih React prepoznaje **po redosledu poziva**.
+
+## Pojmovi
+
+### Pregled
+
+| Hook | Za šta |
+|---|---|
+| `useState` | lokalno stanje |
+| `useReducer` | složenije stanje sa akcijama (`dispatch({ type: 'add' })`) |
+| `useEffect` | sinhronizacija sa spoljnim sistemom posle rendera (tajmer, pretplata, DOM API, veza) |
+| `useRef` | vrednost koja preživi render a ne izaziva ga; pristup DOM elementu |
+| `useMemo` / `useCallback` | pamti izračunatu vrednost / funkciju dok se zavisnosti ne promene |
+| `useContext` | čita vrednost koju je dao neki predak (tema, jezik, korisnik) |
+| `useEffectEvent` | (19.2) funkcija koju efekat poziva, a koja vidi najnovije props-e bez ponovnog pokretanja efekta |
+| `use` | (19) čita Promise (uz Suspense) ili kontekst; sme i u uslovu |
+
+### useEffect
+
+```tsx
+useEffect(() => {
+  const id = setInterval(() => setNow(new Date()), 1000)
+  return () => clearInterval(id)        // cleanup: pre sledećeg pokretanja i pri uklanjanju
+}, [])                                  // [] = samo pri montiranju
+
+useEffect(() => {
+  document.title = `Knjige (${count})`
+}, [count])                             // ponovo kad se count promeni
+```
+
+- Bez niza zavisnosti efekat ide posle **svakog** rendera; sa `[]` jednom; sa `[a, b]` kad se `a` ili `b` promene (poređenje `Object.is`).
+- Izostavljena zavisnost = efekat vidi zastarelu vrednost (**stale closure**). Linter (`eslint-plugin-react-hooks`) to hvata; ne ućutkuj ga.
+- U razvoju `StrictMode` namerno pokrene efekat, cleanup, pa efekat ponovo: ako to nešto pokvari, fali cleanup.
+- **Često efekat nije potreban**: izvedena vrednost se računa u renderu, reakcija na klik ide u handler, reset stanja na promenu props-a ide preko `key`.
+- Podaci sa servera se u praksi ne dohvataju ručnim `useEffect` + `fetch` (trke, keš, ponovni pokušaji): koristi se biblioteka (pogl. 25).
+
+### useRef i memoizacija
+
+```tsx
+const inputRef = useRef<HTMLInputElement>(null)
+<input ref={inputRef} />
+inputRef.current?.focus()                                   // pristup DOM-u, bez rendera
+
+const sorted = useMemo(() => [...books].sort(byTitle), [books])   // ne sortiraj pri svakom renderu
+const handleLend = useCallback((id: number) => lend(id), [lend])  // ista funkcija između rendera
+const Row = memo(function Row({ book }: { book: Book }) { /* ... */ })
+```
+
+`useMemo`/`useCallback` i `memo` su **optimizacija**: koriste se kad je merljivo potrebno (React DevTools Profiler), ne svuda. **React Compiler** (stabilan od oktobra 2025.) ih dodaje automatski pri buildu, pa u novim projektima ručna memoizacija treba retko. U React-u 19 `ref` je običan prop: `function Input({ ref, ...p }) { return <input ref={ref} {...p} /> }`, bez `forwardRef`.
+
+### Context
+
+```tsx
+const ThemeContext = createContext<'light' | 'dark'>('light')
+<ThemeContext value="dark"><App /></ThemeContext>          // React 19: sam context je Provider
+const theme = useContext(ThemeContext)                       // bilo gde ispod
+```
+
+Context rešava „prop drilling”. Svaka promena vrednosti renderuje **sve** koji ga čitaju, pa nije za podatke koji se često menjaju niti za podatke sa servera. Za deljeno UI stanje sa renderom samo kad se promeni pročitano polje postoje mali store-ovi kao Zustand (Zalihe, pogl. 30).
+
+### Custom hook
+
+```tsx
+function useDebounced<T>(value: T, ms = 300): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), ms)
+    return () => clearTimeout(id)
+  }, [value, ms])
+  return debounced
+}
+const search = useDebounced(query)   // pretraga tek kad korisnik prestane da kuca
+```
+
+Custom hook deli **logiku**, ne stanje: svaka komponenta koja ga pozove dobija svoje stanje.
+
+## Dublje
+
+**useEffectEvent: rešenje za „efekat zavisi od svega”.** Efekat za vezu sa sobom za ćaskanje treba da se ponovo poveže kad se promeni `roomId`, ali ne i kad se promeni `theme`, koju koristi samo u obaveštenju. Ako `theme` stoji u zavisnostima, veza se prekida pri svakoj promeni teme; ako ne stoji, obaveštenje vidi staru temu. `useEffectEvent` izdvaja taj deo: funkcija uvek vidi najnovije vrednosti, a efekat zavisi samo od `roomId`. Nije za ućutkivanje lintera nego za „događaje” koji se pale iz efekta.
+
+```tsx
+const onConnected = useEffectEvent(() => showNotification('Povezano', theme))
+useEffect(() => {
+  const c = createConnection(roomId)
+  c.on('connected', () => onConnected())
+  c.connect()
+  return () => c.disconnect()
+}, [roomId])
+```
+
+**useReducer kad stanje ima pravila.** Kad se više polja menja zajedno (lista, filter, izabrana stavka) ili sledeće stanje zavisi od prethodnog po pravilu, reducer `(stanje, akcija) => novoStanje` je čista funkcija koja se testira bez React-a, isto kao pravila igre u `Hunter.Core`.
+
+**Zašto redosled hookova.** React čuva stanje komponente kao listu „ćelija”; prvi `useState` dobija prvu ćeliju, drugi drugu. Hook u `if`-u pomeri sve kasnije ćelije čim se uslov promeni, pa komponenta dobije tuđe stanje. Zato se uslov stavlja **unutar** hooka (`useEffect(() => { if (!user) return; … })`). Izuzetak je `use`, koji sme u uslovu.
+
+## Lab
+
+1. Napiši komponentu `Sat` sa `setInterval` u `useEffect`-u; ukloni cleanup i u `StrictMode` vidi kako se sat ubrzava, pa vrati cleanup.
+2. Napiši `useDebounced` i upotrebi ga za pretragu; u Network tabu proveri da zahtev ide tek kad prestaneš da kucaš.
+3. Namerno izostavi zavisnost iz efekta, vidi upozorenje lintera i grešku zastarele vrednosti, pa ispravi (zavisnost ili funkcijski update).
+4. Prebaci temu u context (React 19 oblik `<ThemeContext value=…>`) i čitaj je u dubokoj komponenti bez props-a.
+5. Fokusiraj polje pretrage pri otvaranju stranice preko `useRef`.
+6. Napravi listu od 2.000 redova, izmeri render u React DevTools Profiler-u, pa uporedi sa `memo` (ili sa uključenim React Compiler-om).
+
+**Gotovo je kad:** svaki efekat ima tačne zavisnosti i cleanup gde treba, umeš da kažeš kada efekat nije potreban, a memoizaciju dodaješ tek posle merenja.
+
 ## Pitanja sa intervjua
 
 **P: Koja su pravila hookova?**
@@ -702,6 +811,9 @@ Vraća se iz efekta i React je poziva pre sledećeg pokretanja efekta i pri ukla
 
 **P: Šta je „stale closure” u hookovima?**
 Efekat ili callback uhvati vrednost stanja iz iscrtavanja u kome je napravljen. Ako se ne doda u niz zavisnosti, i dalje vidi staru vrednost. Rešenje: tačne zavisnosti, funkcijski oblik setState (`setBroj(b => b + 1)`) ili useRef za vrednost koja ne treba da izaziva iscrtavanje. Od React 19.2 postoji i `useEffectEvent`: funkcija koju efekat poziva uvek vidi najnovije props-e i stanje, a ne mora u niz zavisnosti (samo za „događaje” iz efekta, ne da bi se ućutkao linter).
+
+**P: Kada ti ne treba useEffect?**
+Kad se vrednost može izračunati u renderu (filtrirana lista, zbir), kad reaguješ na akciju korisnika (to ide u handler) i kad treba resetovati stanje na promenu props-a (key). Efekat je za sinhronizaciju sa spoljnim sistemom: pretplata, tajmer, DOM API, veza.
 
 ## Test
 
@@ -748,10 +860,116 @@ if (korisnik) {
 - [ ] Za čuvanje stanja forme
 - [ ] Za pozive API-ja
 > useMemo ima svoju cenu. Koristi se kad je izračunavanje skupo ili kad stabilna referenca sprečava suvišna iscrtavanja dece (uz memo). Uz React Compiler (stabilan od oktobra 2025.) memoizacija se dodaje automatski pri buildu, pa ručni useMemo ostaje za retke slučajeve.
+
+## Izvori
+- [Rules of Hooks (react.dev)](https://react.dev/reference/rules/rules-of-hooks)
+- [useEffect (react.dev)](https://react.dev/reference/react/useEffect)
+- [You Might Not Need an Effect (react.dev)](https://react.dev/learn/you-might-not-need-an-effect)
+- [useEffectEvent (react.dev)](https://react.dev/reference/react/useEffectEvent)
+- [createContext: context kao Provider u React 19 (react.dev)](https://react.dev/reference/react/createContext)
+- [React Compiler (react.dev)](https://react.dev/learn/react-compiler)
 =====
 ---
 id: 25
+subtitle: "serversko i klijentsko stanje, TanStack Query (ključ, staleTime, mutacije, invalidacija), polling, SSE, WebSocket, SignalR"
+minutes: 55
 ---
+# 25 Podaci sa servera
+
+Postoje dve vrste stanja: **stanje UI-ja** (otvoren modal, uneti tekst) i **stanje sa servera** (knjige, pozajmice). Ovo drugo nije naše: može da zastari, deli se između ekrana, treba ga keširati i osvežavati. Zato za njega postoje posebne biblioteke.
+
+## Pojmovi
+
+### Ručno: koliko toga treba
+
+```tsx
+const [books, setBooks] = useState<Book[]>([])
+const [loading, setLoading] = useState(true)
+const [error, setError] = useState<Error | null>(null)
+useEffect(() => {
+  const ac = new AbortController()                     // trka: stari odgovor ne sme da pregazi novi
+  fetch(`/api/books?search=${encodeURIComponent(search)}`, { signal: ac.signal })
+    .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
+    .then(setBooks)
+    .catch((e) => { if (e.name !== 'AbortError') setError(e) })
+    .finally(() => setLoading(false))
+  return () => ac.abort()
+}, [search])
+// i dalje nema: keša, deljenja između ekrana, ponovnih pokušaja, osvežavanja posle izmene…
+```
+
+### TanStack Query
+
+```tsx
+const { data, isPending, isError, error } = useQuery({
+  queryKey: ['books', { search, page }],              // ključ keša: sve od čega zavise podaci
+  queryFn: ({ signal }) => getJson<Book[]>(`/api/books?search=${search}&page=${page}`, signal),
+  staleTime: 30_000,                                  // 30 s smatraj sveže
+})
+
+const queryClient = useQueryClient()
+const lend = useMutation({
+  mutationFn: (bookId: number) => postJson(`/api/books/${bookId}/loans`, { days: 14 }),
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: ['books'] }), // sve liste knjiga
+})
+lend.mutate(42)                                       // lend.isPending, lend.error za UI
+```
+
+- **Keš po ključu**: komponente sa istim ključem dele podatke i jedan zahtev (deduplikacija). Ključ sadrži sve parametre; `['books']` invalidira i `['books', { page: 2 }]` (poklapanje po prefiksu).
+- Posle izmene, mutacija proglasi povezane ključeve **zastarelim**; aktivni upiti se odmah ponovo učitaju.
+
+| Pojam | Značenje (podrazumevano u v5) |
+|---|---|
+| `staleTime` | koliko su podaci „sveži”, bez novog zahteva; **0** |
+| `gcTime` | koliko nekorišćen keš ostaje u memoriji; **5 min** |
+| `refetchOnWindowFocus` | osveži kad se korisnik vrati na tab; **uključeno** |
+| `retry` | ponovni pokušaji upita: **3** u browseru, sa pauzom 1, 2, 4 s… (najviše 30 s); mutacije **0**; za 4xx nema smisla |
+| `isPending` | još nema podataka (u v5 zamenio stari `isLoading` za ovo značenje) |
+| optimistic update | UI se promeni odmah, pre odgovora, i vrati ako server odbije |
+
+### Kad podatke promeni neko drugi
+
+Invalidacija posle mutacije osveži samo tab koji je napravio izmenu. Ako kolega upiše prijem robe, tvoj ekran to ne zna dok se ne vratiš na prozor. Server mora nekako da javi:
+
+| Način | Kako radi | Dobro | Loše |
+|---|---|---|---|
+| Polling | klijent pita na N sekundi (`refetchInterval: 10_000`) | najjednostavnije | kašnjenje do N s, prazni zahtevi |
+| Long polling | zahtev „visi” dok nema novosti, pa odmah sledeći | običan HTTP | otvorena veza po klijentu |
+| SSE | jedna HTTP veza, server šalje događaje (`EventSource`) | jednostavno, sam se ponovo poveže | samo server → klijent, samo tekst |
+| WebSocket | HTTP zahtev se nadogradi (`Upgrade`) u trajnu dvosmernu vezu | najbrže, oba smera | ponovno povezivanje i grupe su tvoj posao |
+
+**SignalR** je .NET biblioteka iznad toga: bira WebSocket, a ako ne može, SSE ili long polling; daje grupe, ponovno povezivanje i pozive po imenu poruke (`@microsoft/signalr` za klijent).
+
+```csharp
+public class LibraryHub : Hub { }                          // klijenti samo slušaju
+await hub.Clients.All.SendAsync("booksChanged");          // posle uspešnog upisa (IHubContext iz DI)
+```
+
+```ts
+connection.on('booksChanged', () => queryClient.invalidateQueries({ queryKey: ['books'] }))
+```
+
+**Obavesti, pa učitaj.** Poruka koja nosi samo „promenilo se” je bezbednija od poruke sa podacima: svako učita kroz isti API sa svojim pravima, a izgubljena poruka se nadoknadi sledećim osvežavanjem. Cena je jedan GET više po ekranu (Zalihe, pogl. 18).
+
+## Dublje
+
+**Zašto `staleTime: 0` nije „bez keša”.** Sa nulom podaci su odmah zastareli, ali keš se i dalje koristi: komponenta odmah prikaže ono što ima, a u pozadini pošalje novi zahtev (stale-while-revalidate). Zato prelaz između stranica deluje trenutno. `staleTime` se podiže za podatke koji se retko menjaju (podešavanja, šifarnici), a `gcTime` određuje koliko dugo napuštena stranica „pamti” svoje podatke.
+
+**Optimistic update bez rupe.** U `onMutate` otkaži tekuće upite za taj ključ (`cancelQueries`), sačuvaj stari keš, upiši očekivani rezultat (`setQueryData`); u `onError` vrati stari; u `onSettled` invalidiraj, da konačnu vrednost ipak potvrdi server. Za jednostavan prikaz u jednoj komponenti postoji i React 19 `useOptimistic`. Optimistic je dobar za lajk ili štikliranje, loš kad konačnu vrednost računa server (cena, stanje zaliha).
+
+**Šta se izgubi kad veza pukne.** Poruke poslate dok veze nije bilo. Zato posle ponovnog povezivanja (`onreconnected` u SignalR-u) invalidiraj sve aktivne upite ili traži „sve posle verzije X”. SSE i WebSocket ne garantuju isporuku; garancija je uvek ponovno čitanje iz izvora istine.
+
+## Lab
+
+1. Napiši listu knjiga ručno (`useEffect` + `fetch` + `AbortController`), pa brzo menjaj pretragu i u Network tabu vidi otkazane zahteve.
+2. Prepiši je na `useQuery` sa ključem `['books', { search, page }]`; otvori istu listu u dve komponente i proveri da ide jedan zahtev.
+3. Dodaj mutaciju „Pozajmi” sa `invalidateQueries`; proveri da se lista osveži bez ručnog `setState`.
+4. Postavi `staleTime: 30_000` i objasni razliku pri povratku na stranicu (DevTools za TanStack Query).
+5. Pretvori „Pozajmi” u optimistic update sa vraćanjem na staro kad server vrati grešku (simuliraj 500).
+6. Dodaj SignalR (ili SSE) obaveštenje „booksChanged” i otvori aplikaciju u dva taba: izmena u jednom osveži drugi.
+
+**Gotovo je kad:** nijedan podatak sa servera nije u `useState`, ključevi sadrže sve parametre, a izmena u jednom tabu se vidi u drugom bez ručnog osvežavanja.
+
 ## Pitanja sa intervjua
 
 **P: Koja je razlika između serverskog i klijentskog stanja?**
@@ -762,6 +980,9 @@ Keširanje po ključu, deduplikaciju istih zahteva, stanja učitavanja i greške
 
 **P: Kako posle izmene (POST) osvežiš listu na ekranu?**
 U onSuccess mutacije pozoveš `queryClient.invalidateQueries({ queryKey: ["porudzbine"] })`. Query se označi kao zastareo i ponovo učita. Alternativa za trenutni prikaz je optimističko ažuriranje keša, uz vraćanje na staro ako server odbije.
+
+**P: Šta su podrazumevana podešavanja TanStack Query-ja i zašto su bitna?**
+staleTime 0 (podaci odmah zastareli, ali se keš prikaže i osveži u pozadini), gcTime 5 minuta, osvežavanje pri povratku na tab i 3 ponovna pokušaja upita u browseru (mutacije 0). Zato šifarnici dobijaju veći staleTime, a za 4xx greške se isključuju ponovni pokušaji.
 
 ## Test
 
@@ -799,10 +1020,101 @@ U onSuccess mutacije pozoveš `queryClient.invalidateQueries({ queryKey: ["porud
 - [ ] U bazi preko API-ja
 - [ ] U kolačiću
 > To je čisto klijentsko stanje koje niko drugi ne treba. Query je za podatke sa servera.
+
+## Izvori
+- [Important Defaults (TanStack Query)](https://tanstack.com/query/latest/docs/framework/react/guides/important-defaults)
+- [Query Keys (TanStack Query)](https://tanstack.com/query/latest/docs/framework/react/guides/query-keys)
+- [Invalidations from Mutations (TanStack Query)](https://tanstack.com/query/latest/docs/framework/react/guides/invalidations-from-mutations)
+- [Optimistic Updates (TanStack Query)](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates)
+- [Using server-sent events (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)
+- [WebSockets API (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
+- [Overview of ASP.NET Core SignalR (Microsoft Learn)](https://learn.microsoft.com/en-us/aspnet/core/signalr/introduction)
 =====
 ---
 id: 26
+subtitle: "History API, React Router 7: ugnežđene rute, Outlet, guard, parametri, lazy rute, fallback na serveru"
+minutes: 40
 ---
+# 26 Rutiranje
+
+U SPA aplikaciji adresu u browseru menja JavaScript (History API), bez novog učitavanja stranice. Ruter za svaku adresu bira koje komponente se prikazuju. Aktuelna verzija je React Router 7; sve se uvozi iz paketa `react-router` (raniji `react-router-dom` je samo prelazni omot).
+
+## Pojmovi
+
+### Definicija ruta
+
+```tsx
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router'
+
+const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
+  {
+    element: <RequireAuth />,              // guard: nije prijavljen → /login
+    children: [{
+      element: <Layout />,                 // meni + <Outlet /> gde ide stranica
+      children: [
+        { index: true, element: <HomePage /> },
+        { path: 'books/:id', lazy: async () => ({ Component: (await import('./BookPage')).BookPage }) },
+      ],
+    }],
+  },
+  { path: '*', element: <Navigate to="/" replace /> },
+])
+
+createRoot(document.getElementById('root')!).render(<RouterProvider router={router} />)
+```
+
+- **Ugnežđene rute**: roditelj renderuje `<Outlet />` na mestu gde ide dete. Layout (meni, zaglavlje) se piše jednom i ostaje montiran sa svojim stanjem dok se menja samo stranica.
+- **Guard** ne crta ništa svoje, samo odluči: pusti dalje (`<Outlet />`) ili preusmeri (`<Navigate to="/login" replace />`). To je UX; prava zaštita je na API-ju (401/403).
+- `index: true` je podrazumevano dete (adresa roditelja bez dodatka).
+
+### Navigacija i parametri
+
+```tsx
+const { id } = useParams()                        // '/books/:id' → id je string (ili undefined)
+const [params, setParams] = useSearchParams()     // ?page=2
+const page = Number(params.get('page') ?? 1)
+const navigate = useNavigate()
+navigate(`/books/${id}`)                          // iz koda (posle uspešne forme)
+<Link to="/books">Knjige</Link>                   // umesto <a href>: bez punog učitavanja
+<NavLink to="/map">Mapa</NavLink>                 // zna da li je aktivan (aria-current="page")
+```
+
+**URL je stanje**: strana tabele, filter i izabrana kartica u URL-u preživljavaju refresh, mogu se poslati linkom, a dugme „nazad” radi kako korisnik očekuje (ova aplikacija tako drži izabrano poglavlje na mapi: `?c=`).
+
+### Lazy rute (code splitting)
+
+Stranica je poseban JS fajl, preuzet tek kad se otvori; prvo učitavanje je manje. U React Router-u preko `lazy` na ruti, ili sa `React.lazy` + `<Suspense>` (tako radi ova aplikacija, pogl. 28).
+
+### Server mora da sarađuje
+
+`/books/42` otvoren direktno ide na server, koji takav fajl nema. Server za sve nepoznate putanje (osim `/api/...` i statičkih fajlova) mora da vrati `index.html`, pa ruter u browseru preuzme:
+
+```nginx
+location / { try_files $uri /index.html; }
+```
+
+U ASP.NET Core-u isto radi `app.MapFallbackToFile("index.html")` (Zalihe, pogl. 18). Nepoznat `/api/...` treba da ostane 404, a ne da vrati HTML.
+
+## Dublje
+
+**Tri načina rada React Router-a 7.** *Declarative* (`<BrowserRouter>` + `<Routes>`): samo mapiranje adresa. *Data* (`createBrowserRouter`): uz rute idu `loader` (podaci pre prikaza), `action` (slanje forme) i stanja navigacije. *Framework* (Vite plugin, nasleđe Remix-a): rutiranje po fajlovima, SSR, prerender i tipovi po ruti. SPA sa TanStack Query-jem obično koristi data ili declarative način i ostavlja podatke Query-ju; loader je koristan kad podaci moraju da stignu pre prikaza (bez „treperenja” praznog ekrana).
+
+**Fokus i pristupačnost posle navigacije.** Pun reload sam vraća fokus na vrh stranice i čitač ekrana najavi novi naslov; SPA to ne radi. Zato se posle promene rute postavi `document.title` i fokus pomeri na `<main>` ili naslov stranice, a meni koristi `NavLink` sa `aria-current="page"`. Ova aplikacija posle boot ekrana takođe vraća fokus na `<main>`.
+
+**Kada ne SPA.** Javne stranice kojima trebaju pretraživači i brzo prvo iscrtavanje (prodavnica, blog) bolje rade sa SSR-om ili prerenderom (React Router framework način, Next.js). Interni alat iza prijave (Zalihe, Hunter Roadmap) je dobar SPA: SEO nije bitan, a prvo učitavanje se plati jednom.
+
+## Lab
+
+1. Napravi ruter sa `Layout`-om (meni + `<Outlet />`), početnom stranom i stranom `/books/:id` koja čita `useParams`.
+2. Dodaj `RequireAuth` guard koji neprijavljenog šalje na `/login` sa `replace`, i posle prijave ga vrati na adresu sa koje je došao (`state.from`).
+3. Stavi stranu tabele u `?page=` preko `useSearchParams`; proveri da refresh i „nazad” rade.
+4. Napravi `/books/:id` lazy rutom i u Network tabu vidi da se fajl preuzima tek pri otvaranju.
+5. Napravi build, posluži `dist` kroz nginx (ili `vite preview`) i otvori `/books/42` direktno: bez fallback-a 404, sa `try_files` radi.
+6. Zameni jedan `<a href>` u meniju sa `<Link>` i u Network tabu uporedi broj zahteva.
+
+**Gotovo je kad:** refresh na bilo kojoj adresi radi i u produkcijskom buildu, stanje tabele je u URL-u, a zaštićene strane preusmeravaju neprijavljenog korisnika.
+
 ## Pitanja sa intervjua
 
 **P: Kako radi rutiranje u SPA aplikaciji?**
@@ -813,6 +1125,9 @@ Server uvek vrati isti index.html, a ruter u pregledaču čita putanju (History 
 
 **P: Šta su ugnežđene rute?**
 Roditeljska ruta crta zajednički okvir (meni, zaglavlje) i `<Outlet />` na mestu gde ide dete. Deca menjaju samo svoj deo, a okvir ostaje montiran sa svojim stanjem.
+
+**P: Koji su načini rada React Router-a 7?**
+Declarative (BrowserRouter i Routes, samo mapiranje adresa), Data (createBrowserRouter sa loader-ima, action-ima i stanjem navigacije) i Framework (Vite plugin: rutiranje po fajlovima, SSR, prerender, tipovi po ruti). SPA sa TanStack Query-jem obično koristi Data ili Declarative način.
 
 ## Test
 
@@ -850,10 +1165,128 @@ Roditeljska ruta crta zajednički okvir (meni, zaglavlje) i `<Outlet />` na mest
 - [ ] localStorage
 - [ ] Globalna promenljiva
 > URL je deljivo i trajno stanje: korisnik može da pošalje link, a dugme „nazad” radi kako očekuje.
+
+## Izvori
+- [Picking a Mode (React Router)](https://reactrouter.com/start/modes)
+- [Routing u Data načinu (React Router)](https://reactrouter.com/start/data/routing)
+- [NavLink (React Router)](https://reactrouter.com/api/components/NavLink)
+- [History API (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/History_API)
+- [Static files i MapFallbackToFile (Microsoft Learn)](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/map-static-files)
 =====
 ---
 id: 27
+subtitle: "kontrolisane forme, validacija na dva mesta, React 19 Actions, pristupačne greške, i18n i Intl"
+minutes: 45
 ---
+# 27 Forme i jezici
+
+Forma je mesto gde korisnik šalje podatke, pa tu greške najviše bole: izgubljen unos, nejasna poruka, duplo slanje. Drugi deo poglavlja je prikaz teksta, brojeva i datuma na jeziku korisnika.
+
+## Pojmovi
+
+### Kontrolisana forma
+
+```tsx
+function LoanForm({ onSubmit }: { onSubmit: (days: number) => void }) {
+  const [days, setDays] = useState('14')
+  const [error, setError] = useState<string | null>(null)
+
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()                                    // bez ponovnog učitavanja stranice
+    const n = Number(days)
+    if (!Number.isInteger(n) || n < 1) { setError('Unesite broj dana'); return }
+    onSubmit(n)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} noValidate>
+      <label htmlFor="days">Broj dana</label>
+      <input id="days" inputMode="numeric" value={days}
+        onChange={(e) => { setDays(e.target.value); setError(null) }}
+        aria-invalid={!!error} aria-describedby={error ? 'days-error' : undefined} />
+      {error && <p id="days-error" role="alert">{error}</p>}
+      <button type="submit">Pozajmi</button>
+    </form>
+  )
+}
+```
+
+- Svako polje ima `<label>` (`htmlFor` = `id`); greška je **tekst** uz polje, povezan sa `aria-describedby`, a `aria-invalid` kaže čitaču da polje nije ispravno. Boja nije jedini nosilac greške.
+- Posle neuspelog slanja fokus ide na prvo polje sa greškom.
+- Dugme je `type="submit"`, pa Enter šalje formu; `noValidate` isključuje ugrađene poruke browsera kad prikazuješ svoje.
+
+### Validacija na dva mesta
+
+Klijent radi **udobnosti** (odmah, bez zahteva), server radi **ispravnosti** (uvek, jer svako može da pošalje zahtev mimo frontenda). Pravila koja traže bazu („član je dostigao limit”) zna samo server, pa forma mora da prikaže i njegove greške po poljima: ASP.NET Core vraća `ValidationProblemDetails` sa `errors: { "days": ["…"] }` (pogl. 11), a frontend ih mapira na polja. Za velike forme postoje biblioteke (React Hook Form, TanStack Form), često sa šemom (zod) koja daje i tipove.
+
+### React 19 Actions
+
+```tsx
+async function pozajmi(_prev: string | null, formData: FormData) {
+  const r = await fetch('/api/loans', { method: 'POST', body: formData })
+  return r.ok ? null : 'Pozajmica nije uspela'
+}
+
+function LoanForm2() {
+  const [error, formAction, isPending] = useActionState(pozajmi, null)
+  return (
+    <form action={formAction}>
+      <label htmlFor="days2">Broj dana</label>
+      <input id="days2" name="days" defaultValue="14" />
+      {error && <p role="alert">{error}</p>}
+      <button type="submit" disabled={isPending}>{isPending ? 'Šaljem…' : 'Pozajmi'}</button>
+    </form>
+  )
+}
+```
+
+Forma dobija funkciju kao `action`: React sam spreči ponovno učitavanje, prosledi `FormData`, vodi `isPending` (nema duplog slanja) i posle uspeha resetuje nekontrolisana polja. `useFormStatus` daje stanje slanja dugmetu u dubini forme, a `useOptimistic` odmah prikaže očekivani ishod.
+
+### Prevodi (i18n)
+
+```json
+// sr-Latn.json                                  // en.json
+{ "books": { "lend": "Pozajmi",                  { "books": { "lend": "Lend",
+             "left": "Ostalo: {{count}}" } }                  "left": "Left: {{count}}" } }
+```
+
+```tsx
+const { t } = useTranslation()                    // react-i18next
+<button>{t('books.lend')}</button>
+<span>{t('books.left', { count: 3 })}</span>
+```
+
+Tekst nikad direktno u komponenti; ključevi grupisani po oblasti. **API ne šalje prevedene poruke, nego kodove** (`item.sku_duplicate`), koje frontend prevodi. Test proverava da svi jezici imaju iste ključeve.
+
+### Brojevi, datumi, novac: Intl
+
+| | sr-Latn | en |
+|---|---|---|
+| `new Intl.NumberFormat(lang).format(1284350.5)` | 1.284.350,5 | 1,284,350.5 |
+| `new Intl.DateTimeFormat(lang, { dateStyle: 'medium' })` | 1. 10. 2026. | Oct 1, 2026 |
+| `Intl.NumberFormat('sr-Latn-RS', { style: 'currency', currency: 'RSD' })` | 1.234,50 RSD | |
+
+Prikaz uvek preko `Intl`, nikad ručno. Unos je teži: u srpskom je zarez decimalni separator, pa polje mora da prihvati `12,5`, a „2.000” je dve hiljade, ne dva. U API ide JSON broj sa tačkom; jezik postoji samo u UI-ju. Server čuva vreme u UTC, a browser ga prikazuje u lokalnoj zoni.
+
+## Dublje
+
+**Množina nije „1 ili više”.** Srpski ima tri oblika: 1 knjiga, 3 knjige, 5 knjiga (i 21 knjiga, 22 knjige). `Intl.PluralRules('sr-Latn').select(n)` vraća kategoriju `one`, `few` ili `other`, a i18next po njoj bira ključ (`left_one`, `left_few`, `left_other`). Zato se tekst sa brojem nikad ne sklapa nadovezivanjem stringova.
+
+**Kontrolisano ili nekontrolisano.** Kontrolisano polje (vrednost u stanju) je dobro kad UI reaguje na svaki znak (pretraga, maska, zavisna polja). Nekontrolisano (`defaultValue` + `FormData` ili `ref`) ima manje rendera i prirodno radi sa React 19 `action`-om i sa formama bez JS-a. Mešanje (polje koje prelazi iz `undefined` u vrednost) daje upozorenje: početna vrednost kontrolisanog polja je `''`, ne `undefined`.
+
+**Duplo slanje i idempotentnost.** Onemogućeno dugme dok traje slanje pomaže, ali ne garantuje: korisnik može da osveži stranicu ili da mreža ponovi zahtev. Za važne operacije (plaćanje, porudžbina) server prima ključ idempotentnosti (`Idempotency-Key`) i isti zahtev ne izvrši dvaput (pogl. 16).
+
+## Lab
+
+1. Napiši `LoanForm` sa labelom, porukom o grešci povezanom kroz `aria-describedby` i fokusom na polje posle neuspelog slanja; proveri tastaturom i čitačem ekrana (VoiceOver: Cmd+F5).
+2. Pošalji neispravan unos mimo forme (curl) i pokaži da server vraća 400 sa greškama po poljima; prikaži te greške uz polja.
+3. Prepiši formu na React 19 `action` + `useActionState`; proveri da dugme ne može da se klikne dvaput dok traje slanje.
+4. Dodaj prevode za srpski i engleski (react-i18next) i test koji proverava da oba jezika imaju iste ključeve.
+5. Prikaži broj, datum i iznos u dinarima preko `Intl` za oba jezika; dodaj množinu „1 knjiga / 3 knjige / 5 knjiga” preko `PluralRules`.
+6. Napiši funkciju koja parsira „12,5” i „2.000” po srpskim pravilima i testiraj je.
+
+**Gotovo je kad:** forma radi tastaturom, prikazuje i klijentske i serverske greške uz polja, ne šalje dvaput, a brojevi, datumi i množina su ispravni na oba jezika.
+
 ## Pitanja sa intervjua
 
 **P: Da li je validacija na klijentu dovoljna?**
@@ -867,6 +1300,9 @@ Preko Intl API-ja: `Intl.NumberFormat("sr-Latn-RS", { style: "currency", currenc
 
 **P: Šta React 19 menja u radu sa formama?**
 Forma može da dobije funkciju kao `action`: React sam spreči ponovno učitavanje, prosledi `FormData`, a posle uspeha resetuje nekontrolisana polja. `useActionState` daje rezultat poslednjeg slanja i `isPending`, `useFormStatus` dugmetu kaže da je slanje u toku, a `useOptimistic` odmah prikaže očekivani ishod. Za složenu validaciju i dalje su korisne biblioteke formi.
+
+**P: Kako radiš množinu u srpskom prevodu?**
+Srpski ima tri oblika (1 knjiga, 3 knjige, 5 knjiga, ali 21 knjiga). Intl.PluralRules('sr-Latn') vraća one, few ili other, a i18next po tome bira ključ (_one, _few, _other). Tekst sa brojem se nikad ne sklapa nadovezivanjem.
 
 ## Test
 
@@ -904,6 +1340,16 @@ Forma može da dobije funkciju kao `action`: React sam spreči ponovno učitavan
 - [ ] Kao broj dana od 1900.
 - [ ] Bez vremenske zone, lokalno vreme
 > ISO 8601 sa zonom je nedvosmislen. Lokalni prikaz se radi tek u interfejsu.
+
+## Izvori
+- [useActionState (react.dev)](https://react.dev/reference/react/useActionState)
+- [<form> i action (react.dev)](https://react.dev/reference/react-dom/components/form)
+- [useFormStatus (react.dev)](https://react.dev/reference/react-dom/hooks/useFormStatus)
+- [User notifications in forms (W3C WAI)](https://www.w3.org/WAI/tutorials/forms/notifications/)
+- [aria-describedby (MDN)](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Reference/Attributes/aria-describedby)
+- [Intl.NumberFormat (MDN)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat)
+- [Intl.PluralRules (MDN)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/PluralRules)
+- [Plurals (i18next)](https://www.i18next.com/translation-function/plurals)
 =====
 ---
 id: 28
