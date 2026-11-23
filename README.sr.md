@@ -6,6 +6,12 @@ Lokalna aplikacija za učenje kao RPG sistem napretka: rangovi E→S, nivoi i XP
 
 Univerzalna je: sadržaj dolazi iz **paketa** (otvoren JSON format `hunter-pack/1`), pa ista aplikacija radi za Full Stack, cybersecurity, nemački ili filozofiju. Uz nju ide paket za pripremu intervjua za full stack .NET: 80 poglavlja, 395 pitanja i 310 kartica sa intervjua, provereno prema zvaničnoj dokumentaciji (Microsoft Learn, MDN, react.dev, PostgreSQL, OWASP).
 
+| Status | Mapa veština |
+|---|---|
+| ![Prozor STATUS sa rangom, nivoom, XP-om i statistikama](docs/screenshots/status.png) | ![Mapa veština sa regionima, poglavljima i detaljima](docs/screenshots/map.png) |
+| **Poglavlje** | **Test („dungeon”)** |
+| ![Poglavlje sa koracima, lekcijom i nagradama](docs/screenshots/chapter.png) | ![Test poglavlja sa napretkom i opcijama](docs/screenshots/test.png) |
+
 Stack: **ASP.NET Core 10** (minimal API, EF Core, PostgreSQL) · **React 19 + TypeScript 7 + Vite 8** (TanStack Query, React Router) · **Docker Compose** · xUnit, Testcontainers, Vitest, Playwright.
 
 ## Šta radi

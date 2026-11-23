@@ -8,6 +8,12 @@ The app is **content-agnostic**. Everything you learn comes from a **content pac
 
 > The UI and the bundled course are in Serbian (Latin script), because the app is built for my own interview preparation. The code, API and data format are in English.
 
+| Status | Skill map |
+|---|---|
+| ![Status window with rank, level, XP and stats](docs/screenshots/status.png) | ![Skill map with regions, chapters and details](docs/screenshots/map.png) |
+| **Chapter** | **Test ("dungeon")** |
+| ![Chapter with steps, lesson and rewards](docs/screenshots/chapter.png) | ![Chapter test with progress and answer options](docs/screenshots/test.png) |
+
 **Stack:** ASP.NET Core 10 (minimal API, EF Core, PostgreSQL) · React 19 + TypeScript 7 + Vite 8 (TanStack Query, React Router) · Docker Compose · xUnit, Testcontainers, Vitest, Playwright
 
 ## What it does
