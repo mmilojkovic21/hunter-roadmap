@@ -115,7 +115,12 @@ Za poglavlja vodiča lekcija je u PDF-u (nije u repozitorijumu): proveravaju se 
   `AddMeter` za sopstvene metrike, primer za p95. Primeri provereni: C# kompajliran i pokrenut, RabbitMQ uživo,
   `terraform validate`, actionlint, kubeconform. Pomoćno: RabbitMQ sajt blokira curl, docs su na GitHub-u
   (`rabbitmq/rabbitmq-website`); u Docker-u ne pokretati `docker exec … rabbitmq-diagnostics` dok broker ne krene (kvari `.erlang.cookie`).
-- ⬜ `region-ai.md`, `region-pro.md` (pune lekcije)
+- ✅ region AI (`region-ai.md`, paket 1.1.3): `record` usred top-level naredbi (CS8803), `static` lokalna funkcija
+  zahvata promenljivu (CS8421), MCP stdio server mora da loguje na stderr (provereno uživo), limit
+  `MaximumIterationsPerRequest` (40), HNSW indeks u pgvector-u, AGENTS.md, OWASP LLM 2025 stavke, novi linkovi.
+  Nije provereno: reference „vodič, pogl. 25” (SSE/SignalR, AI2) i „pogl. 15” (rate limit, AI5); PDF nije u repou,
+  a u paketu se rate limiting pojavljuje u pitanjima pogl. 44.
+- ⬜ `region-pro.md` (pune lekcije)
 - ⬜ `vodic-1-osnove-backend.md` … `vodic-5-intervju.md` (pitanja i kartice)
 - ⬜ dopune: uporediti sadržaj sa onim što se traži od full stack .NET inženjera i predložiti nova poglavlja
 
