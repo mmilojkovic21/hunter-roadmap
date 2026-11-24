@@ -518,7 +518,95 @@ git bisect: označiš jedan dobar i jedan loš commit, Git binarnom pretragom pr
 =====
 ---
 id: 35
+subtitle: "image i kontejner, Dockerfile u dve faze, slojevi i keš, korisnik bez root prava, volumeni, osnovne komande"
+minutes: 45
 ---
+# 35 Docker
+
+Kontejner pakuje aplikaciju zajedno sa svim što joj treba (runtime, biblioteke, podešavanja), pa radi isto na laptopu, u CI-ju i na serveru. „Kod mene radi” prestaje da bude izgovor: isti image ide u svako okruženje.
+
+## Pojmovi
+
+### Osnovni pojmovi
+
+| Pojam | Šta je | Analogija |
+|---|---|---|
+| Image | nepromenljiv šablon u slojevima | klasa |
+| Container | pokrenuta instanca image-a, izolovan proces sa svojim slojem za pisanje | objekat |
+| Dockerfile | recept za pravljenje image-a | build skripta |
+| Volume | trajni podaci van kontejnera | spoljni disk |
+| Registry | skladište image-a (Docker Hub, GHCR, Azure Container Registry) | NuGet / npm za image-e |
+
+Kontejner **nije virtuelna mašina**: deli kernel domaćina, a izolovan je mehanizmima Linuxa (namespaces: svoj pogled na procese, mrežu i fajlove; cgroups: ograničenje CPU-a i memorije). Zato kreće za sekundu i troši malo memorije. Na macOS-u i Windows-u Docker Desktop zato pokreće jednu malu Linux VM u kojoj rade svi kontejneri.
+
+### Dockerfile u dve faze
+
+```dockerfile
+# Faza 1: build (SDK je velik i ne ide u produkciju)
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+# Prvo samo projekat, pa restore: taj sloj se kešira dok se .csproj ne promeni
+COPY Biblioteka.Api/Biblioteka.Api.csproj Biblioteka.Api/
+RUN dotnet restore Biblioteka.Api/Biblioteka.Api.csproj
+COPY . .
+RUN dotnet publish Biblioteka.Api -c Release -o /app --no-restore
+
+# Faza 2: runtime (mali image, samo ono što treba za pokretanje)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+COPY --from=build /app .
+# Ne root: korisnik "app" (UID u promenljivoj APP_UID) postoji u .NET slikama od verzije 8
+USER $APP_UID
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "Biblioteka.Api.dll"]
+```
+
+**Komentar ide samo u poseban red.** `#` je komentar jedino na početku reda; u nastavku naredbe je običan argument. `COPY a.csproj dir/  # komentar` zato traži fajlove `#` i `komentar` i build pada (`"/komentar": not found`). Kod `RUN` „radi” samo zato što komentar ukloni shell.
+
+- **Slojevi i keš:** svaka naredba pravi sloj; ako se ulaz nije promenio, sloj se uzima iz keša. Zato se prvo kopiraju fajlovi sa zavisnostima (`.csproj`, `package.json`), pa tek onda kod: izmena `.cs` fajla ne ponavlja `restore`.
+- **Multi-stage build:** SDK i izvorni kod ostaju u prvoj fazi. Za malu aplikaciju: SDK image ~1,35 GB, `aspnet:10.0` ~370 MB, „chiseled” varijanta ~185 MB.
+- **`.dockerignore`:** `bin/`, `obj/`, `node_modules/`, `.git`, `.env` ne idu u build kontekst (brži build i nema tajni u image-u).
+- **`ENTRYPOINT` i `CMD`:** program koji se pokreće i podrazumevani argumenti (lako se zamene pri `docker run`). Uvek exec oblik (`["dotnet", "App.dll"]`), da aplikacija bude PID 1 i dobije SIGTERM (pogl. 32).
+- **`EXPOSE`:** samo dokumentuje port. Dostupan sa domaćina postaje tek uz `-p` ili `ports:`. .NET image-i od verzije 8 slušaju na **8080** (`ASPNETCORE_HTTP_PORTS=8080`), ne na 80.
+- **Korisnik:** `USER $APP_UID` pokreće aplikaciju kao `app` (UID 1654). Ako napadač preuzme proces, nije root u kontejneru.
+
+### Komande
+
+```bash
+docker build -t biblioteka:1.0 .                     # napravi image
+docker run -d -p 8080:8080 --name api biblioteka:1.0 # pokreni; -p domaćin:kontejner
+docker ps; docker ps -a                              # koji rade; i ugašeni, sa izlaznim kodom
+docker logs -f api                                   # logovi (stdout i stderr aplikacije)
+docker exec -it api bash                             # uđi u kontejner (chiseled image nema shell)
+docker stop api; docker rm api                       # uredno ugasi (SIGTERM), obriši
+docker image ls; docker image prune                  # image-i; obriši neiskorišćene
+```
+
+### Podaci: volumeni
+
+Sloj za pisanje pripada kontejneru i nestaje sa `docker rm`. Sve što mora da preživi (baza, upload-ovani fajlovi) ide na **volumen** (`-v pgdata:/var/lib/postgresql`) ili na spoljni servis. Zato je kontejner aplikacije „za bacanje”: novi image, novi kontejner, isti podaci.
+
+## Dublje
+
+**Chiseled image-i.** Microsoft objavljuje i „chiseled” varijante (`aspnet:10.0-noble-chiseled`): Ubuntu bez shell-a, menadžera paketa i alata, a podrazumevano radi kao korisnik bez root prava. Image je oko dva puta manji, a napadač nema `bash` ni `apt` ako uđe u kontejner. Cena: nema `docker exec ... bash` za dijagnostiku, a healthcheck ne može da koristi `curl` (nema ga ni u običnom .NET image-u; zato se zdravlje proverava spolja ili malim programom).
+
+**Image bez Dockerfile-a.** .NET SDK sam pravi image: `dotnet publish -t:PublishContainer` (ime, tag i bazni image se podešavaju u `.csproj`). Za standardnu ASP.NET Core aplikaciju to je dovoljno; Dockerfile treba kad build ima dodatne korake (npr. frontend u istom image-u).
+
+**Tag nije verzija.** `postgres:18` i `aspnet:10.0` se pomeraju sa svakom ispravkom (novi image pod istim tagom). To je dobro za bezbednosne zakrpe, ali build nije potpuno ponovljiv. Za potpunu ponovljivost se navodi digest (`image@sha256:...`), a alat (Dependabot, Renovate) ga ažurira. `latest` se ne koristi u produkciji.
+
+**Bezbednost image-a.** Bez tajni u image-u (svaki sloj se može pročitati, i obrisan fajl ostaje u ranijem sloju; tajne idu kroz promenljive okruženja ili `--secret` pri build-u), korisnik bez root prava, što manji bazni image, redovno skeniranje ranjivosti (Docker Scout, Trivy) i ponovni build kad izađe nova zakrpa baznog image-a.
+
+## Lab
+
+1. Napravi `dotnet new web`, dodaj Dockerfile iz lekcije i `.dockerignore`; `docker build` i `docker run -p 8080:8080`, pa otvori `http://localhost:8080`.
+2. Namerno dodaj komentar u red sa `COPY` i pročitaj grešku; vrati komentar u poseban red.
+3. Izmeni `Program.cs` i ponovi build: u izlazu nađi `CACHED` kod `dotnet restore`. Zatim izmeni `.csproj` i vidi da se restore ponavlja.
+4. Uporedi veličine: `docker image ls` za `sdk:10.0`, `aspnet:10.0` i svoj image; napravi i varijantu sa `aspnet:10.0-noble-chiseled`.
+5. U kontejneru proveri korisnika (`docker exec api id`), pa ugasi kontejner sa `docker stop` i u `docker logs` nađi „Application is shutting down”.
+6. Pokreni aplikaciju koja odmah pada (npr. pogrešan `ENTRYPOINT`) i nađi uzrok preko `docker ps -a` i `docker logs`.
+
+**Gotovo je kad:** sam napišeš Dockerfile u dve faze, objasniš svaki red i keš slojeva, a kontejner radi kao korisnik bez root prava i uredno se gasi.
+
 ## Pitanja sa intervjua
 
 **P: Koja je razlika između image-a i kontejnera?**
@@ -529,6 +617,18 @@ Svaka naredba pravi sloj, a Docker kešira slojeve dok se ulaz ne promeni. Zato 
 
 **P: Šta je multi-stage build?**
 Dockerfile sa više FROM faza: u prvoj, sa SDK-om, gradiš aplikaciju; u poslednjoj, sa malim runtime image-om, kopiraš samo rezultat. Finalni image je manji, brže se preuzima i nema alata za build (manja površina napada).
+
+**P: Koja je razlika između Docker kontejnera i virtuelne mašine?**
+Kontejner deli kernel domaćina i izolovan je mehanizmima Linuxa (namespaces, cgroups), pa kreće za sekundu i troši malo memorije. VM ima ceo svoj operativni sistem i jaču izolaciju, ali je teža i sporija. Na macOS-u i Windows-u Docker Desktop pokreće jednu Linux VM u kojoj rade kontejneri.
+
+**P: Zašto u Dockerfile-u za .NET piše `USER $APP_UID`?**
+Običan `aspnet` image podrazumevano radi kao root. .NET image-i od verzije 8 imaju korisnika `app` (UID 1654 u promenljivoj `APP_UID`), pa `USER $APP_UID` pokreće aplikaciju bez root prava: ako napadač preuzme proces, nije root u kontejneru. Chiseled image-i već podrazumevano rade kao taj korisnik.
+
+**P: Može li komentar da stoji na kraju reda u Dockerfile-u?**
+Ne. `#` je komentar samo na početku reda; u nastavku naredbe je argument. `COPY app.csproj src/  # komentar` traži fajl `komentar` i build pada. Kod `RUN` izgleda kao da radi samo zato što komentar ukloni shell.
+
+**P: Šta su chiseled image-i i kada ih koristiti?**
+Ubuntu image-i bez shell-a, menadžera paketa i alata, koji podrazumevano rade bez root prava. Oko dva puta su manji i imaju manju površinu za napad. Cena: nema `docker exec ... bash` ni `curl` za healthcheck. Dobri su za produkciju kad dijagnostika ide kroz logove i metrike.
 
 ## Test
 
@@ -566,10 +666,100 @@ Dockerfile sa više FROM faza: u prvoj, sa SDK-om, gradiš aplikaciju; u posledn
 - [ ] `docker rmi`
 - [ ] `docker push`
 > Logovi pokazuju izuzetak pri startu. `docker ps -a` pokazuje i ugašene kontejnere sa izlaznim kodom.
+
+## Izvori
+- [Dockerfile reference (Docker Docs)](https://docs.docker.com/reference/dockerfile/)
+- [Multi-stage builds (Docker Docs)](https://docs.docker.com/build/building/multi-stage/)
+- [Containerize a .NET app (Microsoft Learn)](https://learn.microsoft.com/en-us/dotnet/core/docker/build-container)
+- [Containerize a .NET app with dotnet publish (Microsoft Learn)](https://learn.microsoft.com/en-us/dotnet/core/containers/sdk-publish)
+- [Ubuntu chiseled images (dotnet-docker)](https://github.com/dotnet/dotnet-docker/blob/main/documentation/ubuntu-chiseled.md)
+- [Docker Security Cheat Sheet (OWASP)](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html)
 =====
 ---
 id: 36
+subtitle: "servisi, mreža po imenu, depends_on i healthcheck, volumeni i bind mount, .env, ports, više compose fajlova"
+minutes: 40
 ---
+# 36 Docker Compose
+
+Compose opisuje više kontejnera koji rade zajedno (aplikacija, baza, proxy) u jednom YAML fajlu i pokreće ih jednom komandom. Ceo sistem se tako podiže isto na svakom računaru: `docker compose up`.
+
+## Pojmovi
+
+### Fajl
+
+```yaml
+# docker-compose.yml (ili compose.yaml)
+services:
+  api:
+    build: .
+    environment:
+      ConnectionStrings__Default: Host=db;Database=lib;Username=lib;Password=${DB_PASSWORD:?}
+    depends_on:
+      db: { condition: service_healthy }
+    restart: unless-stopped
+  db:
+    image: postgres:19
+    environment:
+      POSTGRES_USER: lib
+      POSTGRES_DB: lib
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
+    volumes: [db-data:/var/lib/postgresql]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lib -d lib"]
+      interval: 5s
+volumes:
+  db-data:
+```
+
+- **Mreža:** Compose pravi mrežu za projekat, a servisi se vide **po imenu** (ugrađen DNS): API se povezuje sa `Host=db`. `localhost` u kontejneru API-ja je sam taj kontejner.
+- **Baza pravi korisnika iz promenljivih.** Postgres image pri prvom pokretanju napravi `POSTGRES_USER` i `POSTGRES_DB` (podrazumevano oba `postgres`). Bez njih connection string sa `Username=lib` pada sa „password authentication failed for user lib”. Promenljive deluju samo na **prazan** volumen: kasnija izmena lozinke ne menja postojeću bazu.
+- **`depends_on`:** sam (`depends_on: [db]`) čeka samo da se kontejner baze **pokrene**. Uz `condition: service_healthy` čeka healthcheck. Aplikacija ipak treba da ponovi pokušaj (EF Core: `EnableRetryOnFailure`), jer baza može da padne i kasnije.
+- **Healthcheck:** Docker periodično pokreće komandu; `pg_isready` proverava samo da server prima veze, ne lozinku ni postojanje korisnika.
+- **`ports` i `expose`:** `ports: ["5433:5432"]` otvara port na domaćinu. Servisi u istoj mreži dostupni su jedni drugima na svim portovima i bez toga; `expose` je samo dokumentacija. Baza u produkciji nema `ports`. Kad treba lokalno, samo na loopback: `"127.0.0.1:5433:5432"`.
+- **Volumen i bind mount:** imenovanim volumenom upravlja Docker (podaci baze). Bind mount je folder domaćina (`./Caddyfile:/etc/caddy/Caddyfile:ro`, za konfiguraciju i kod u razvoju).
+- **`.env`:** Compose sam čita `.env` pored fajla i zamenjuje `${DB_PASSWORD}`. `${DB_PASSWORD:?}` obori pokretanje ako vrednost nedostaje (`required variable DB_PASSWORD is missing a value`). `.env` je u `.gitignore`; u repozitorijum ide `.env.example`.
+- **Profili:** servis sa `profiles: [test]` pokreće se samo uz `--profile test`.
+
+### Komande
+
+```bash
+docker compose up -d --build --wait   # napravi, pokreni u pozadini, čekaj da sve bude zdravo
+docker compose ps                     # stanje i zdravlje servisa
+docker compose logs -f api            # logovi jednog servisa
+docker compose exec db psql -U lib    # komanda u servisu koji radi
+docker compose down                   # ugasi i obriši kontejnere i mrežu; volumeni ostaju
+docker compose down -v                # isto, ali briše i imenovane volumene (podaci baze nestaju!)
+docker compose config                 # konačni fajl posle spajanja i zamene promenljivih
+```
+
+### Više fajlova za više okruženja
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+```
+
+Fajlovi se spajaju redom kojim su navedeni: kasniji dopunjava ili menja raniji (skalarne vrednosti se zamenjuju, `ports` i `volumes` se spajaju). Kad treba zameniti listu, ne dopuniti je, koristi se `!override` (`ports: !override ["127.0.0.1:8099:80"]`), a `!reset` briše vrednost. Ova aplikacija tako ima osnovni fajl bez porta baze, dev dodatak sa portom 5433 i E2E dodatak sa drugim portom za web.
+
+## Dublje
+
+**Postgres 18+ i putanja volumena.** Od verzije 18 zvanični image čuva podatke u `/var/lib/postgresql/<verzija>/docker` (za 19: `/var/lib/postgresql/19/docker`), a volumen se montira na `/var/lib/postgresql`. Stara putanja `/var/lib/postgresql/data` na 18+ obara kontejner sa porukom o novom rasporedu. Razlog: sledeća glavna verzija može da se doda u isti volumen i nadogradi sa `pg_upgrade --link`. Promena glavne verzije baze nikad nije samo promena taga: podaci se prebacuju (`pg_dump`/`pg_restore` ili `pg_upgrade`).
+
+**Compose ili Kubernetes.** Compose je za jedan server: jednostavan, čitljiv, dovoljan za mnogo aplikacija. Kubernetes je za mnogo servera: raspoređivanje, skaliranje, samoizlečenje, rolling deploy, ali uz mnogo više složenosti (poglavlje C6 u aplikaciji). Prvi deploy portfolio projekta skoro uvek je Compose na jednom VPS-u.
+
+**Migracije baze pri pokretanju.** Ako više instanci API-ja krene istovremeno, sve pokušaju `Migrate()`. Za jednu instancu (kao ova aplikacija) to je u redu; za više se migracije izdvajaju u poseban korak (CI, init kontejner ili `efbundle`), pogl. 12.
+
+## Lab
+
+1. Napiši compose sa API-jem i Postgres-om iz lekcije; pokreni bez `.env` i pročitaj grešku, pa dodaj `.env` sa lozinkom.
+2. Obriši `POSTGRES_USER` i `POSTGRES_DB` (uz `down -v`) i nađi grešku prijave u logu API-ja; vrati ih.
+3. `docker compose up -d --wait`, pa `docker compose ps`: nađi stanje `healthy`.
+4. Iz API kontejnera pozovi bazu po imenu `db`, pa pokušaj sa `localhost` i objasni razliku.
+5. `down` pa `up`: podaci ostaju. `down -v` pa `up`: baza je prazna.
+6. Napravi `docker-compose.dev.yml` koji otvara bazu na `127.0.0.1:5433` i proveri spojen rezultat sa `docker compose -f ... -f ... config`.
+
+**Gotovo je kad:** ceo sistem podižeš jednom komandom, API čeka zdravu bazu, podaci preživljavaju restart, a lozinka nije u Git-u.
+
 ## Pitanja sa intervjua
 
 **P: Kako se servisi u Docker Compose-u međusobno pronalaze?**
@@ -580,6 +770,15 @@ Samo `depends_on: [db]` čeka da kontejner baze bude POKRENUT, ne da prima veze.
 
 **P: Koja je razlika između imenovanog volumena i bind mount-a?**
 Imenovani volumen (`pgdata:/var/lib/postgresql/data`) je prostor kojim upravlja Docker, dobar za podatke baze. Bind mount (`./packs:/packs`) mapira folder sa domaćina, dobar za konfiguraciju i kod u razvoju; vidiš i menjaš fajlove direktno.
+
+**P: Zašto aplikacija ne može da se prijavi na Postgres iz Compose-a iako je lozinka tačna?**
+Najčešće zato što baza nema tog korisnika: image pravi `POSTGRES_USER` i `POSTGRES_DB` (podrazumevano `postgres`) samo pri prvom pokretanju, na praznom volumenu. Ako su promenljive dodate ili izmenjene kasnije, postojeća baza se ne menja; treba ih podesiti od početka ili obrisati volumen (`down -v`, gube se podaci).
+
+**P: Čemu služi `${DB_PASSWORD:?}` u compose fajlu?**
+Vrednost dolazi iz okruženja ili iz `.env` fajla pored compose fajla, a `:?` obori pokretanje sa porukom ako je nema. Bez toga bi baza krenula sa praznom lozinkom ili bi greška izašla tek u aplikaciji.
+
+**P: Kako se spajaju dva compose fajla zadata sa `-f`?**
+Redom kojim su navedeni: kasniji menja skalarne vrednosti, a liste kao `ports` i `volumes` dopunjuje. Kad listu treba zameniti, koristi se `!override`, a `!reset` briše vrednost. `docker compose config` pokazuje konačan rezultat.
 
 ## Test
 
@@ -617,20 +816,133 @@ Imenovani volumen (`pgdata:/var/lib/postgresql/data`) je prostor kojim upravlja 
 - [ ] Pokreće drugi projekat
 - [ ] Služi samo za dokumentaciju
 > Npr. osnovni fajl ne izlaže port baze, a dev dodatak ga izlaže na localhost. Fajlovi se spajaju redom kojim su navedeni.
+
+## Izvori
+- [Control startup order (Docker Docs)](https://docs.docker.com/compose/how-tos/startup-order/)
+- [Merge Compose files (Docker Docs)](https://docs.docker.com/reference/compose-file/merge/)
+- [Variable interpolation (Docker Docs)](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/)
+- [docker compose up (Docker Docs)](https://docs.docker.com/reference/cli/docker/compose/up/)
+- [Volumes (Docker Docs)](https://docs.docker.com/engine/storage/volumes/)
+- [postgres: zvanični image (Docker Hub)](https://hub.docker.com/_/postgres)
+- [PostgreSQL 19 Released! (postgresql.org)](https://www.postgresql.org/about/news/postgresql-19-released-3449/)
 =====
 ---
 id: 37
+subtitle: "VPS i Compose, reverse proxy i TLS terminacija, forwarded headers, bezbednosna zaglavlja, keširanje, osnovna zaštita servera"
+minutes: 45
 ---
+# 37 Server i HTTPS
+
+Najjednostavnija produkcija: jedan VPS (virtuelni server iznajmljen kod provajdera), Docker Compose na njemu i reverse proxy ispred aplikacije koji radi HTTPS. To je dovoljno za portfolio projekat i za mnogo pravih aplikacija.
+
+## Pojmovi
+
+### Raspored
+
+```
+korisnik ──HTTPS :443──▶ VPS ─ docker compose ──────────────────────────────┐
+                         │ reverse proxy (Caddy/nginx): TLS, sertifikat,     │
+                         │   :80 → :443, kompresija, zaglavlja               │
+                         │        │ HTTP u privatnoj Docker mreži            │
+                         │        ▼                                          │
+                         │ app :8080 (nije dostupna spolja) ── baza (volume) │
+                         └───────────────────────────────────────────────────┘
+```
+
+### Reverse proxy
+
+Server ispred aplikacije koji prima zahteve i prosleđuje ih (Caddy, nginx, Traefik, YARP u .NET-u). Radi **TLS terminaciju** (dešifruje HTTPS, aplikaciji šalje HTTP u privatnoj mreži), dobija i obnavlja sertifikate, kompresuje, dodaje bezbednosna zaglavlja i može da raspoređuje saobraćaj na više instanci (load balancing). Forward proxy je obrnuto: stoji ispred klijenata (firmin izlaz na internet).
+
+```
+# Caddyfile: ceo HTTPS u tri reda
+biblioteka.example.com {
+	reverse_proxy api:8080
+}
+```
+
+Caddy sam dobije sertifikat (Let's Encrypt ili ZeroSSL), obnavlja ga i preusmerava HTTP na HTTPS, čim DNS domena pokazuje na server i portovi 80 i 443 su otvoreni. Sa nginx-om isto radi certbot. Let's Encrypt sertifikat danas traje 90 dana, od februara 2027. 64, a od februara 2028. 45 dana (pogl. 33), pa obnavljanje mora biti automatsko.
+
+### Forwarded headers
+
+Iza proxy-ja aplikacija vidi `http` i IP adresu proxy-ja. Proxy zato šalje `X-Forwarded-Proto` i `X-Forwarded-For`, a aplikacija ih čita, pa zna da je originalni zahtev bio HTTPS (cookie dobija `Secure`, redirect i linkovi su `https`, log ima pravu IP adresu klijenta).
+
+```csharp
+using Microsoft.AspNetCore.HttpOverrides;
+
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // Veruj samo mreži u kojoj je proxy (Docker mreža iz compose fajla)
+    o.KnownIPNetworks.Add(System.Net.IPNetwork.Parse("172.30.0.0/16"));
+});
+var app = builder.Build();
+app.UseForwardedHeaders();   // pre ostalih middleware-a
+```
+
+Dve zamke, obe tihe (bez greške i bez upozorenja u logu):
+- **Samo `app.UseForwardedHeaders()` ne radi ništa:** podrazumevano je `ForwardedHeaders.None`.
+- **Proxy u drugom kontejneru se ne smatra pouzdanim:** podrazumevano se veruje samo loopback adresi (`127.0.0.1`), a proxy u Docker-u ima adresu u mreži kontejnera. Zaglavlja se tada ignorišu i šema ostaje `http`. Rešenje je `KnownProxies` (tačna adresa) ili `KnownIPNetworks` (opseg; u .NET 10 zamenjuje zastareli `KnownNetworks`).
+
+Zaglavljima se sme verovati samo kad je proxy jedini put do aplikacije. `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` uključuje middleware i veruje **svakom** pošiljaocu: zgodno u oblaku, ali bezbedno samo kad aplikaciji niko osim proxy-ja ne može da pristupi.
+
+### Bezbednosna zaglavlja
+
+| Zaglavlje | Šta radi |
+|---|---|
+| `Strict-Transport-Security` (HSTS) | browser N sekundi ide samo na HTTPS za ovaj domen (`UseHsts`; ne šalje se za `localhost`) |
+| `Content-Security-Policy` | odakle smeju skripte, stilovi i slike (jaka zaštita od XSS); `frame-ancestors 'none'` zabranjuje tuđi iframe |
+| `X-Frame-Options: DENY` | starije zaglavlje protiv clickjacking-a; ostaje radi starijih browsera |
+| `X-Content-Type-Options: nosniff` | browser ne pogađa tip fajla |
+
+### Keširanje statičkih fajlova
+
+Fajlovi sa hešom u imenu (`/assets/index-C0ffee42.js`) dobijaju `Cache-Control: max-age=31536000, immutable`; `index.html` se ne kešira (`no-cache`), da bi korisnik uvek dobio pokazivače na najnovije fajlove (pogl. 29).
+
+### Novi server, pre aplikacije
+
+- SSH samo ključem, bez lozinke i bez prijave kao root (`PasswordAuthentication no`, `PermitRootLogin no`), pogl. 32.
+- Firewall pušta samo 22, 80 i 443 (`ufw allow 22/tcp` ...); port baze nikad.
+- Automatska bezbednosna ažuriranja (`unattended-upgrades`).
+- Aplikacija kao korisnik bez root prava, tajne u `.env` sa pravima 600, ne u Git-u.
+- Backup baze van servera, uz **probu vraćanja**: backup koji nikad nije vraćen ne zna se da li radi.
+
+## Dublje
+
+**Docker zaobilazi `ufw`.** Port objavljen sa `ports: ["5432:5432"]` Docker otvara sopstvenim iptables pravilima, mimo `ufw`-a, pa je baza dostupna sa interneta iako `ufw status` kaže da je port zatvoren. Zato servisi koji ne treba da budu javni nemaju `ports` uopšte (dovoljna je Docker mreža), a kad port treba samo na serveru, objavljuje se na loopback: `"127.0.0.1:5433:5432"`. Na nivou provajdera (cloud firewall) dodaje se druga linija odbrane.
+
+**HSTS i preload.** HSTS važi tek posle prve HTTPS posete; prvi zahtev na `http://` još može da presretne napadač. Lista „HSTS preload” ugrađena u browsere to rešava, ali je teško vratiti domen sa nje, pa se dodaje tek kad su sve poddomene sigurno na HTTPS-u. `max-age` se uvodi postepeno (dan, nedelja, pa godina).
+
+**Zero-downtime deploy na jednom serveru.** `docker compose up -d` zameni kontejner, pa postoji kratak prekid. Bez prekida: dve instance iza proxy-ja i zamena jedne po jedne (proxy šalje saobraćaj samo zdravoj, uz health endpoint), ili blue-green sa dva compose projekta i prebacivanjem u proxy-ju. Za portfolio je kratak prekid prihvatljiv; važno je znati zašto nastaje.
+
+## Lab
+
+1. U compose dodaj Caddy ispred API-ja, sa `tls internal` za `localhost` (lokalni sertifikat), i otvori `https://localhost` (`curl -k`).
+2. Napravi endpoint koji vraća `Request.Scheme` i `RemoteIpAddress`. Pokaži tri slučaja: bez middleware-a, samo `UseForwardedHeaders()` i sa `KnownIPNetworks` za mrežu proxy-ja. Samo poslednji daje `https` i tvoju IP adresu.
+3. Dodaj bezbednosna zaglavlja u proxy (`header` u Caddyfile-u) i proveri ih sa `curl -I`.
+4. Na fajlu iz `assets/` proveri `Cache-Control` (`immutable`), a na `index.html` da se ne kešira.
+5. Ako imaš VPS: domen, Caddy, SSH samo ključem, `ufw` sa 22/80/443, pa proveri spolja da port baze nije dostupan (`nc -zv`).
+
+**Gotovo je kad:** aplikacija radi na HTTPS-u iza proxy-ja, zna da je zahtev bio HTTPS i ko je klijent, a spolja su otvoreni samo 22, 80 i 443.
+
 ## Pitanja sa intervjua
 
 **P: Kako radi HTTPS ukratko?**
 Server ima sertifikat koji je potpisao sertifikacioni autoritet (CA) kome pregledač veruje. U TLS rukovanju pregledač proveri sertifikat i ime domena, pa se strane dogovore o ključu sesije. Ostatak saobraćaja je šifrovan simetrično, pa niko između ne vidi ni ne menja sadržaj.
 
 **P: Šta je Let's Encrypt i kako se obnavlja sertifikat?**
-Besplatan CA koji izdaje sertifikate na 90 dana, uz automatsku proveru da kontrolišeš domen (ACME protokol). Caddy i certbot sertifikate traže i obnavljaju sami; bez automatizacije sertifikat istekne i sajt prestane da radi.
+Besplatan CA koji izdaje sertifikate na 90 dana (od februara 2027. 64, od februara 2028. 45 dana), uz automatsku proveru da kontrolišeš domen (ACME protokol). Caddy i certbot sertifikate traže i obnavljaju sami; bez automatizacije sertifikat istekne i sajt prestane da radi.
 
 **P: Šta podesiš na novom serveru pre nego što pustiš aplikaciju?**
 SSH samo ključem (bez lozinke i root prijave), firewall koji pušta samo 22, 80 i 443, automatska bezbednosna ažuriranja, korisnik bez root prava za aplikaciju, HTTPS sa preusmerenjem sa HTTP-a, i backup koji si probao da vratiš.
+
+**P: Aplikacija iza nginx-a u Docker-u i dalje vidi `http` iako je dodat `UseForwardedHeaders()`. Zašto?**
+Dva razloga, oba bez greške u logu. Prvo, podrazumevano je `ForwardedHeaders.None`, pa treba uključiti `XForwardedFor | XForwardedProto`. Drugo, veruje se samo loopback proxy-ju, a proxy u drugom kontejneru ima adresu u Docker mreži; treba je dodati u `KnownProxies` ili `KnownIPNetworks` (.NET 10).
+
+**P: Zašto port baze može biti dostupan sa interneta iako ga `ufw` blokira?**
+Docker objavljene portove (`ports:`) otvara sopstvenim iptables pravilima, mimo `ufw`-a. Zato baza u produkciji nema `ports`, a kad port treba samo lokalno, objavljuje se na `127.0.0.1:5433:5432`.
+
+**P: Šta je TLS terminacija i šta aplikacija posle nje mora da zna?**
+Proxy dešifruje HTTPS i aplikaciji prosleđuje običan HTTP u privatnoj mreži. Aplikacija zato preko forwarded headers saznaje originalnu šemu i IP adresu klijenta, inače pravi pogrešne redirect-e, cookie bez `Secure` i loguje adresu proxy-ja.
 
 ## Test
 
@@ -639,7 +951,7 @@ SSH samo ključem (bez lozinke i root prijave), firewall koji pušta samo 22, 80
 - [ ] 1 godinu
 - [x] 90 dana, uz automatsku obnovu
 - [ ] Dok se ne restartuje server
-> Kratko trajanje tera automatizaciju. Caddy i certbot obnavljaju sertifikat pre isteka.
+> Kratko trajanje tera automatizaciju; Let's Encrypt ga dalje skraćuje (64 dana od februara 2027, 45 od februara 2028). Caddy i certbot obnavljaju sertifikat pre isteka.
 
 ### 2. Koje portove firewall tipično pušta na web serveru?
 - [ ] Sve
@@ -667,7 +979,16 @@ SSH samo ključem (bez lozinke i root prijave), firewall koji pušta samo 22, 80
 - [x] Na reverse proxy-ju (nginx, Caddy), a do aplikacije ide HTTP unutar privatne mreže
 - [ ] U pregledaču
 - [ ] U DNS-u
-> To je TLS termination. Aplikacija tada treba ForwardedHeaders middleware da zna da je originalni zahtev bio HTTPS.
+> To je TLS terminacija. Aplikacija tada treba forwarded headers middleware sa uključenim `XForwardedProto` i proxy-jem u `KnownProxies`/`KnownIPNetworks`, da zna da je originalni zahtev bio HTTPS.
+
+## Izvori
+- [Configure ASP.NET Core to work with proxy servers and load balancers (Microsoft Learn)](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer)
+- [ForwardedHeadersOptions (Microsoft Learn)](https://learn.microsoft.com/dotnet/api/microsoft.aspnetcore.builder.forwardedheadersoptions)
+- [Automatic HTTPS (Caddy)](https://caddyserver.com/docs/automatic-https)
+- [Packet filtering and firewalls: Docker and ufw (Docker Docs)](https://docs.docker.com/engine/network/packet-filtering-firewalls/)
+- [Strict-Transport-Security (MDN)](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Strict-Transport-Security)
+- [CSP: frame-ancestors (MDN)](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/frame-ancestors)
+- [Decreasing Certificate Lifetimes to 45 Days (Let's Encrypt)](https://letsencrypt.org/2025/12/02/from-90-to-45)
 =====
 ---
 id: 38

@@ -159,7 +159,11 @@ provereno u najnovijim zvaničnim izvorima; greške nađene usput ispravljaju se
 - ✅ Deo IV: 32–34 (paket 1.2.12; skripta, Git scenariji i TLS 1.3 preko openssl pokrenuti; u vodiču pogl. 33: TLS 1.3
   redosled rukovanja (razmena ključeva pre sertifikata) i kraći sertifikati: 200 dana od 15. 3. 2026., Let's Encrypt 64/45 dana.
   Pazi: red koji je tačno `=======` (oznaka konflikta) u vodic-*.md cepa blok, jer je separator `=====`.)
-- ⬜ Deo IV: 35–37 · 38, 39 · 40, 41
+- ✅ Deo IV: 35–37 (paket 1.2.13; Dockerfile, compose i Caddy ispred API-ja pokrenuti; u vodiču: Dockerfile pogl. 35 se nije gradio
+  (komentar u redu sa `COPY`/`USER` je argument), compose pogl. 36 bez `POSTGRES_USER`/`POSTGRES_DB` (prijava `lib` pada),
+  `expose` je samo dokumentacija, postgres:19 (izašao 19. 11. 2026); pogl. 37: sam `UseForwardedHeaders()` ne radi
+  (podrazumevano `None` i veruje se samo loopback-u; .NET 10 `KnownIPNetworks`). Zalihe su ispravne.)
+- ⬜ Deo IV: 38, 39 · 40, 41
 - ⬜ Deo V i VI: 42, 43 · 44–47 · 48, 49
 - ⬜ `vodic-1-osnove-backend.md` … `vodic-5-intervju.md` (pitanja i kartice)
 - ⬜ dopune: uporediti sadržaj sa onim što se traži od full stack .NET inženjera i predložiti nova poglavlja
